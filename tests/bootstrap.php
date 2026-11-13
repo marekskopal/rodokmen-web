@@ -18,7 +18,8 @@ $testEnv = [
 	'SITE_SEARCH_HINT' => '',
 	// Logs of the suite go to a temporary folder, never into log/ of the checkout.
 	'SITE_LOG_DIR' => sys_get_temp_dir() . '/rodokmen-test-log-' . getmypid(),
-	'SITE_LOG_LEVEL' => 'notice',
+	'SITE_LOG_LEVEL' => 'production',
+	'SITE_LOG_STDERR' => '0',
 ];
 foreach ($testEnv as $name => $value) {
 	putenv($name . '=' . $value);

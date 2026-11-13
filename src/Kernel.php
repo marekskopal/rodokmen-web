@@ -19,7 +19,7 @@ use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Http\AuthMiddleware;
 use Rodokmen\Site\Http\SecurityHeaders;
-use Rodokmen\Site\Logger\FileLogger;
+use Rodokmen\Site\Logger\Logger;
 use Rodokmen\Site\View\View;
 use Throwable;
 
@@ -32,13 +32,14 @@ final readonly class Kernel
 	{
 	}
 
-	public static function create(string $rootDir): self
+	/** @param bool $handleErrors let Tracy handle PHP errors (public/index.php; not in tests) */
+	public static function create(string $rootDir, bool $handleErrors = false): self
 	{
 		$config = Config::fromEnvironment($rootDir);
 		$container = new Container();
 		$container->set(Config::class, $config);
 		$container->set(Container::class, $container);
-		$container->set(LoggerInterface::class, new FileLogger($config->logDir, $config->logLevel));
+		$container->set(LoggerInterface::class, Logger::initLogger($config->logDir, $config->logDebug, $config->logStderr, $handleErrors));
 
 		return new self($container);
 	}

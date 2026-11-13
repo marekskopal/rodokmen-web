@@ -13,6 +13,6 @@ services:
       # Data (var/data, releases of the sync API) and cache. Upload the data with bin/rodokmen-sync,
       # either to the API (SITE_SYNC_TOKEN) or with rsync into ./var/data – no restart is needed.
       - ./var:/var/www/site/var
-      # Logs: app.log (application, SITE_LOG_LEVEL) and php-error.log (PHP errors). Apache's own logs
-      # stay in the container log (docker compose logs).
+      # Logs: Tracy's error.log, warning.log, info.log and exception reports, php-error.log for errors
+      # before Tracy starts. Apache's own logs and a copy of every record are in docker compose logs.
       - ./log:/var/www/site/log

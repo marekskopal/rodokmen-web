@@ -72,7 +72,7 @@ final readonly class SyncController
 		return $this->guarded($request, function () use ($request): JsonResponse {
 			$manifest = Manifest::fromJson((string) $request->getBody());
 			$release = $this->store->commit($manifest);
-			$this->logger->notice('Data published', ['release' => $release, 'files' => count($manifest->files)]);
+			$this->logger->info('Data published', ['release' => $release, 'files' => count($manifest->files)]);
 
 			return new JsonResponse(['release' => $release, 'files' => count($manifest->files)]);
 		});

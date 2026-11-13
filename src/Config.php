@@ -26,10 +26,12 @@ final readonly class Config
 		public string $syncToken = '',
 		/** Example shown in the search field, e.g. "Např. Novák, Lomnice, tesař…". */
 		public string $searchHint = '',
-		/** Folder of log/app.log (SITE_LOG_DIR). */
+		/** Folder of the Tracy log files (SITE_LOG_DIR). */
 		public string $logDir = '',
-		/** Minimum PSR-3 level written to the log (SITE_LOG_LEVEL: debug, info, notice, warning, error). */
-		public string $logLevel = 'notice',
+		/** SITE_LOG_LEVEL=debug also writes debug records. */
+		public bool $logDebug = false,
+		/** Copy every record to stderr (SITE_LOG_STDERR, default on) – Apache's error log, the container log in Docker. */
+		public bool $logStderr = true,
 	) {
 	}
 
@@ -59,7 +61,8 @@ final readonly class Config
 			syncToken: $get('SITE_SYNC_TOKEN'),
 			searchHint: $get('SITE_SEARCH_HINT'),
 			logDir: rtrim($get('SITE_LOG_DIR', $rootDir . '/log'), '/'),
-			logLevel: strtolower($get('SITE_LOG_LEVEL', 'notice')),
+			logDebug: $get('SITE_LOG_LEVEL', 'production') === 'debug',
+			logStderr: $get('SITE_LOG_STDERR', '1') !== '0',
 		);
 	}
 

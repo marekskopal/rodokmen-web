@@ -40,5 +40,5 @@ ENV SITE_TRUST_PROXY=1
 EXPOSE 80
 
 # var/ and log/ are usually bind mounts owned by the host user: let Apache write into them
-# (data releases, uploads, cache; log/app.log of the application and log/php-error.log of PHP).
+# (data releases, uploads, cache; Tracy's logs and php-error.log).
 CMD ["sh", "-c", "mkdir -p var/cache log && chown www-data:www-data var var/cache log && exec apache2-foreground"]

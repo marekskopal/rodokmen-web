@@ -34,7 +34,7 @@ final class KernelTest extends TestCase
 
 	protected function tearDown(): void
 	{
-		@unlink((string) getenv('SITE_LOG_DIR') . '/app.log');
+		Fixture::removeDir((string) getenv('SITE_LOG_DIR'));
 		putenv('SITE_DATA_DIR');
 		putenv('SITE_CACHE_DIR');
 		Fixture::removeDir($this->dir);
@@ -69,7 +69,7 @@ final class KernelTest extends TestCase
 
 		self::assertSame(503, $response->getStatusCode());
 		self::assertStringContainsString('Chybí data rodokmenu', (string) $response->getBody());
-		self::assertStringContainsString('ERROR: Data not found', $this->appLog());
+		self::assertStringContainsString('RuntimeException: Data not found', $this->appLog('error'));
 	}
 
 	public function testBrokenDataStillGivesAnErrorPage(): void
@@ -80,14 +80,15 @@ final class KernelTest extends TestCase
 
 		self::assertSame(500, $response->getStatusCode());
 		self::assertStringContainsString('Něco se pokazilo', (string) $response->getBody());
-		self::assertStringContainsString('CRITICAL: Cannot render the error page', $this->appLog());
+		self::assertStringContainsString('Cannot render the error page', $this->appLog('critical'));
 	}
 
 	public function testWrongPasswordIsLogged(): void
 	{
 		$this->post('/prihlaseni', ['heslo' => 'spatne']);
 
-		self::assertStringContainsString('WARNING: Wrong password {"ip":"127.0.0.1"}', $this->appLog());
+		self::assertStringContainsString('Wrong password', $this->appLog('warning'));
+		self::assertStringContainsString('127.0.0.1', $this->appLog('warning'));
 	}
 
 	/** @param list<string> $expected */
@@ -204,9 +205,9 @@ final class KernelTest extends TestCase
 		);
 	}
 
-	private function appLog(): string
+	private function appLog(string $level): string
 	{
-		return (string) @file_get_contents((string) getenv('SITE_LOG_DIR') . '/app.log');
+		return (string) @file_get_contents((string) getenv('SITE_LOG_DIR') . '/' . $level . '.log');
 	}
 
 	private function get(string $uri, bool $loggedIn = false): ResponseInterface
