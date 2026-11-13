@@ -149,7 +149,7 @@ class FakeSite:
                 return self.rfile.read(int(self.headers.get("Content-Length", 0)))
 
             def authorized(self):
-                if self.headers.get("Authorization") != f"Bearer {site.token}":
+                if self.headers.get("X-Sync-Token") != site.token:
                     self.reply(401, {"error": "Invalid token"})
                     return False
                 return True

@@ -234,6 +234,8 @@ class Api:
     def request(self, method, path, body, content_type):
         request = urllib.request.Request(self.base + path, data=body, method=method, headers={
             "Authorization": f"Bearer {self.token}",
+            # Some servers (Apache + PHP-FPM) drop the Authorization header before PHP sees it.
+            "X-Sync-Token": self.token,
             "Content-Type": content_type,
             "Accept": "application/json",
             "User-Agent": f"rodokmen-sync/{VERSION}",

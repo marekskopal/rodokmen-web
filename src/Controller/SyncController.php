@@ -29,6 +29,8 @@ use function preg_match;
  */
 final readonly class SyncController
 {
+	public const TokenHeader = 'X-Sync-Token';
+
 	public function __construct(
 		private Config $config,
 		private DataStore $store,
@@ -90,8 +92,8 @@ final readonly class SyncController
 			return (new JsonResponse(['error' => 'Too many failed attempts'], 429))->withHeader('Retry-After', (string) $wait);
 		}
 
-		$header = $request->getHeaderLine('Authorization');
-		if (preg_match('/^Bearer\s+(\S+)$/', $header, $m) !== 1 || !hash_equals($this->config->syncToken, $m[1])) {
+		$token = $this->token($request);
+		if ($token === null || !hash_equals($this->config->syncToken, $token)) {
 			$this->throttle->registerFailure($request);
 			$this->logger->warning('Sync API: invalid token', ['ip' => $this->throttle->clientIp($request)]);
 
@@ -109,5 +111,20 @@ final readonly class SyncController
 
 			return new JsonResponse(['error' => $e->getMessage(), 'details' => $e->details], $e->status);
 		}
+	}
+
+	/**
+	 * Token from "Authorization: Bearer …", or from X-Sync-Token on servers that do not pass the Authorization
+	 * header to PHP (Apache with PHP-FPM without the rewrite rule in public/.htaccess).
+	 */
+	private function token(ServerRequestInterface $request): ?string
+	{
+		if (preg_match('/^Bearer\s+(\S+)$/', $request->getHeaderLine('Authorization'), $m) === 1) {
+			return $m[1];
+		}
+
+		$token = $request->getHeaderLine(self::TokenHeader);
+
+		return $token !== '' ? $token : null;
 	}
 }

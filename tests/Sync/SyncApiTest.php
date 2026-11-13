@@ -64,6 +64,23 @@ final class SyncApiTest extends TestCase
 		self::assertSame(429, $this->send('POST', '/api/sync/plan', '{}', 'sync-token')->getStatusCode());
 	}
 
+	public function testAcceptsTokenHeaderWhenAuthorizationIsDropped(): void
+	{
+		$request = new ServerRequest(['REMOTE_ADDR' => '127.0.0.1'], [], 'http://localhost/api/sync/plan', 'POST')
+			->withBody((new StreamFactory())->createStream(ManifestTest::json(['site.json' => 'x'])))
+			->withHeader('X-Sync-Token', 'sync-token');
+
+		self::assertSame(200, Kernel::create(dirname(__DIR__, 2))->handle($request)->getStatusCode());
+	}
+
+	public function testRejectsWrongTokenHeader(): void
+	{
+		$request = new ServerRequest(['REMOTE_ADDR' => '127.0.0.1'], [], 'http://localhost/api/sync/plan', 'POST')
+			->withHeader('X-Sync-Token', 'wrong');
+
+		self::assertSame(401, Kernel::create(dirname(__DIR__, 2))->handle($request)->getStatusCode());
+	}
+
 	public function testRejectsInvalidManifest(): void
 	{
 		$response = $this->send('POST', '/api/sync/plan', '{"format": 1, "files": {"../x.php": {}}}', 'sync-token');
