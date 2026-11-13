@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<ruleset name="Rodokmen site"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/squizlabs/php_codesniffer/phpcs.xsd">
+    <file>src/</file>
+    <file>tests/</file>
+    <file>bin/</file>
+    <rule ref="ruleset.xml"/>
+</ruleset>

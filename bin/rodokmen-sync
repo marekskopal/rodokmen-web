@@ -1,0 +1,338 @@
+#!/usr/bin/env python3
+"""rodokmen-sync – export a rodokmen project and publish its data on a rodokmen-web website.
+
+Run it in the folder of a family tree project made with the rodokmen skill (the one with data/ and tools/):
+
+    python3 /path/to/rodokmen-web/bin/rodokmen-sync                  # target from rodokmen-web.env
+    python3 rodokmen-sync --target https://rodokmen.example.org      # upload over the website's API
+    python3 rodokmen-sync --target user@server:/srv/rodokmen/var/data  # copy over SSH (rsync)
+    python3 rodokmen-sync --target ../rodokmen-web/var/data          # copy into a local folder
+
+Steps: runs the skill's exporter (tools/export_web.py), collects its output into a data bundle
+(site.json, notes, crops and full scans) described by manifest.json, and sends only the files that changed.
+
+Settings can live in rodokmen-web.env in the project folder (keep it out of git – it holds the token):
+
+    RODOKMEN_WEB_TARGET=https://rodokmen.example.org
+    RODOKMEN_WEB_TOKEN=<the website's SITE_SYNC_TOKEN>
+
+Environment variables of the same names override the file, command-line options override both.
+Only the Python standard library is needed (Python 3.9+); the SSH target also needs rsync and ssh.
+"""
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+VERSION = "1.0.0"
+FORMAT = 1
+CONFIG_FILE = "rodokmen-web.env"
+MANIFEST = "manifest.json"
+PATH_RE = re.compile(r"^(site\.json|md/[a-z0-9_-]+\.md|(img|full)/[a-z0-9_-]+\.jpg)$")
+NOTES = ("zajimavosti", "pribeh", "denik", "dotazy")
+# Where the skill's exporter writes its output inside the project.
+SOURCES = {
+    "site.json": "web/src/data/site.json",
+    "md": "web/src/generated",
+    "img": "web/public/img",
+    "full": "web/public/zdroje",
+}
+CHUNK = 1 << 20
+
+
+class SyncError(Exception):
+    """A failure to report to the user without a traceback."""
+
+
+def log(message):
+    print(message, flush=True)
+
+
+# --- configuration -------------------------------------------------------------------------------------------
+
+def read_env_file(path):
+    """KEY=VALUE lines; # comments and surrounding quotes are ignored."""
+    values = {}
+    if not path.is_file():
+        return values
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = (part.strip() for part in line.split("=", 1))
+        values[key] = value.strip("\"'")
+    return values
+
+
+def load_config(project, environ, target=None, token=None):
+    values = read_env_file(project / CONFIG_FILE)
+    for key in ("RODOKMEN_WEB_TARGET", "RODOKMEN_WEB_TOKEN"):
+        if environ.get(key):
+            values[key] = environ[key]
+    if target:
+        values["RODOKMEN_WEB_TARGET"] = target
+    if token:
+        values["RODOKMEN_WEB_TOKEN"] = token
+    return values
+
+
+# --- bundle ----------------------------------------------------------------------------------------------------
+
+def export(project):
+    exporter = project / "tools" / "export_web.py"
+    if not exporter.is_file():
+        raise SyncError(f"{exporter} not found – run rodokmen-sync in a rodokmen project folder (or use --project)")
+    log("Exporting the data (tools/export_web.py)…")
+    result = subprocess.run([sys.executable, "-I", "-X", "utf8", str(exporter)], cwd=str(project))
+    if result.returncode != 0:
+        raise SyncError("The exporter failed – fix the reported problem and run rodokmen-sync again")
+
+
+def collect(project):
+    """Files of the bundle: {published path: source file}."""
+    files = {}
+    site_json = project / SOURCES["site.json"]
+    if not site_json.is_file():
+        raise SyncError(f"{site_json} not found – the export did not run (try without --no-export)")
+    files["site.json"] = site_json
+    for note in NOTES:
+        source = project / SOURCES["md"] / f"{note}.md"
+        if source.is_file():
+            files[f"md/{note}.md"] = source
+    for folder in ("img", "full"):
+        directory = project / SOURCES[folder]
+        for source in sorted(directory.iterdir()) if directory.is_dir() else []:
+            path = f"{folder}/{source.name}"
+            if source.is_file() and PATH_RE.match(path):
+                files[path] = source
+            elif source.is_file() and not source.name.startswith("."):
+                log(f"Skipping {source} (only lower-case .jpg names are published)")
+    return files
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(CHUNK), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_manifest(files, now=None):
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return {
+        "format": FORMAT,
+        "generated": now.replace(microsecond=0).isoformat(),
+        "generator": f"rodokmen-sync {VERSION}",
+        "files": {path: {"sha256": sha256(source), "size": source.stat().st_size} for path, source in sorted(files.items())},
+    }
+
+
+def manifest_bytes(manifest):
+    return (json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+# --- targets ---------------------------------------------------------------------------------------------------
+
+def parse_target(target):
+    """('api', url) | ('ssh', rsync destination, port) | ('local', Path)."""
+    if not target:
+        raise SyncError(f"No target – pass --target or set RODOKMEN_WEB_TARGET in {CONFIG_FILE}")
+    if re.match(r"^https?://", target):
+        return ("api", target.rstrip("/"))
+    m = re.match(r"^ssh://([^/:]+)(?::(\d+))?(/.*)$", target)
+    if m:
+        return ("ssh", f"{m.group(1)}:{m.group(3)}", m.group(2))
+    # user@host:path or host:path – but not a Windows drive letter (C:\…)
+    if re.match(r"^[\w.-]+@[\w.-]+:", target) or re.match(r"^[\w.-]{2,}:[^\\]", target):
+        return ("ssh", target, None)
+    return ("local", Path(target).expanduser())
+
+
+def bundle_paths(directory):
+    """Published files present in a data directory (what a sync may replace or delete)."""
+    paths = []
+    for path in directory.rglob("*") if directory.is_dir() else []:
+        relative = path.relative_to(directory).as_posix()
+        if path.is_file() and PATH_RE.match(relative):
+            paths.append(relative)
+    return sorted(paths)
+
+
+def sync_local(files, manifest, destination, dry_run=False):
+    """Copies changed files into a local data directory; manifest.json is written last."""
+    copied, unchanged = [], 0
+    for path, info in manifest["files"].items():
+        target = destination / path
+        if target.is_file() and target.stat().st_size == info["size"] and sha256(target) == info["sha256"]:
+            unchanged += 1
+            continue
+        copied.append(path)
+        if not dry_run:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            tmp = target.with_name(f".{target.name}.tmp")
+            shutil.copyfile(files[path], tmp)
+            os.replace(tmp, target)
+    deleted = [path for path in bundle_paths(destination) if path not in manifest["files"]]
+    if not dry_run:
+        for path in deleted:
+            (destination / path).unlink()
+        (destination / MANIFEST).write_bytes(manifest_bytes(manifest))
+    return {"copied": copied, "deleted": deleted, "unchanged": unchanged}
+
+
+def stage(files, manifest, directory):
+    """Bundle as a folder (hard links where possible) – the source of the rsync transfer."""
+    for path, source in files.items():
+        target = directory / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.link(source, target)
+        except OSError:
+            shutil.copy2(source, target)
+    (directory / MANIFEST).write_bytes(manifest_bytes(manifest))
+
+
+def rsync_command(source, destination, port=None, dry_run=False):
+    command = ["rsync", "-rt", "--delete", "--delay-updates", "--chmod=D755,F644", "--itemize-changes"]
+    if dry_run:
+        command.append("--dry-run")
+    if port:
+        command += ["-e", f"ssh -p {port}"]
+    return command + [f"{source}/", destination.rstrip("/") + "/"]
+
+
+def sync_ssh(files, manifest, destination, port=None, dry_run=False):
+    if shutil.which("rsync") is None:
+        raise SyncError("rsync is not installed – install it, or use the website's API as the target (https://…)")
+    with tempfile.TemporaryDirectory(prefix="rodokmen-sync-") as tmp:
+        stage(files, manifest, Path(tmp))
+        log(f"Copying to {destination} (rsync)…")
+        if subprocess.run(rsync_command(tmp, destination, port, dry_run)).returncode != 0:
+            raise SyncError("rsync failed – check the SSH access and the target folder")
+
+
+class Api:
+    """Client of the website's sync API (/api/sync/*)."""
+
+    def __init__(self, base, token, opener=None):
+        if not token:
+            raise SyncError(f"No token – set RODOKMEN_WEB_TOKEN in {CONFIG_FILE} (the website's SITE_SYNC_TOKEN)")
+        self.base = base
+        self.token = token
+        self.opener = opener or urllib.request.build_opener()
+
+    def request(self, method, path, body, content_type):
+        request = urllib.request.Request(self.base + path, data=body, method=method, headers={
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": content_type,
+            "Accept": "application/json",
+            "User-Agent": f"rodokmen-sync/{VERSION}",
+        })
+        try:
+            with self.opener.open(request, timeout=300) as response:
+                return json.loads(response.read().decode("utf-8") or "{}")
+        except urllib.error.HTTPError as e:
+            with e:
+                message = self.error_message(e)
+            raise SyncError(f"{method} {path}: HTTP {e.code} – {message}") from None
+        except urllib.error.URLError as e:
+            raise SyncError(f"Cannot reach {self.base}: {e.reason}") from None
+
+    @staticmethod
+    def error_message(error):
+        try:
+            data = json.loads(error.read().decode("utf-8"))
+            return data.get("error", "") if isinstance(data, dict) else ""
+        except (ValueError, OSError):
+            return error.reason
+
+    def plan(self, manifest):
+        return self.request("POST", "/api/sync/plan", manifest_bytes(manifest), "application/json")
+
+    def upload(self, sha, source):
+        return self.request("PUT", f"/api/sync/file/{sha}", source.read_bytes(), "application/octet-stream")
+
+    def commit(self, manifest):
+        return self.request("POST", "/api/sync/commit", manifest_bytes(manifest), "application/json")
+
+
+def sync_api(files, manifest, api, dry_run=False):
+    plan = api.plan(manifest)
+    missing = plan.get("missing", [])
+    sources = {info["sha256"]: files[path] for path, info in manifest["files"].items()}
+    if plan.get("current"):
+        log("The website already shows this data – nothing to do")
+        return {"uploaded": 0}
+    log(f"{len(manifest['files'])} files, {len(missing)} to upload")
+    if dry_run:
+        return {"uploaded": 0, "missing": len(missing)}
+    for number, sha in enumerate(missing, 1):
+        source = sources.get(sha)
+        if source is None:
+            raise SyncError(f"The server asked for an unknown file {sha}")
+        log(f"  [{number}/{len(missing)}] {source.name}")
+        api.upload(sha, source)
+    result = api.commit(manifest)
+    return {"uploaded": len(missing), "release": result.get("release", "")}
+
+
+# --- main ------------------------------------------------------------------------------------------------------
+
+def run(args, environ):
+    project = Path(args.project).expanduser().resolve()
+    config = load_config(project, environ, args.target, args.token)
+    target = parse_target(config.get("RODOKMEN_WEB_TARGET", ""))
+    if not args.no_export:
+        export(project)
+    files = collect(project)
+    manifest = build_manifest(files)
+    log(f"Bundle: {len(files)} files")
+
+    kind = target[0]
+    if kind == "api":
+        result = sync_api(files, manifest, Api(target[1], config.get("RODOKMEN_WEB_TOKEN", "")), args.dry_run)
+        done = "would upload" if args.dry_run else "uploaded"
+        log(f"Done: {done} {result.get('uploaded', result.get('missing', 0))} files" +
+            (f", release {result['release']}" if result.get("release") else ""))
+    elif kind == "ssh":
+        sync_ssh(files, manifest, target[1], target[2], args.dry_run)
+        log("Done.")
+    else:
+        result = sync_local(files, manifest, target[1], args.dry_run)
+        verb = "would copy" if args.dry_run else "copied"
+        log(f"Done: {verb} {len(result['copied'])}, deleted {len(result['deleted'])}, unchanged {result['unchanged']}")
+
+
+def main(argv=None, environ=None):
+    parser = argparse.ArgumentParser(prog="rodokmen-sync", description=__doc__.split("\n\n")[0],
+                                     formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
+    parser.add_argument("-p", "--project", default=".", help="rodokmen project folder (default: current folder)")
+    parser.add_argument("-t", "--target", help="https://site, user@host:/path/var/data, ssh://user@host:port/path or a local folder")
+    parser.add_argument("--token", help="API token (better kept in rodokmen-web.env – a command line is visible to other users)")
+    parser.add_argument("--no-export", action="store_true", help="publish the last export without running the exporter")
+    parser.add_argument("-n", "--dry-run", action="store_true", help="only show what would be sent")
+    parser.add_argument("--version", action="version", version=f"rodokmen-sync {VERSION} (bundle format {FORMAT})")
+    args = parser.parse_args(argv)
+    try:
+        run(args, os.environ if environ is None else environ)
+    except SyncError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    for stream in (sys.stdout, sys.stderr):  # UTF-8 output on Windows too
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    sys.exit(main())

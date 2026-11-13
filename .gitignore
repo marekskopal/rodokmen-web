@@ -1,0 +1,8 @@
+/vendor/
+/var/
+/.env
+/.phpstan/
+/.phpunit.cache/
+__pycache__/
+.DS_Store
+.idea/

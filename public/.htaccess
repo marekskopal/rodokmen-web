@@ -1,0 +1,27 @@
+Options -Indexes
+
+# Never serve dotfiles (.env, .git, …) even if they end up in the web root by mistake.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Static assets are served directly, everything else goes through the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Pages get their headers from PHP (src/Http/SecurityHeaders.php); these cover static assets too.
+    Header always set X-Robots-Tag "noindex, nofollow"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
+    Header always unset X-Powered-By
+    <FilesMatch "\.(css|js|svg|woff2?)$">
+        Header set Cache-Control "public, max-age=604800"
+    </FilesMatch>
+</IfModule>

@@ -1,0 +1,7 @@
+vendor
+var/cache
+var/*.png
+var/*.txt
+var/*.log
+var/*.sh
+.env

@@ -1,0 +1,15 @@
+services:
+  rodokmen:
+    build: .
+    image: rodokmen-site:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SITE_TRUST_PROXY: "1"
+    ports:
+      # Behind a reverse proxy (TLS terminated there); change the host port as needed.
+      - "127.0.0.1:8080:80"
+    volumes:
+      # Data (var/data, releases of the sync API) and cache. Upload the data with bin/rodokmen-sync,
+      # either to the API (SITE_SYNC_TOKEN) or with rsync into ./var/data – no restart is needed.
+      - ./var:/var/www/site/var
