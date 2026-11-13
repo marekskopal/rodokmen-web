@@ -11,6 +11,7 @@ use Rodokmen\Site\Config;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Stringable;
+use Throwable;
 use const ENT_QUOTES;
 use const ENT_SUBSTITUTE;
 use const EXTR_SKIP;
@@ -47,7 +48,15 @@ final class View
 		return (static function (string $__file, array $__params): string {
 			extract($__params, EXTR_SKIP);
 			ob_start();
-			require $__file;
+
+			try {
+				require $__file;
+			} catch (Throwable $e) {
+				// Drop the half-rendered output, otherwise it would leak before the error page.
+				ob_end_clean();
+
+				throw $e;
+			}
 
 			return (string) ob_get_clean();
 		})($file, $params);

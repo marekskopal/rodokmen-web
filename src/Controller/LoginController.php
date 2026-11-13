@@ -9,13 +9,14 @@ use MarekSkopal\Router\Attribute\RouteGet;
 use MarekSkopal\Router\Attribute\RoutePost;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\View\View;
 
 final readonly class LoginController
 {
-	public function __construct(private Auth $auth, private LoginThrottle $throttle, private View $view)
+	public function __construct(private Auth $auth, private LoginThrottle $throttle, private View $view, private LoggerInterface $logger)
 	{
 	}
 
@@ -36,12 +37,15 @@ final readonly class LoginController
 
 		$wait = $this->throttle->retryAfter($request);
 		if ($wait > 0) {
+			$this->logger->warning('Login throttled', ['ip' => $this->throttle->clientIp($request)]);
+
 			return $this->showForm($request, 'Příliš mnoho pokusů. Zkuste to znovu za ' . (int) ceil($wait / 60) . ' min.', 429)
 				->withHeader('Retry-After', (string) $wait);
 		}
 
 		if (!$this->auth->verifyPassword(self::bodyField($request, 'heslo') ?? '')) {
 			$this->throttle->registerFailure($request);
+			$this->logger->warning('Wrong password', ['ip' => $this->throttle->clientIp($request)]);
 			usleep(400000);
 
 			return $this->showForm($request, 'Heslo nesouhlasí.', 401);

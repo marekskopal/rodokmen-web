@@ -9,6 +9,7 @@ use MarekSkopal\Router\Attribute\RoutePost;
 use MarekSkopal\Router\Attribute\RoutePut;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Sync\DataStore;
@@ -28,8 +29,12 @@ use function preg_match;
  */
 final readonly class SyncController
 {
-	public function __construct(private Config $config, private DataStore $store, private LoginThrottle $throttle)
-	{
+	public function __construct(
+		private Config $config,
+		private DataStore $store,
+		private LoginThrottle $throttle,
+		private LoggerInterface $logger,
+	) {
 	}
 
 	#[RoutePost('/api/sync/plan')]
@@ -67,6 +72,7 @@ final readonly class SyncController
 		return $this->guarded($request, function () use ($request): JsonResponse {
 			$manifest = Manifest::fromJson((string) $request->getBody());
 			$release = $this->store->commit($manifest);
+			$this->logger->notice('Data published', ['release' => $release, 'files' => count($manifest->files)]);
 
 			return new JsonResponse(['release' => $release, 'files' => count($manifest->files)]);
 		});
@@ -87,6 +93,7 @@ final readonly class SyncController
 		$header = $request->getHeaderLine('Authorization');
 		if (preg_match('/^Bearer\s+(\S+)$/', $header, $m) !== 1 || !hash_equals($this->config->syncToken, $m[1])) {
 			$this->throttle->registerFailure($request);
+			$this->logger->warning('Sync API: invalid token', ['ip' => $this->throttle->clientIp($request)]);
 
 			return new JsonResponse(['error' => 'Invalid token'], 401);
 		}
@@ -94,8 +101,12 @@ final readonly class SyncController
 		try {
 			return $action();
 		} catch (InvalidManifestException $e) {
+			$this->logger->warning('Sync API: ' . $e->getMessage());
+
 			return new JsonResponse(['error' => $e->getMessage()], 400);
 		} catch (SyncException $e) {
+			$this->logger->warning('Sync API: ' . $e->getMessage(), ['status' => $e->status]);
+
 			return new JsonResponse(['error' => $e->getMessage(), 'details' => $e->details], $e->status);
 		}
 	}

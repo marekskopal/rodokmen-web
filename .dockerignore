@@ -5,3 +5,4 @@ var/*.txt
 var/*.log
 var/*.sh
 .env
+log

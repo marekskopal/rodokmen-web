@@ -26,6 +26,10 @@ final readonly class Config
 		public string $syncToken = '',
 		/** Example shown in the search field, e.g. "Např. Novák, Lomnice, tesař…". */
 		public string $searchHint = '',
+		/** Folder of log/app.log (SITE_LOG_DIR). */
+		public string $logDir = '',
+		/** Minimum PSR-3 level written to the log (SITE_LOG_LEVEL: debug, info, notice, warning, error). */
+		public string $logLevel = 'notice',
 	) {
 	}
 
@@ -54,6 +58,8 @@ final readonly class Config
 			forceHttps: $get('SITE_FORCE_HTTPS', '1') !== '0',
 			syncToken: $get('SITE_SYNC_TOKEN'),
 			searchHint: $get('SITE_SEARCH_HINT'),
+			logDir: rtrim($get('SITE_LOG_DIR', $rootDir . '/log'), '/'),
+			logLevel: strtolower($get('SITE_LOG_LEVEL', 'notice')),
 		);
 	}
 

@@ -34,6 +34,7 @@ final class KernelTest extends TestCase
 
 	protected function tearDown(): void
 	{
+		@unlink((string) getenv('SITE_LOG_DIR') . '/app.log');
 		putenv('SITE_DATA_DIR');
 		putenv('SITE_CACHE_DIR');
 		Fixture::removeDir($this->dir);
@@ -58,6 +59,35 @@ final class KernelTest extends TestCase
 		yield 'questions' => ['/hledame', ['Kdo byla matka Josefa', 'Odkud byl Josef', 'Vyřešené otázky (1)']];
 		yield 'note' => ['/zajimavosti', ['Narozen na Boží hod']];
 		yield 'search' => ['/hledat?q=Praha', ['value="Praha"']];
+	}
+
+	public function testMissingDataIsLoggedAndReportedAs503(): void
+	{
+		Fixture::removeDir($this->dir);
+
+		$response = $this->get('/', loggedIn: true);
+
+		self::assertSame(503, $response->getStatusCode());
+		self::assertStringContainsString('Chybí data rodokmenu', (string) $response->getBody());
+		self::assertStringContainsString('ERROR: Data not found', $this->appLog());
+	}
+
+	public function testBrokenDataStillGivesAnErrorPage(): void
+	{
+		file_put_contents($this->dir . '/site.json', '{"broken": true}');
+
+		$response = $this->get('/', loggedIn: true);
+
+		self::assertSame(500, $response->getStatusCode());
+		self::assertStringContainsString('Něco se pokazilo', (string) $response->getBody());
+		self::assertStringContainsString('CRITICAL: Cannot render the error page', $this->appLog());
+	}
+
+	public function testWrongPasswordIsLogged(): void
+	{
+		$this->post('/prihlaseni', ['heslo' => 'spatne']);
+
+		self::assertStringContainsString('WARNING: Wrong password {"ip":"127.0.0.1"}', $this->appLog());
 	}
 
 	/** @param list<string> $expected */
@@ -174,16 +204,9 @@ final class KernelTest extends TestCase
 		);
 	}
 
-	public function testMissingDataShowsHelpfulError(): void
+	private function appLog(): string
 	{
-		unlink($this->dir . '/site.json');
-		$errorLog = ini_set('error_log', '/dev/null');
-
-		$response = $this->get('/', loggedIn: true);
-		ini_set('error_log', $errorLog === false ? '' : $errorLog);
-
-		self::assertSame(500, $response->getStatusCode());
-		self::assertStringContainsString('Chybí data rodokmenu', (string) $response->getBody());
+		return (string) @file_get_contents((string) getenv('SITE_LOG_DIR') . '/app.log');
 	}
 
 	private function get(string $uri, bool $loggedIn = false): ResponseInterface

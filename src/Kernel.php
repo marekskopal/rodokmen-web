@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site;
 
+use Laminas\Diactoros\Response\HtmlResponse;
 use Laminas\Diactoros\Response\RedirectResponse;
 use Laminas\Diactoros\ServerRequestFactory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -13,10 +14,12 @@ use League\Route\Strategy\ApplicationStrategy;
 use MarekSkopal\Router\Builder\RouterBuilder;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Http\AuthMiddleware;
 use Rodokmen\Site\Http\SecurityHeaders;
+use Rodokmen\Site\Logger\FileLogger;
 use Rodokmen\Site\View\View;
 use Throwable;
 
@@ -35,6 +38,7 @@ final readonly class Kernel
 		$container = new Container();
 		$container->set(Config::class, $config);
 		$container->set(Container::class, $container);
+		$container->set(LoggerInterface::class, new FileLogger($config->logDir, $config->logLevel));
 
 		return new self($container);
 	}
@@ -80,14 +84,36 @@ final readonly class Kernel
 				'message' => 'Tahle stránka neexistuje. Možná se změnila adresa osoby nebo zápisu.',
 			], 404);
 		} catch (Throwable $e) {
-			error_log((string) $e);
-
 			$repository = $this->container->service(Repository::class);
-			$message = $repository->isAvailable()
-				? 'Něco se pokazilo. Zkuste to prosím později.'
-				: 'Chybí data rodokmenu (site.json). Nahrajte je z projektu rodokmenu příkazem bin/rodokmen-sync.';
+			$available = $repository->isAvailable();
+			$this->logger()->error(
+				$e->getMessage(),
+				['exception' => $e, 'method' => $request->getMethod(), 'path' => $request->getUri()->getPath()],
+			);
 
-			return $this->container->service(View::class)->page('error', ['title' => 'Chyba', 'message' => $message], 500);
+			return $this->errorPage($available
+				? 'Něco se pokazilo. Zkuste to prosím později.'
+				: 'Chybí data rodokmenu (site.json). Nahrajte je z projektu rodokmenu příkazem bin/rodokmen-sync.', $available ? 500 : 503);
 		}
+	}
+
+	/** Error page; when even the layout cannot be rendered (broken data), a plain page without it. */
+	private function errorPage(string $message, int $status): ResponseInterface
+	{
+		try {
+			return $this->container->service(View::class)->page('error', ['title' => 'Chyba', 'message' => $message], $status);
+		} catch (Throwable $e) {
+			$this->logger()->critical('Cannot render the error page: ' . $e->getMessage(), ['exception' => $e]);
+
+			return new HtmlResponse(
+				'<!doctype html><html lang="cs"><meta charset="utf-8"><title>Chyba</title><p>' . htmlspecialchars($message) . '</p></html>',
+				$status,
+			);
+		}
+	}
+
+	private function logger(): LoggerInterface
+	{
+		return $this->container->service(LoggerInterface::class);
 	}
 }

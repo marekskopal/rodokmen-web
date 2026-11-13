@@ -92,7 +92,8 @@ docker compose up -d --build
 ```
 
 The data live in `./var` (mounted into the container), not in the image. Upload them with `rodokmen-sync` –
-no restart is needed. Updating the website: `git pull && docker compose up -d --build`.
+no restart is needed. Logs are in `./log` (`app.log`, `php-error.log`); Apache's access log is in
+`docker compose logs`. Updating the website: `git pull && docker compose up -d --build`.
 
 ### Apache without Docker
 
@@ -114,6 +115,8 @@ Environment variables, or `.env` in the project root:
 | `SITE_TRUST_PROXY` | `1` behind a reverse proxy (uses `X-Forwarded-For` / `X-Forwarded-Proto`). |
 | `SITE_LOGIN_DAYS` | How long a login stays valid (default 30). |
 | `SITE_FORCE_HTTPS` | `1` (default) redirects HTTP to HTTPS and sends HSTS; `0` only for a site without TLS. `localhost` is never redirected. |
+| `SITE_LOG_LEVEL` | Minimum level written to the log: `debug`, `info`, `notice` (default, includes data uploads), `warning` (failed logins), `error`. |
+| `SITE_LOG_DIR` | Log folder (default `log/`): `app.log` of the application (rotated at 10 MB) and, in Docker, `php-error.log`. Falls back to the web server's error log when not writable. |
 | `SITE_DATA_DIR`, `SITE_CACHE_DIR` | Data and cache folders (default `var/data`, `var/cache`). The upload API keeps its releases next to the data folder. |
 
 The site title, footer, contact and the texts come from the project's `data/web.json` and data, through the

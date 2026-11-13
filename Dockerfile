@@ -14,6 +14,9 @@ RUN a2enmod rewrite headers remoteip \
         echo 'opcache.memory_consumption=64'; \
         echo 'opcache.validate_timestamps=0'; \
         echo 'expose_php=0'; \
+        echo 'display_errors=Off'; \
+        echo 'log_errors=On'; \
+        echo 'error_log=/var/www/site/log/php-error.log'; \
     } > /usr/local/etc/php/conf.d/site.ini \
     && { \
         echo 'ServerTokens Prod'; \
@@ -31,10 +34,11 @@ COPY public ./public
 COPY src ./src
 COPY templates ./templates
 
-RUN mkdir -p var/cache && chown -R www-data:www-data var
+RUN mkdir -p var/cache log && chown -R www-data:www-data var log
 
 ENV SITE_TRUST_PROXY=1
 EXPOSE 80
 
-# var/ is usually a bind mount owned by the host user: let Apache write into it (releases, uploads, cache).
-CMD ["sh", "-c", "mkdir -p var/cache && chown www-data:www-data var var/cache && exec apache2-foreground"]
+# var/ and log/ are usually bind mounts owned by the host user: let Apache write into them
+# (data releases, uploads, cache; log/app.log of the application and log/php-error.log of PHP).
+CMD ["sh", "-c", "mkdir -p var/cache log && chown www-data:www-data var var/cache log && exec apache2-foreground"]
