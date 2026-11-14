@@ -6,16 +6,6 @@ namespace Rodokmen\Site\View;
 
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
-use function array_slice;
-use function array_sum;
-use function count;
-use function implode;
-use function intdiv;
-use function max;
-use function mb_strtoupper;
-use function min;
-use function sprintf;
-use function trim;
 
 /**
  * 360° ancestor fan chart as inline SVG: the person in the centre, every ring one generation older,

@@ -7,12 +7,6 @@ namespace Rodokmen\Site\Logger;
 use Psr\Log\LoggerInterface;
 use Tracy\Bridges\Psr\TracyToPsrLoggerAdapter;
 use Tracy\Debugger;
-use function error_reporting;
-use function ini_set;
-use function is_dir;
-use function is_writable;
-use function mb_internal_encoding;
-use function mkdir;
 use const E_ALL;
 
 /**

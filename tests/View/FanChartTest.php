@@ -14,7 +14,6 @@ use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\FanLabels;
 use Rodokmen\Site\View\FanYears;
 use Rodokmen\Site\View\View;
-use function substr_count;
 
 final class FanChartTest extends TestCase
 {

@@ -6,8 +6,6 @@ namespace Rodokmen\Site\Logger;
 
 use Throwable;
 use Tracy\Logger;
-use function file_put_contents;
-use function strstr;
 use const FILE_APPEND;
 use const PHP_EOL;
 

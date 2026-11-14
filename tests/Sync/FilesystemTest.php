@@ -9,12 +9,6 @@ use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Sync\Filesystem;
 use Rodokmen\Site\Sync\SyncException;
 use Rodokmen\Site\Tests\Support\Fixture;
-use function bin2hex;
-use function file_get_contents;
-use function hash;
-use function mkdir;
-use function random_bytes;
-use function sys_get_temp_dir;
 
 final class FilesystemTest extends TestCase
 {

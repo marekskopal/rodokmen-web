@@ -12,16 +12,6 @@ use Rodokmen\Site\Logger\TracyLogger;
 use Rodokmen\Site\Tests\Support\Fixture;
 use RuntimeException;
 use Stringable;
-use function bin2hex;
-use function file_get_contents;
-use function file_put_contents;
-use function glob;
-use function is_file;
-use function random_bytes;
-use function sys_get_temp_dir;
-use function tempnam;
-use function touch;
-use function unlink;
 
 final class LoggerTest extends TestCase
 {

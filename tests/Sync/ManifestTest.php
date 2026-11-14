@@ -8,8 +8,6 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Sync\InvalidManifestException;
 use Rodokmen\Site\Sync\Manifest;
-use function hash;
-use function json_encode;
 use const JSON_THROW_ON_ERROR;
 
 final class ManifestTest extends TestCase

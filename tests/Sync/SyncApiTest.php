@@ -10,11 +10,6 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Rodokmen\Site\Kernel;
 use Rodokmen\Site\Tests\Support\Fixture;
-use function dirname;
-use function file_get_contents;
-use function hash;
-use function json_decode;
-use function putenv;
 use const JSON_THROW_ON_ERROR;
 
 /**

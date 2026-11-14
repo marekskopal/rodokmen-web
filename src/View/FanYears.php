@@ -4,16 +4,6 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View;
 
-use function count;
-use function preg_match;
-use function preg_match_all;
-use function str_contains;
-use function str_starts_with;
-use function strlen;
-use function strpos;
-use function substr;
-use function trim;
-
 /**
  * Short lifespan for the fan chart: "1746 – 1801" → "1746–1801", "? – před 1785" → "† před 1785",
  * "? – po 1849" → "žil 1849", "* 1931" → "* 1931", "1774 – ?" → "1774–?".

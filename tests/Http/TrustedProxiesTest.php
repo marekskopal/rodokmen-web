@@ -10,7 +10,6 @@ use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Http\TrustedProxies;
 use Rodokmen\Site\Tests\Support\Fixture;
-use function sys_get_temp_dir;
 
 final class TrustedProxiesTest extends TestCase
 {

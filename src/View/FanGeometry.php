@@ -4,14 +4,6 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View;
 
-use function cos;
-use function deg2rad;
-use function max;
-use function mb_strlen;
-use function min;
-use function sin;
-use function sprintf;
-
 /**
  * Geometry of the fan chart. The centre is at 0,0; angles are degrees clockwise from the top.
  */

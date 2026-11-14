@@ -8,11 +8,6 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use Stringable;
 use Throwable;
-use function date;
-use function file_put_contents;
-use function implode;
-use function is_string;
-use function strtoupper;
 use const FILE_APPEND;
 use const PHP_EOL;
 
