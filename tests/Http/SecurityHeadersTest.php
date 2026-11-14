@@ -67,7 +67,10 @@ final class SecurityHeadersTest extends TestCase
 	{
 		$response = $this->headers(false)->apply(new ServerRequest(), new HtmlResponse('x'));
 
-		self::assertStringContainsString("frame-ancestors 'none'", $response->getHeaderLine('Content-Security-Policy'));
+		$csp = $response->getHeaderLine('Content-Security-Policy');
+		self::assertStringContainsString("frame-ancestors 'none'", $csp);
+		self::assertStringContainsString("script-src 'self';", $csp, 'scripts only from the site itself');
+		self::assertStringNotContainsString('cdnjs', $csp);
 		self::assertSame('nosniff', $response->getHeaderLine('X-Content-Type-Options'));
 		self::assertSame('DENY', $response->getHeaderLine('X-Frame-Options'));
 		self::assertSame('noindex, nofollow', $response->getHeaderLine('X-Robots-Tag'));

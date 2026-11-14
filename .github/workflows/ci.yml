@@ -59,6 +59,31 @@ jobs:
               if: always()
               run: vendor/bin/phpunit
 
+    assets:
+        name: Front-end libraries (pnpm)
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v6
+              with:
+                  node-version: '24'
+
+            - name: Install pnpm
+              run: npm install --global --no-fund --no-audit pnpm@12.17.0
+
+            - name: Install and build
+              run: |
+                  pnpm install --frozen-lockfile
+                  pnpm build
+                  test -s public/assets/vendor/leaflet/leaflet.js
+                  test -s public/assets/vendor/leaflet/leaflet.css
+
+            - name: Audit the front-end libraries
+              run: pnpm audit --prod
+
     client:
         name: Sync client (Python ${{ matrix.python }})
         runs-on: ubuntu-latest

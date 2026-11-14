@@ -1,0 +1,13 @@
+{
+  "name": "rodokmen-web-assets",
+  "private": true,
+  "description": "Front-end libraries of rodokmen-web, copied into public/assets/vendor by `pnpm build`",
+  "license": "MIT",
+  "packageManager": "pnpm@12.17.0",
+  "scripts": {
+    "build": "node bin/build-assets.mjs"
+  },
+  "dependencies": {
+    "leaflet": "1.9.4"
+  }
+}

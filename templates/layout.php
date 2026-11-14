@@ -25,8 +25,9 @@ $items = [
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/assets/app.css?v=9">
     <?php if (($nav === 'map') || !empty($needsMap)): ?>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+        <?php /* Built by `pnpm build` from package.json; the query changes with the Leaflet version (cache). */ ?>
+        <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css?v=1.9.4">
+        <script src="/assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
     <?php endif ?>
     <script src="/assets/app.js?v=9" defer></script>
     <script src="/assets/theme.js?v=1"></script>

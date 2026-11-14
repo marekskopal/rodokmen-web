@@ -175,6 +175,22 @@ final class KernelTest extends TestCase
 		self::assertSame('https', $request->getHeaderLine('X-Forwarded-Proto'), 'left for TrustedProxies to decide');
 	}
 
+	public function testMapUsesTheBundledLeaflet(): void
+	{
+		// The query in the layout has to follow the version installed by pnpm (package.json).
+		$package = json_decode((string) file_get_contents(dirname(__DIR__) . '/package.json'), true, 512, JSON_THROW_ON_ERROR);
+		self::assertIsArray($package);
+		self::assertIsArray($package['dependencies']);
+		$version = $package['dependencies']['leaflet'];
+		self::assertIsString($version);
+
+		$html = (string) $this->get('/mapa', loggedIn: true)->getBody();
+
+		self::assertStringContainsString('src="/assets/vendor/leaflet/leaflet.js?v=' . $version . '"', $html);
+		self::assertStringContainsString('href="/assets/vendor/leaflet/leaflet.css?v=' . $version . '"', $html);
+		self::assertStringNotContainsString('cdnjs', $html);
+	}
+
 	public function testUnknownPages(): void
 	{
 		self::assertSame(404, $this->get('/osoba/nikdo', loggedIn: true)->getStatusCode());
