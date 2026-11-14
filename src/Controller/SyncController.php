@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\LoginThrottle;
+use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\InvalidManifestException;
@@ -87,14 +88,14 @@ final readonly class SyncController
 			return new JsonResponse(['error' => 'The sync API is disabled (set SITE_SYNC_TOKEN)'], 404);
 		}
 
-		$wait = $this->throttle->retryAfter($request);
+		$wait = $this->throttle->retryAfter($request, ThrottleScope::Sync);
 		if ($wait > 0) {
 			return (new JsonResponse(['error' => 'Too many failed attempts'], 429))->withHeader('Retry-After', (string) $wait);
 		}
 
 		$token = $this->token($request);
 		if ($token === null || !hash_equals($this->config->syncToken, $token)) {
-			$this->throttle->registerFailure($request);
+			$this->throttle->registerFailure($request, ThrottleScope::Sync);
 			$this->logger->warning('Sync API: invalid token', ['ip' => $this->throttle->clientIp($request)]);
 
 			return new JsonResponse(['error' => 'Invalid token'], 401);

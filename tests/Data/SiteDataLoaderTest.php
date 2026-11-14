@@ -59,6 +59,22 @@ final class SiteDataLoaderTest extends TestCase
 		self::assertCount(1, $cache);
 	}
 
+	public function testCacheRemovedByAnotherRequestFallsBackToTheJson(): void
+	{
+		$loader = new SiteDataLoader(Fixture::config($this->dir));
+		$loader->load();
+
+		$cache = glob($this->dir . '/cache/site-*.php');
+		self::assertIsArray($cache);
+		self::assertCount(1, $cache);
+		// A cache file that is half gone (e.g. removed while being read) must not break the page.
+		file_put_contents($cache[0], '<?php return false;');
+
+		self::assertSame('antonin-novak-2024', $loader->load()->root);
+		// The JSON fallback writes a valid cache again.
+		self::assertIsArray(require $cache[0]);
+	}
+
 	public function testMissingDataThrows(): void
 	{
 		unlink($this->dir . '/site.json');
