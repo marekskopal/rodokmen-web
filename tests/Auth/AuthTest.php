@@ -62,6 +62,36 @@ final class AuthTest extends TestCase
 		self::assertFalse($other->isLoggedIn($this->withToken($token)));
 	}
 
+	public function testKnownDeviceCookie(): void
+	{
+		$auth = $this->auth();
+		$cookie = $auth->deviceCookie(new ServerRequest());
+		self::assertStringStartsWith(Auth::DeviceCookieName . '=', $cookie);
+		self::assertStringContainsString('Path=/prihlaseni', $cookie);
+		self::assertStringContainsString('HttpOnly', $cookie);
+
+		self::assertSame(1, preg_match('/^' . Auth::DeviceCookieName . '=([^;]+);/', $cookie, $m));
+		$token = rawurldecode($m[1]);
+		$device = static fn (string $value): ServerRequest => new ServerRequest()->withCookieParams([Auth::DeviceCookieName => $value]);
+
+		self::assertTrue($auth->isKnownDevice($device($token)));
+		self::assertFalse($auth->isKnownDevice(new ServerRequest()));
+		self::assertFalse($auth->isKnownDevice($device('1.' . substr($token, (int) strpos($token, '.') + 1))), 'tampered');
+		self::assertFalse($auth->isKnownDevice($device('no-dot')));
+		self::assertFalse($this->auth(secret: str_repeat('x', 40))->isKnownDevice($device($token)), 'another secret');
+
+		// It survives a password change (unlike the login), but not its year.
+		self::assertTrue($this->auth(passwordHash: password_hash('jine', PASSWORD_BCRYPT, ['cost' => 4]))->isKnownDevice($device($token)));
+		$old = (string) (time() - 366 * 86400);
+		self::assertFalse(
+			$auth->isKnownDevice($device($old . '.' . hash_hmac('sha256', 'device|' . $old, (string) getenv('SITE_SECRET')))),
+		);
+		$future = (string) (time() + 86400);
+		self::assertFalse(
+			$auth->isKnownDevice($device($future . '.' . hash_hmac('sha256', 'device|' . $future, (string) getenv('SITE_SECRET')))),
+		);
+	}
+
 	public function testCookieAttributes(): void
 	{
 		$auth = $this->auth();

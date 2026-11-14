@@ -36,8 +36,11 @@ final readonly class LoginController
 	{
 		$target = $this->target(self::bodyField($request, 'k'));
 
-		// Counted before the password is checked, so that parallel guesses cannot all slip through.
-		$wait = $this->throttle->reserve($request, ThrottleScope::Login);
+		// Counted before the password is checked, so that parallel guesses cannot all slip through. A browser that
+		// has logged in before is not stopped by the limit for all clients (an attack from many addresses), only by
+		// its own limit per address and per device.
+		$device = $this->auth->knownDevice($request);
+		$wait = $this->throttle->reserve($request, ThrottleScope::Login, $device);
 		if ($wait > 0) {
 			$this->logger->warning('Login throttled', ['ip' => $this->throttle->clientIp($request)]);
 
@@ -52,9 +55,11 @@ final readonly class LoginController
 			return $this->showForm($request, 'Heslo nesouhlasí.', 401);
 		}
 
-		$this->throttle->release($request, ThrottleScope::Login);
+		$this->throttle->release($request, ThrottleScope::Login, $device);
 
-		return (new RedirectResponse($target))->withAddedHeader('Set-Cookie', $this->auth->loginCookie($request));
+		return (new RedirectResponse($target))
+			->withAddedHeader('Set-Cookie', $this->auth->loginCookie($request))
+			->withAddedHeader('Set-Cookie', $this->auth->deviceCookie($request));
 	}
 
 	#[RoutePost('/odhlasit')]
