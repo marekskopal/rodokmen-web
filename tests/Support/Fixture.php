@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\Tests\Support;
 
+use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\Auth\ThrottleCleanup;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Http\TrustedProxies;
+use RuntimeException;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_UNICODE;
 
@@ -211,6 +213,16 @@ final class Fixture
 	public static function auth(Config $config): Auth
 	{
 		return new Auth($config, new TrustedProxies($config));
+	}
+
+	/** $request with the login cookie that Auth issues for $config. */
+	public static function logIn(ServerRequestInterface $request, Config $config): ServerRequestInterface
+	{
+		if (preg_match('/^' . Auth::CookieName . '=([^;]+);/', self::auth($config)->loginCookie($request), $m) !== 1) {
+			throw new RuntimeException('Auth issued no login cookie');
+		}
+
+		return $request->withCookieParams([Auth::CookieName => rawurldecode($m[1])]);
 	}
 
 	public static function throttle(Config $config): LoginThrottle

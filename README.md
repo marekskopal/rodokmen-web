@@ -29,6 +29,22 @@ The user interface is in Czech, like the skill.
 - HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode,
   print-friendly.
 
+## Screenshots
+
+The demo family (`make demo`): the author's name, everything else – people, dates, register entries, stories – is
+invented.
+
+| | |
+|---|---|
+| ![Home page with the family lines](docs/screenshots/home.webp) | ![Ancestor explorer](docs/screenshots/explorer.webp) |
+| Home page with the lines of the family | Ancestor explorer: one person and three generations above |
+| ![360° fan chart](docs/screenshots/fan.webp) | ![Full tree](docs/screenshots/tree.webp) |
+| 360° fan chart | Full tree, left to right |
+| ![Person page](docs/screenshots/person.webp) | ![Map of places](docs/screenshots/map.webp) |
+| Person: life, family, register entries, places | Map of the places, coloured by line |
+
+![Ancestor explorer in dark mode](docs/screenshots/explorer-dark.webp)
+
 ## How the data get to the website
 
 The research project (made by the skill) and the website are separate: the website never needs access to your
@@ -149,6 +165,7 @@ make install                # composer install + pnpm install + pnpm build
 python3 bin/rodokmen-sync -p ../my-rodokmen --target var/data
 cp .env.example .env        # set SITE_PASSWORD_HASH and SITE_SECRET
 make dev                    # http://localhost:8080
+make demo                   # the demo family on http://localhost:8081, password: demo
 make check                  # phpcs + phpstan + phpunit + tests of the sync client
 make fix                    # phpcbf
 ```

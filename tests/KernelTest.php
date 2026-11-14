@@ -8,6 +8,7 @@ use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Data\HomePerson;
@@ -288,7 +289,7 @@ final class KernelTest extends TestCase
 		return $this->kernel->handle($this->request('POST', $uri, $loggedIn)->withParsedBody($body));
 	}
 
-	private function request(string $method, string $uri, bool $loggedIn): ServerRequest
+	private function request(string $method, string $uri, bool $loggedIn): ServerRequestInterface
 	{
 		parse_str((string) parse_url($uri, PHP_URL_QUERY), $query);
 		$request = new ServerRequest(['REMOTE_ADDR' => '127.0.0.1'], [], 'http://localhost' . $uri, $method)->withQueryParams($query);
@@ -296,9 +297,6 @@ final class KernelTest extends TestCase
 			return $request;
 		}
 
-		$auth = Fixture::auth(Fixture::config($this->dir));
-		self::assertSame(1, preg_match('/^rk_auth=([^;]+);/', $auth->loginCookie($request), $m));
-
-		return $request->withCookieParams([Auth::CookieName => rawurldecode($m[1])]);
+		return Fixture::logIn($request, Fixture::config($this->dir));
 	}
 }
