@@ -6,6 +6,9 @@ namespace Rodokmen\Site\Auth;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Config;
+use const FILTER_FLAG_NO_PRIV_RANGE;
+use const FILTER_FLAG_NO_RES_RANGE;
+use const FILTER_VALIDATE_IP;
 use const LOCK_EX;
 
 /**
@@ -44,16 +47,71 @@ final readonly class LoginThrottle
 		@unlink($this->file($request));
 	}
 
+	/**
+	 * The client's address. Behind a trusted proxy (SITE_TRUST_PROXY) only the entries of X-Forwarded-For that
+	 * proxies appended are believed: the header is read from the right and the first public address wins, because
+	 * everything to the left of it was sent by the client and can be forged. When no entry is public (a client on
+	 * the private network), the rightmost entry is used: the nearest proxy appended it, the client cannot forge it.
+	 * When REMOTE_ADDR is already a public address (Apache's mod_remoteip in the Docker image has resolved the
+	 * proxy), it is used as it is.
+	 */
 	public function clientIp(ServerRequestInterface $request): string
 	{
-		$server = $request->getServerParams();
-		if ($this->config->trustProxy && $request->hasHeader('X-Forwarded-For')) {
-			return trim(explode(',', $request->getHeaderLine('X-Forwarded-For'))[0]);
+		$remote = $request->getServerParams()['REMOTE_ADDR'] ?? null;
+		$remote = is_string($remote) ? self::normalize($remote) : null;
+		if ($remote === null) {
+			return 'unknown';
 		}
 
-		$address = $server['REMOTE_ADDR'] ?? null;
+		if (!$this->config->trustProxy || !self::isProxy($remote)) {
+			return $remote;
+		}
 
-		return is_string($address) ? $address : 'unknown';
+		$nearest = null;
+		foreach (array_reverse(explode(',', $request->getHeaderLine('X-Forwarded-For'))) as $hop) {
+			$hop = self::normalize($hop);
+			if ($hop === null) {
+				// Garbage in the header: nothing to the left of it can be trusted.
+				break;
+			}
+
+			if (!self::isProxy($hop)) {
+				return $hop;
+			}
+
+			$nearest ??= $hop;
+		}
+
+		return $nearest ?? $remote;
+	}
+
+	/**
+	 * A valid IP address without a port, brackets or the IPv4-mapped IPv6 prefix, null for anything else.
+	 */
+	private static function normalize(string $address): ?string
+	{
+		$address = trim($address);
+		if (preg_match('~^\[(.+)\](?::\d+)?$~', $address, $m) === 1) {
+			$address = $m[1];
+		} elseif (preg_match('~^(\d{1,3}(?:\.\d{1,3}){3}):\d+$~', $address, $m) === 1) {
+			$address = $m[1];
+		}
+
+		if (filter_var($address, FILTER_VALIDATE_IP) === false) {
+			return null;
+		}
+
+		if (preg_match('~^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$~i', $address, $m) === 1) {
+			return $m[1];
+		}
+
+		return $address;
+	}
+
+	/** Private, loopback and reserved addresses belong to the proxies in front of the website. */
+	private static function isProxy(string $address): bool
+	{
+		return filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
 	}
 
 	/** @return list<int> */

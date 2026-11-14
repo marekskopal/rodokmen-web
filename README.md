@@ -112,7 +112,7 @@ Environment variables, or `.env` in the project root:
 | `SITE_SYNC_TOKEN` | Token of the upload API for `rodokmen-sync`; empty disables the API (use rsync then). Generate it like the secret. |
 | `SITE_DEFAULT_PERSON` | Optional slug of the default starting person (default: the root of the tree). |
 | `SITE_SEARCH_HINT` | Optional example in the search field, e.g. `Např. Novák, Lomnice, tesař…`. |
-| `SITE_TRUST_PROXY` | `1` behind a reverse proxy (uses `X-Forwarded-For` / `X-Forwarded-Proto`). |
+| `SITE_TRUST_PROXY` | `1` behind a reverse proxy (uses `X-Forwarded-Proto`, and `X-Forwarded-For` when the request comes from a private address: the rightmost public address in it is the client, entries a client forged on the left are ignored). |
 | `SITE_LOGIN_DAYS` | How long a login stays valid (default 30). |
 | `SITE_FORCE_HTTPS` | `1` (default) redirects HTTP to HTTPS and sends HSTS; `0` only for a site without TLS. `localhost` is never redirected. |
 | `SITE_LOG_LEVEL` | `production` (default) or `debug` (also debug records). |
