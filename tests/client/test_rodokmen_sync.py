@@ -134,6 +134,7 @@ class FakeSite:
         self.token = token
         self.stored = set(have)
         self.committed = None
+        self.rollbacks = 0
         # Injected failures, used up one per request: a status (int, or (status, Retry-After)) or "drop"
         # (the connection is closed without a response).
         self.faults = []
@@ -188,6 +189,13 @@ class FakeSite:
             def do_POST(self):
                 body = self.fault()
                 if body is None or not self.authorized():
+                    return
+                if self.path == "/api/sync/rollback":
+                    if site.committed is None:
+                        self.reply(409, {"error": "There is no previous release to roll back to"})
+                        return
+                    site.rollbacks += 1
+                    self.reply(200, {"release": "20261112-120000-01234567"})
                     return
                 manifest = json.loads(body)
                 hashes = {f["sha256"] for f in manifest["files"].values()}
@@ -273,6 +281,56 @@ class ApiTargetTest(unittest.TestCase):
             sync.Api("https://example.invalid", "")
         with self.assertRaisesRegex(sync.SyncError, "Cannot reach .*gave up after 5 attempts"):
             quiet(sync.Api("http://127.0.0.1:9", "x", sleep=lambda s: None).plan, self.manifest)
+
+
+class RollbackTest(unittest.TestCase):
+    def setUp(self):
+        self.site = FakeSite()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.project = make_project(Path(self.tmp.name))
+
+    def tearDown(self):
+        self.site.close()
+        self.tmp.cleanup()
+
+    def main(self, *args):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = sync.main(["-p", str(self.project), "--token", "secret", *args], environ={})
+        return code, out.getvalue(), err.getvalue()
+
+    def test_rollback_over_the_api_without_exporting(self):
+        self.site.committed = {"files": {}}
+        code, out, _ = self.main("--target", self.site.url, "--rollback")
+        self.assertEqual(code, 0)
+        self.assertEqual(self.site.rollbacks, 1)
+        self.assertEqual(self.site.requests, [("POST", "/api/sync/rollback")])
+        self.assertIn("release 20261112-120000-01234567 again", out)
+
+    def test_rollback_error_is_reported(self):
+        code, _, err = self.main("--target", self.site.url, "--rollback")
+        self.assertEqual(code, 1)
+        self.assertIn("HTTP 409 – There is no previous release to roll back to", err)
+
+    def test_rollback_is_not_repeated(self):
+        # A rollback whose answer was lost must not be sent again: the second one would fail or go a step further.
+        self.site.committed = {"files": {}}
+        self.site.faults = ["drop"]
+        code, _, err = self.main("--target", self.site.url, "--rollback")
+        self.assertEqual(code, 1)
+        self.assertIn("connection failed", err)
+        self.assertEqual(self.site.requests, [("POST", "/api/sync/rollback")])
+
+    def test_rollback_needs_the_api(self):
+        code, _, err = self.main("--target", self.tmp.name, "--rollback")
+        self.assertEqual(code, 1)
+        self.assertIn("only with the website's API", err)
+
+    def test_rollback_has_no_dry_run(self):
+        code, _, err = self.main("--target", self.site.url, "--rollback", "--dry-run")
+        self.assertEqual(code, 1)
+        self.assertIn("cannot be combined with --dry-run", err)
+        self.assertEqual(self.site.requests, [])
 
 
 class RetryTest(unittest.TestCase):

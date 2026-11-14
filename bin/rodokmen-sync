@@ -7,6 +7,7 @@ Run it in the folder of a family tree project made with the rodokmen skill (the 
     python3 rodokmen-sync --target https://rodokmen.example.org      # upload over the website's API
     python3 rodokmen-sync --target user@server:/srv/rodokmen/var/data  # copy over SSH (rsync)
     python3 rodokmen-sync --target ../rodokmen-web/var/data          # copy into a local folder
+    python3 rodokmen-sync --rollback                                 # show the previous upload again (API)
 
 Steps: runs the skill's exporter (tools/export_web.py), collects its output into a data bundle
 (site.json, notes, crops and full scans) described by manifest.json, and sends only the files that changed.
@@ -38,7 +39,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 FORMAT = 1
 CONFIG_FILE = "rodokmen-web.env"
 MANIFEST = "manifest.json"
@@ -234,8 +235,9 @@ def sync_ssh(files, manifest, destination, port=None, dry_run=False):
 
 class Api:
     """Client of the website's sync API (/api/sync/*). Every request is retried a few times on a lost connection,
-    a timeout or a temporary server error; all of them are safe to repeat (uploads are addressed by content; a commit
-    whose answer was lost is published once more as an identical release, which only replaces the previous one)."""
+    a timeout or a temporary server error; uploads and commits are safe to repeat (uploads are addressed by content; a
+    commit whose answer was lost is published once more as an identical release, which only replaces the previous one).
+    A rollback is not: repeated after a lost answer it would fail with "no previous release", so it is sent once."""
 
     def __init__(self, base, token, opener=None, retries=RETRIES, delay=RETRY_DELAY, sleep=time.sleep):
         if not token:
@@ -249,14 +251,14 @@ class Api:
         # Set when a parallel upload has failed: the other requests then stop retrying.
         self.stopped = threading.Event()
 
-    def request(self, method, path, body, content_type):
+    def request(self, method, path, body, content_type, retry=True):
         attempt = 0
         while True:
             try:
                 return self.send(method, path, body, content_type)
             except Retry as e:
                 wait = e.wait if e.wait is not None else self.delay * 2 ** attempt
-                if attempt >= self.retries or wait > MAX_RETRY_DELAY or self.stopped.is_set():
+                if not retry or attempt >= self.retries or wait > MAX_RETRY_DELAY or self.stopped.is_set():
                     raise SyncError(f"{e.message} (gave up after {attempt + 1} attempts)" if attempt else e.message) from None
                 attempt += 1
                 log(f"  {e.message} – retrying in {wait:g} s ({attempt}/{self.retries})")
@@ -319,6 +321,9 @@ class Api:
     def commit(self, manifest):
         return self.request("POST", "/api/sync/commit", manifest_bytes(manifest), "application/json")
 
+    def rollback(self):
+        return self.request("POST", "/api/sync/rollback", b"", "application/json", retry=False)
+
 
 class Retry(Exception):
     """A failed API request that may succeed when repeated; wait is the server's Retry-After."""
@@ -374,10 +379,24 @@ def sync_api(files, manifest, api, dry_run=False, jobs=JOBS):
 
 # --- main ------------------------------------------------------------------------------------------------------
 
+def rollback(target, config, dry_run=False):
+    """Switches the website back to the data it showed before the last upload (the API keeps one release back)."""
+    if target[0] != "api":
+        raise SyncError("--rollback works only with the website's API as the target (https://…); "
+                        "rsync and local folders keep no previous release")
+    if dry_run:
+        raise SyncError("--rollback cannot be combined with --dry-run")
+    result = Api(target[1], config.get("RODOKMEN_WEB_TOKEN", "")).rollback()
+    log(f"Done: the website shows release {result.get('release', '?')} again")
+
+
 def run(args, environ):
     project = Path(args.project).expanduser().resolve()
     config = load_config(project, environ, args.target, args.token)
     target = parse_target(config.get("RODOKMEN_WEB_TARGET", ""))
+    if args.rollback:
+        rollback(target, config, args.dry_run)
+        return
     if not args.no_export:
         export(project)
     files = collect(project)
@@ -416,6 +435,8 @@ def main(argv=None, environ=None):
     parser.add_argument("-t", "--target", help="https://site, user@host:/path/var/data, ssh://user@host:port/path or a local folder")
     parser.add_argument("--token", help="API token (better kept in rodokmen-web.env – a command line is visible to other users)")
     parser.add_argument("--no-export", action="store_true", help="publish the last export without running the exporter")
+    parser.add_argument("--rollback", action="store_true",
+                        help="switch the website back to the data of the previous upload (API target only)")
     parser.add_argument("-n", "--dry-run", action="store_true", help="only show what would be sent")
     parser.add_argument("-j", "--jobs", type=positive_int, default=JOBS,
                         help=f"parallel uploads to the website's API (default {JOBS})")

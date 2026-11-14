@@ -61,7 +61,7 @@ rodokmen project ──tools/export_web.py──▶ site.json, notes, crops, sca
 
 Only changed files are sent. With the API, the server builds a complete new release next to the current one
 (unchanged files are hard-linked) and switches to it atomically, so visitors never see half-uploaded data;
-the previous release is kept for a manual rollback.
+the previous release is kept, and `rodokmen-sync --rollback` switches the website back to it.
 
 The bundle format (`manifest.json`, `format: 1`) is the contract between the two sides. It allows only
 `site.json`, `md/*.md`, `img/*.jpg` and `full/*.jpg`; the server rejects anything else.
@@ -90,6 +90,7 @@ python3 rodokmen-sync              # export + upload
 python3 rodokmen-sync --dry-run    # only show what would be sent
 python3 rodokmen-sync --no-export  # publish the last export as it is
 python3 rodokmen-sync --jobs 8     # more parallel uploads (default 4)
+python3 rodokmen-sync --rollback   # show the data of the previous upload again (API only)
 python3 rodokmen-sync --help
 ```
 

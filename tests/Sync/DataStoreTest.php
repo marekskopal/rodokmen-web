@@ -10,6 +10,7 @@ use Psr\Http\Message\StreamInterface;
 use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\Filesystem;
 use Rodokmen\Site\Sync\Manifest;
+use Rodokmen\Site\Sync\Releases;
 use Rodokmen\Site\Sync\SyncException;
 use Rodokmen\Site\Tests\Support\Fixture;
 use RuntimeException;
@@ -29,7 +30,8 @@ final class DataStoreTest extends TestCase
 		mkdir($this->data . '/img', 0777, true);
 		file_put_contents($this->data . '/site.json', 'old data');
 		file_put_contents($this->data . '/img/same.jpg', 'same crop');
-		$this->store = new DataStore(Fixture::config($this->data), new Filesystem());
+		$config = Fixture::config($this->data);
+		$this->store = new DataStore($config, new Filesystem(), new Releases($config, new Filesystem()));
 	}
 
 	protected function tearDown(): void
@@ -182,6 +184,80 @@ final class DataStoreTest extends TestCase
 
 		self::assertCount(2, (new Filesystem())->entries($this->root . '/releases'));
 		self::assertSame('three', file_get_contents($this->data . '/site.json'));
+	}
+
+	public function testRollbackSwitchesToThePreviousRelease(): void
+	{
+		$first = $this->publish('one');
+		$second = $this->publish('two');
+
+		self::assertSame($first, $this->store->rollback());
+		self::assertSame('releases/' . $first, readlink($this->data));
+		self::assertSame('one', file_get_contents($this->data . '/site.json'));
+		// The release rolled back from is kept until the next commit, but there is nothing older to go back to.
+		self::assertTrue(is_dir($this->root . '/releases/' . $second));
+		$this->assertRollbackFails('There is no previous release to roll back to');
+	}
+
+	public function testCommitAfterRollbackKeepsTheRolledBackRelease(): void
+	{
+		$first = $this->publish('one');
+		$second = $this->publish('two');
+		$this->store->rollback();
+
+		$third = $this->publish('three');
+
+		self::assertEqualsCanonicalizing([$first, $third], (new Filesystem())->entries($this->root . '/releases'));
+		self::assertFalse(is_dir($this->root . '/releases/' . $second));
+		self::assertSame($first, $this->store->rollback());
+		self::assertSame('one', file_get_contents($this->data . '/site.json'));
+	}
+
+	public function testRollbackReturnsToTheDataFromBeforeTheFirstUpload(): void
+	{
+		$this->publish('one');
+
+		$release = $this->store->rollback();
+
+		self::assertStringEndsWith('-initial', $release);
+		self::assertSame('old data', file_get_contents($this->data . '/site.json'));
+	}
+
+	public function testInitialDataSortBeforeASlowlyBuiltFirstRelease(): void
+	{
+		// The release id is taken before the build; the data from before must still count as older.
+		$id = '20200101-000000-000000-abcdef12';
+		mkdir($this->root . '/releases/' . $id, 0777, true);
+		$releases = new Releases(Fixture::config($this->data), new Filesystem());
+
+		$initial = $releases->activate($id);
+
+		self::assertSame('20191231-235959-000000-initial', $initial);
+		self::assertSame($initial, $releases->previous());
+	}
+
+	public function testRollbackNeedsUploadedData(): void
+	{
+		$this->assertRollbackFails('There is no release to roll back from (the data were not uploaded by the sync API)');
+		self::assertSame('old data', file_get_contents($this->data . '/site.json'));
+	}
+
+	private function assertRollbackFails(string $message): void
+	{
+		try {
+			$this->store->rollback();
+			self::fail('Expected a SyncException');
+		} catch (SyncException $e) {
+			self::assertSame(409, $e->status);
+			self::assertSame($message, $e->getMessage());
+		}
+	}
+
+	private function publish(string $content): string
+	{
+		$this->upload($content);
+
+		return $this->store->commit(Manifest::fromJson(ManifestTest::json(['site.json' => $content])));
 	}
 
 	private function upload(string $content): void
