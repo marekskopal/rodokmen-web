@@ -36,7 +36,8 @@ final readonly class LoginController
 	{
 		$target = $this->target(self::bodyField($request, 'k'));
 
-		$wait = $this->throttle->retryAfter($request, ThrottleScope::Login);
+		// Counted before the password is checked, so that parallel guesses cannot all slip through.
+		$wait = $this->throttle->reserve($request, ThrottleScope::Login);
 		if ($wait > 0) {
 			$this->logger->warning('Login throttled', ['ip' => $this->throttle->clientIp($request)]);
 
@@ -45,14 +46,13 @@ final readonly class LoginController
 		}
 
 		if (!$this->auth->verifyPassword(self::bodyField($request, 'heslo') ?? '')) {
-			$this->throttle->registerFailure($request, ThrottleScope::Login);
 			$this->logger->warning('Wrong password', ['ip' => $this->throttle->clientIp($request)]);
 			usleep(400000);
 
 			return $this->showForm($request, 'Heslo nesouhlasí.', 401);
 		}
 
-		$this->throttle->reset($request, ThrottleScope::Login);
+		$this->throttle->release($request, ThrottleScope::Login);
 
 		return (new RedirectResponse($target))->withAddedHeader('Set-Cookie', $this->auth->loginCookie($request));
 	}

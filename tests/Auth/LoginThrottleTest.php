@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Tests\Support\Fixture;
+use const PHP_BINARY;
 
 final class LoginThrottleTest extends TestCase
 {
@@ -38,7 +39,7 @@ final class LoginThrottleTest extends TestCase
 		self::assertGreaterThan(800, $throttle->retryAfter($request, ThrottleScope::Login));
 		self::assertSame(0, $throttle->retryAfter($this->request('10.0.0.2'), ThrottleScope::Login), 'other clients are not affected');
 
-		$throttle->reset($request, ThrottleScope::Login);
+		$throttle->release($request, ThrottleScope::Login);
 		self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
 	}
 
@@ -187,6 +188,78 @@ final class LoginThrottleTest extends TestCase
 		$wait = $throttle->retryAfter($request, ThrottleScope::Sync);
 		self::assertGreaterThanOrEqual(299, $wait);
 		self::assertLessThanOrEqual(300, $wait);
+	}
+
+	public function testReserveCountsTheAttemptBeforeItIsChecked(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		$request = $this->request('10.0.0.6');
+
+		for ($i = 0; $i < 5; $i++) {
+			self::assertSame(0, $throttle->reserve($request, ThrottleScope::Login), 'attempt ' . ($i + 1));
+		}
+		self::assertGreaterThan(800, $throttle->reserve($request, ThrottleScope::Login));
+		self::assertGreaterThan(800, $throttle->retryAfter($request, ThrottleScope::Login));
+
+		// Refused attempts are not counted: after a success the client starts again.
+		$throttle->release($request, ThrottleScope::Login);
+		self::assertSame(0, $throttle->reserve($request, ThrottleScope::Login));
+	}
+
+	public function testReleaseTakesTheAttemptBackFromTheGlobalCount(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 0; $i < 49; $i++) {
+			$throttle->registerFailure($this->request('198.51.100.' . $i), ThrottleScope::Login);
+		}
+
+		// A successful login does not use up the last free place of all clients…
+		$visitor = $this->request('203.0.113.7');
+		self::assertSame(0, $throttle->reserve($visitor, ThrottleScope::Login));
+		$throttle->release($visitor, ThrottleScope::Login);
+		self::assertSame(0, $throttle->retryAfter($this->request('203.0.113.8'), ThrottleScope::Login));
+
+		// …a failed one does.
+		self::assertSame(0, $throttle->reserve($visitor, ThrottleScope::Login));
+		self::assertGreaterThan(0, $throttle->retryAfter($this->request('203.0.113.8'), ThrottleScope::Login));
+	}
+
+	public function testParallelAttemptsCannotPassTheLimit(): void
+	{
+		// 20 processes try to log in at the same moment from one address: only five may go on.
+		$script = sprintf(
+			<<<'PHP'
+				require %s;
+				$throttle = Rodokmen\Site\Tests\Support\Fixture::throttle(Rodokmen\Site\Tests\Support\Fixture::config(%s));
+				// A slow start must not fail on a start time already passed: the limit holds even then.
+				$start = %F;
+				if ($start > microtime(true)) {
+					time_sleep_until($start);
+				}
+				echo $throttle->reserve(new Laminas\Diactoros\ServerRequest(['REMOTE_ADDR' => '10.0.0.7']), Rodokmen\Site\Auth\ThrottleScope::Login) === 0 ? 1 : 0;
+				PHP,
+			var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true),
+			var_export($this->dir, true),
+			microtime(true) + 1.0,
+		);
+
+		$processes = [];
+		for ($i = 0; $i < 20; $i++) {
+			$process = proc_open([PHP_BINARY, '-r', $script], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+			self::assertIsResource($process);
+			$processes[] = [$process, $pipes];
+		}
+
+		$allowed = 0;
+		foreach ($processes as [$process, $pipes]) {
+			$allowed += (int) stream_get_contents($pipes[1]);
+			self::assertSame('', stream_get_contents($pipes[2]));
+			fclose($pipes[1]);
+			fclose($pipes[2]);
+			proc_close($process);
+		}
+
+		self::assertSame(5, $allowed);
 	}
 
 	private function request(string $ip): ServerRequest
