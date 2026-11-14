@@ -72,7 +72,7 @@ The bundle format (`manifest.json`, `format: 1`) is the contract between the two
 Download it, or use it from a clone of this repository:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/marekskopal/rodokmen-web/master/bin/rodokmen-sync
+curl -fsSLO https://github.com/marekskopal/rodokmen-web/releases/latest/download/rodokmen-sync
 ```
 
 In your rodokmen project folder create `rodokmen-web.env` (see `rodokmen-web.env.example`) and **add it to
@@ -105,21 +105,30 @@ anything else is a local folder.
 
 ### Docker
 
-The image is based on `php:8.5-apache`. TLS is expected to be terminated by a reverse proxy in front of the
-container, which listens on plain HTTP (port 8080 on localhost in `docker-compose.yml`).
+Every release is published as the image `ghcr.io/marekskopal/rodokmen-web` (amd64 and arm64, e.g. a Raspberry Pi
+or a NAS; tags `X.Y.Z`, `X.Y`, `X` and `latest`), based on `php:8.5-apache`. TLS is expected to be terminated by a
+reverse proxy in front of the container, which listens on plain HTTP (port 8080 on localhost in
+`docker-compose.yml`).
 
 ```sh
 git clone https://github.com/marekskopal/rodokmen-web.git && cd rodokmen-web
 cp .env.example .env           # set SITE_PASSWORD_HASH, SITE_SECRET and SITE_SYNC_TOKEN (see below)
-docker compose up -d --build
+docker compose up -d           # pulls ghcr.io/marekskopal/rodokmen-web:1
 ```
+
+`docker-compose.yml` follows the major version (`:1`), so updates within it need no other change. To build the image
+from the checkout instead (e.g. with your own changes), run `docker compose up -d --build`.
 
 The data live in `./var` (mounted into the container), not in the image. Upload them with `rodokmen-sync` –
 no restart is needed. Logs are in `./log` (Tracy's `error.log`, `warning.log`, `info.log` and exception
-reports, `php-error.log`) and in `docker compose logs`. Tracy's log files larger than 10 MB are renamed to `*.log.1`
-(three older copies are kept; `php-error.log` is written by PHP itself and is not rotated), exception reports older than 30 days are removed, and the container log is limited to
-3 × 10 MB. `docker compose ps` shows the container's health: the image checks `/health` (no login needed, it tells
-only that the website runs) every 30 seconds. Updating the website: `git pull && docker compose up -d --build`.
+reports, `php-error.log`) and in `docker compose logs`. Tracy's log files larger than 10 MB are renamed to
+`*.log.1` (three older copies are kept; `php-error.log` is written by PHP itself and is not rotated), exception
+reports older than 30 days are removed, and the container log is limited to 3 × 10 MB. `docker compose ps` shows
+the container's health: the image checks `/health` (no login needed, it tells only that the website runs) every
+30 seconds.
+
+Updating the website: `git pull && docker compose pull && docker compose up -d`. What changed is in
+[CHANGELOG.md](CHANGELOG.md).
 
 ### Apache without Docker
 
@@ -195,7 +204,7 @@ Code style: PHP_CodeSniffer with the Slevomat standard (tabs), PHPStan at level 
 models instead of arrays. The exported data are read through `ArrayReader`, which checks every type, so an
 exporter change that breaks the format fails loudly instead of rendering wrong pages.
 
-Contributions are welcome – please run `make check` before opening a pull request.
+Contributions are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md); security issues: [SECURITY.md](SECURITY.md).
 
 ## License
 

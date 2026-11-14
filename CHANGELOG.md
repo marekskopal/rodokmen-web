@@ -1,0 +1,49 @@
+# Changelog
+
+All notable changes of rodokmen-web. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+versions follow [Semantic Versioning](https://semver.org/).
+
+**Versions.** The website (the Docker image `ghcr.io/marekskopal/rodokmen-web` and the git tags `vX.Y.Z`) has
+the version in the headings below. The sync client `bin/rodokmen-sync` has a version of its own
+(`rodokmen-sync --version`), attached to every GitHub release. Both talk through the data bundle, whose format
+number changes only when old clients or servers could not read it – see *Bundle format* in each release.
+
+## [Unreleased]
+
+## [1.0.0] - 2026-11-14
+
+The first release.
+
+### Website
+
+- Private family tree website for genealogy projects made with the
+  [rodokmen](https://github.com/sarsonj/rodokmen-skill) Claude Code skill: ancestor explorer, full tree, 360° fan
+  chart, person pages with register entries, generations, map, register entries, photos and documents, stories,
+  research log, open questions and search – Czech user interface, responsive, dark mode, print-friendly.
+- **Password-only login** with a signed cookie. Wrong passwords are throttled per address (an IPv6 /64 counts as
+  one) and for all visitors together; an attempt is checked and counted in one locked step, and browsers that have
+  logged in before are not stopped by the shared limit, so an attack cannot lock the family out.
+- **Everything is private**: scans and photos are streamed only to logged-in visitors; HTTPS with HSTS, a strict
+  Content-Security-Policy that allows no third-party scripts (Leaflet is bundled, built with pnpm), and the other
+  security headers.
+- **Reverse proxies**: `SITE_TRUSTED_PROXIES` lists the proxies whose `X-Forwarded-For`, `-Proto` and `-Host` are
+  believed; forwarded headers from anybody else are ignored (`SITE_TRUST_PROXY=1` still means "private networks").
+- **Upload API** for `rodokmen-sync`: only changed files are sent, a new data release is built next to the current
+  one and switched atomically; partial uploads are removed.
+- **Operations**: Docker image for amd64 and arm64 with a health check (`/health`), pinned base images, Tracy log
+  files rotated at 10 MB, old exception reports and throttle files removed.
+- `make demo` serves a demo family on http://localhost:8081 (password `demo`).
+
+### rodokmen-sync 1.1.0
+
+- Exports a rodokmen project and publishes it on the website: over the upload API, rsync over SSH or into a local
+  folder. Single file, Python 3.9+ standard library only.
+- API requests are retried after a lost connection, a timeout or a temporary server error (honouring
+  `Retry-After`), and missing files are uploaded in parallel (`--jobs`, default 4).
+
+### Bundle format
+
+- Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
+  `full/*.jpg`).
+
+[1.0.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.0.0
