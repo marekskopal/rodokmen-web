@@ -112,6 +112,31 @@ final class SyncApiTest extends TestCase
 		self::assertStringContainsString('Rodokmen Testových', (string) $home->getBody());
 	}
 
+	public function testRollback(): void
+	{
+		$rollback = $this->send('POST', '/api/sync/rollback', '', 'sync-token');
+		self::assertSame(409, $rollback->getStatusCode());
+		self::assertSame(
+			'There is no release to roll back from (the data were not uploaded by the sync API)',
+			$this->json($rollback)['error'],
+		);
+		self::assertSame(401, $this->send('POST', '/api/sync/rollback', '', 'wrong')->getStatusCode());
+
+		$siteJson = (string) file_get_contents($this->dir . '/site.json');
+		foreach ([$siteJson, 'crop'] as $content) {
+			$this->send('PUT', '/api/sync/file/' . hash('sha256', $content), $content, 'sync-token');
+		}
+		$first = $this->json($this->send('POST', '/api/sync/commit', ManifestTest::json(['site.json' => $siteJson]), 'sync-token'));
+		$manifest = ManifestTest::json(['site.json' => $siteJson, 'img/krest.jpg' => 'crop']);
+		self::assertSame(200, $this->send('POST', '/api/sync/commit', $manifest, 'sync-token')->getStatusCode());
+
+		$rollback = $this->send('POST', '/api/sync/rollback', '', 'sync-token');
+		self::assertSame(200, $rollback->getStatusCode());
+		self::assertSame(['release' => $first['release']], $this->json($rollback));
+		self::assertFileDoesNotExist($this->dir . '/site/data/img/krest.jpg');
+		self::assertFalse($this->json($this->send('POST', '/api/sync/plan', $manifest, 'sync-token'))['current']);
+	}
+
 	private function send(string $method, string $uri, string $body, string $token): ResponseInterface
 	{
 		$request = new ServerRequest(['REMOTE_ADDR' => '127.0.0.1'], [], 'http://localhost' . $uri, $method)

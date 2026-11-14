@@ -18,20 +18,18 @@ use const LOCK_UN;
  *  - sync-uploads/<sha256> – uploaded files, addressed by their content,
  *  - releases/<id>/ – complete bundles; the data directory becomes a symlink to the current one.
  * Files that did not change are hard-linked from the current data, so a release costs only the new files.
+ * The previous release is kept, so that rollback() can switch back to it (see Releases).
  */
 final readonly class DataStore
 {
 	public const MaxFileSize = 64 * 1024 * 1024;
-
-	/** Releases kept on disk (the current one and the previous one, for a manual rollback). */
-	private const KeepReleases = 2;
 
 	/** Uploads not used by any commit are removed after this many seconds. */
 	private const UploadTtl = 86400;
 
 	private const ChunkSize = 1048576;
 
-	public function __construct(private Config $config, private Filesystem $fs)
+	public function __construct(private Config $config, private Filesystem $fs, private Releases $releases)
 	{
 	}
 
@@ -85,13 +83,7 @@ final readonly class DataStore
 	 */
 	public function commit(Manifest $manifest): string
 	{
-		$this->fs->ensureDir($this->root());
-		$lock = fopen($this->root() . '/sync.lock', 'c');
-		if ($lock === false || !flock($lock, LOCK_EX)) {
-			throw new RuntimeException('Cannot lock ' . $this->root() . '/sync.lock');
-		}
-
-		try {
+		return $this->locked(function () use ($manifest): string {
 			$sources = $this->sources($manifest);
 			$missing = $this->missingIn($manifest, $sources);
 			if ($missing !== []) {
@@ -100,15 +92,27 @@ final readonly class DataStore
 
 			// Sortable by time (microseconds, so that quick successive commits keep their order).
 			$id = gmdate('Ymd-His') . '-' . substr(sprintf('%.6F', microtime(true)), -6) . '-' . substr($manifest->id(), 0, 8);
-			$this->build($manifest, $sources, $this->releasesDir() . '/' . $id);
-			$this->activate($id);
-			$this->prune($manifest, $id);
+			$this->build($manifest, $sources, $this->releases->dir() . '/' . $id);
+			$previous = $this->releases->activate($id);
+			$this->releases->keepOnly($id, $previous);
+			$this->pruneUploads($manifest);
 
 			return $id;
-		} finally {
-			flock($lock, LOCK_UN);
-			fclose($lock);
-		}
+		});
+	}
+
+	/**
+	 * Switches the website back to the release published before the current one. Returns its id.
+	 * The release rolled back from stays on disk until the next commit.
+	 */
+	public function rollback(): string
+	{
+		return $this->locked(function (): string {
+			$previous = $this->releases->previous();
+			$this->releases->activate($previous);
+
+			return $previous;
+		});
 	}
 
 	/**
@@ -203,34 +207,30 @@ final readonly class DataStore
 		file_put_contents($dir . '/' . Manifest::FileName, $manifest->toJson());
 	}
 
-	/** Points the data directory at the release; the symlink is replaced atomically. */
-	private function activate(string $id): void
+	/**
+	 * @param callable(): T $action
+	 * @return T
+	 * @template T
+	 */
+	private function locked(callable $action): mixed
 	{
-		$data = $this->config->dataDir;
-		if (is_dir($data) && !is_link($data)) {
-			// First upload: keep the data that was there (e.g. copied by rsync) as an older release.
-			rename($data, $this->releasesDir() . '/' . gmdate('Ymd-His', time() - 1) . '-000000-initial');
+		$this->fs->ensureDir($this->root());
+		$lock = fopen($this->root() . '/sync.lock', 'c');
+		if ($lock === false || !flock($lock, LOCK_EX)) {
+			throw new RuntimeException('Cannot lock ' . $this->root() . '/sync.lock');
 		}
 
-		$tmp = sprintf('%s/.%s.%s.link', dirname($data), basename($data), bin2hex(random_bytes(4)));
-		@unlink($tmp);
-		if (!symlink('releases/' . $id, $tmp) || !rename($tmp, $data)) {
-			throw new RuntimeException('Cannot switch ' . $data . ' to release ' . $id);
+		try {
+			return $action();
+		} finally {
+			flock($lock, LOCK_UN);
+			fclose($lock);
 		}
 	}
 
-	private function prune(Manifest $manifest, string $current): void
+	/** Removes the uploads this commit used and the ones nobody committed in time. */
+	private function pruneUploads(Manifest $manifest): void
 	{
-		$releases = $this->fs->entries($this->releasesDir());
-		rsort($releases);
-		foreach (array_slice($releases, self::KeepReleases) as $old) {
-			if ($old === $current) {
-				continue;
-			}
-
-			$this->fs->removeDir($this->releasesDir() . '/' . $old);
-		}
-
 		$used = [];
 		foreach ($manifest->files as $file) {
 			$used[$file->sha256] = true;
@@ -251,10 +251,5 @@ final readonly class DataStore
 	private function uploadsDir(): string
 	{
 		return $this->root() . '/sync-uploads';
-	}
-
-	private function releasesDir(): string
-	{
-		return $this->root() . '/releases';
 	}
 }

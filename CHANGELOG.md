@@ -10,6 +10,18 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+### Website
+
+- **Rollback** of a data release: `POST /api/sync/rollback` switches the website back to the previous release
+  atomically. A commit now keeps the release shown before it (rather than the two newest), so a rollback is never
+  undone by the next upload's cleanup.
+- The upload API compares files against the current `manifest.json` instead of hashing all the data on every
+  plan and commit; only files changed after the manifest was written are hashed.
+
+### rodokmen-sync 1.2.0
+
+- `--rollback` switches the website back to the data of the previous upload (API target only).
+
 ## [1.0.0] - 2026-11-14
 
 The first release.

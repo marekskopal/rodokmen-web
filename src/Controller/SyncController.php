@@ -24,6 +24,7 @@ use Rodokmen\Site\Sync\SyncException;
  *     (and whether the website already shows this bundle),
  *  2. PUT /api/sync/file/{sha256} raw file content, once per missing hash,
  *  3. POST /api/sync/commit manifest.json → the new data is published atomically.
+ * POST /api/sync/rollback switches the website back to the previous release.
  */
 final readonly class SyncController
 {
@@ -75,6 +76,17 @@ final readonly class SyncController
 			$this->logger->info('Data published', ['release' => $release, 'files' => count($manifest->files)]);
 
 			return new JsonResponse(['release' => $release, 'files' => count($manifest->files)]);
+		});
+	}
+
+	#[RoutePost('/api/sync/rollback')]
+	public function rollback(ServerRequestInterface $request): ResponseInterface
+	{
+		return $this->guarded($request, function (): JsonResponse {
+			$release = $this->store->rollback();
+			$this->logger->info('Data rolled back', ['release' => $release]);
+
+			return new JsonResponse(['release' => $release]);
 		});
 	}
 
