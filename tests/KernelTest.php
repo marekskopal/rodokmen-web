@@ -201,6 +201,31 @@ final class KernelTest extends TestCase
 		self::assertSame('private, no-store', $response->getHeaderLine('Cache-Control'));
 	}
 
+	public function testRoutesAreCachedUntilTheControllersChange(): void
+	{
+		$cache = $this->dir . '/cache/routes/routes.php';
+		self::assertSame(200, $this->get('/health')->getStatusCode());
+		self::assertFileExists($cache);
+
+		// A cached route table is used as it is: an entry pointing /health elsewhere shows it is read.
+		$entry = include $cache;
+		self::assertIsArray($entry);
+		$entry['value'] = serialize([]);
+		file_put_contents($cache, '<?php return ' . var_export($entry, true) . ';');
+		if (function_exists('opcache_invalidate')) {
+			opcache_invalidate($cache, true);
+		}
+		self::assertSame('/prihlaseni', $this->get('/health')->getHeaderLine('Location'));
+
+		// Another code version (here: other controllers' modification times) rebuilds it.
+		$entry['version'] = 'older code';
+		file_put_contents($cache, '<?php return ' . var_export($entry, true) . ';');
+		if (function_exists('opcache_invalidate')) {
+			opcache_invalidate($cache, true);
+		}
+		self::assertSame(200, $this->get('/health')->getStatusCode());
+	}
+
 	public function testUnknownPages(): void
 	{
 		self::assertSame(404, $this->get('/osoba/nikdo', loggedIn: true)->getStatusCode());
