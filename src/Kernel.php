@@ -16,12 +16,16 @@ use MarekSkopal\Router\Builder\RouterBuilder;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use Rodokmen\Site\Auth\Auth;
+use Rodokmen\Site\Cache\PhpFileCache;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Http\AuthMiddleware;
 use Rodokmen\Site\Http\SecurityHeaders;
 use Rodokmen\Site\Logger\Logger;
 use Rodokmen\Site\View\View;
+use SplFileInfo;
 use Throwable;
 
 /**
@@ -75,8 +79,12 @@ final readonly class Kernel
 	{
 		$config = $this->container->service(Config::class);
 
+		$controllers = $config->rootDir . '/src/Controller';
+		// Scanning the controllers with reflection on every request is slow; the routes are cached until the code
+		// changes (a deploy, a composer install).
 		$router = (new RouterBuilder())
-			->setClassDirectories([$config->rootDir . '/src/Controller'])
+			->setClassDirectories([$controllers])
+			->setCache(new PhpFileCache($config->cacheDir . '/routes', self::codeVersion($controllers, $config->rootDir)))
 			->build();
 
 		$strategy = new ApplicationStrategy();
@@ -108,6 +116,26 @@ final readonly class Kernel
 				? 'Něco se pokazilo. Zkuste to prosím později.'
 				: 'Chybí data rodokmenu (site.json). Nahrajte je z projektu rodokmenu příkazem bin/rodokmen-sync.', $available ? 500 : 503);
 		}
+	}
+
+	/** Fingerprint of the controllers and the installed packages: paths, sizes and modification times. */
+	private static function codeVersion(string $controllers, string $rootDir): string
+	{
+		$files = [$rootDir . '/vendor/composer/installed.php'];
+		$iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($controllers, RecursiveDirectoryIterator::SKIP_DOTS));
+		foreach ($iterator as $file) {
+			if ($file instanceof SplFileInfo && $file->getExtension() === 'php') {
+				$files[] = $file->getPathname();
+			}
+		}
+		sort($files);
+
+		$fingerprint = '';
+		foreach ($files as $file) {
+			$fingerprint .= $file . '|' . @filesize($file) . '|' . @filemtime($file) . "\n";
+		}
+
+		return md5($fingerprint);
 	}
 
 	/** Error page; when even the layout cannot be rendered (broken data), a plain page without it. */

@@ -15,6 +15,8 @@ number changes only when old clients or servers could not read it – see *Bundl
 - **Rollback** of a data release: `POST /api/sync/rollback` switches the website back to the previous release
   atomically. A commit now keeps the release shown before it (rather than the two newest), so a rollback is never
   undone by the next upload's cleanup.
+- The attribute routes are cached in `var/cache/routes` instead of scanning the controllers with reflection on every
+  request; the cache is rebuilt when the controllers or the installed packages change.
 - The upload API compares files against the current `manifest.json` instead of hashing all the data on every
   plan and commit; only files changed after the manifest was written are hashed.
 
