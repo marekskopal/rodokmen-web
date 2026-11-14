@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Rodokmen\Site\Auth\Auth;
+use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Kernel;
 use Rodokmen\Site\Tests\Support\Fixture;
@@ -200,6 +201,31 @@ final class KernelTest extends TestCase
 		self::assertSame(302, $ok->getStatusCode());
 		self::assertSame('/mapa', $ok->getHeaderLine('Location'));
 		self::assertStringStartsWith(Auth::CookieName . '=', $ok->getHeaderLine('Set-Cookie'));
+	}
+
+	public function testKnownDeviceCanLogInDuringAnAttack(): void
+	{
+		$ok = $this->post('/prihlaseni', ['heslo' => 'tajne-heslo']);
+		$device = null;
+		foreach ($ok->getHeader('Set-Cookie') as $cookie) {
+			if (preg_match('/^' . Auth::DeviceCookieName . '=([^;]+);/', $cookie, $m) === 1) {
+				$device = rawurldecode($m[1]);
+			}
+		}
+		self::assertNotNull($device, 'a successful login marks the browser');
+
+		// 50 wrong passwords from many addresses block new browsers…
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 0; $i < 50; $i++) {
+			$throttle->registerFailure(new ServerRequest(['REMOTE_ADDR' => '198.51.100.' . $i]), ThrottleScope::Login);
+		}
+		self::assertSame(429, $this->post('/prihlaseni', ['heslo' => 'tajne-heslo'])->getStatusCode());
+
+		// …but not a browser that has logged in before.
+		$request = $this->request('POST', '/prihlaseni', false)
+			->withParsedBody(['heslo' => 'tajne-heslo'])
+			->withCookieParams([Auth::DeviceCookieName => $device]);
+		self::assertSame(302, $this->kernel->handle($request)->getStatusCode());
 	}
 
 	public function testLoginTargetMustBeLocal(): void

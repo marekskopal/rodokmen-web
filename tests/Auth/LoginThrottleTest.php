@@ -262,6 +262,69 @@ final class LoginThrottleTest extends TestCase
 		self::assertSame(5, $allowed);
 	}
 
+	public function testKnownDeviceIsNotStoppedByTheGlobalLimit(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 0; $i < 50; $i++) {
+			$throttle->registerFailure($this->request('198.51.100.' . $i), ThrottleScope::Login);
+		}
+
+		$family = $this->request('203.0.113.7');
+		self::assertGreaterThan(0, $throttle->reserve($family, ThrottleScope::Login), 'a new browser waits');
+		self::assertSame(0, $throttle->reserve($family, ThrottleScope::Login, device: 'device-1'), 'a known one may log in');
+		$throttle->release($family, ThrottleScope::Login, device: 'device-1');
+	}
+
+	public function testKnownDeviceStillHasItsOwnLimitAndDoesNotFillTheGlobalOne(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		$device = $this->request('203.0.113.9');
+		for ($i = 0; $i < 5; $i++) {
+			self::assertSame(0, $throttle->reserve($device, ThrottleScope::Login, device: 'device-1'));
+		}
+
+		self::assertGreaterThan(0, $throttle->reserve($device, ThrottleScope::Login, device: 'device-1'));
+		self::assertFileDoesNotExist($this->dir . '/cache/throttle/login-all.json', 'not counted for all clients');
+	}
+
+	public function testKnownDeviceIsLimitedAcrossAddresses(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 0; $i < 5; $i++) {
+			self::assertSame(0, $throttle->reserve($this->request('198.51.100.' . $i), ThrottleScope::Login, device: 'stolen'));
+		}
+
+		self::assertGreaterThan(
+			0,
+			$throttle->reserve($this->request('198.51.100.99'), ThrottleScope::Login, device: 'stolen'),
+			'one device, many addresses',
+		);
+		self::assertSame(0, $throttle->reserve($this->request('198.51.100.99'), ThrottleScope::Login, device: 'another'));
+	}
+
+	public function testIpv4MappedClientsAreCountedPerAddress(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 0; $i < 5; $i++) {
+			$throttle->registerFailure($this->request('::ffff:c000:201'), ThrottleScope::Login);
+		}
+
+		self::assertGreaterThan(0, $throttle->retryAfter($this->request('192.0.2.1'), ThrottleScope::Login), 'the same IPv4 client');
+		self::assertSame(0, $throttle->retryAfter($this->request('::ffff:c000:202'), ThrottleScope::Login), 'another IPv4 client');
+	}
+
+	public function testIpv6ClientsAreCountedPerNetwork(): void
+	{
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
+		for ($i = 1; $i <= 5; $i++) {
+			$throttle->registerFailure($this->request('2001:db8:1:2::' . dechex($i)), ThrottleScope::Login);
+		}
+
+		self::assertGreaterThan(0, $throttle->retryAfter($this->request('2001:db8:1:2:ffff::1'), ThrottleScope::Login), 'the same /64');
+		self::assertSame(0, $throttle->retryAfter($this->request('2001:db8:1:3::1'), ThrottleScope::Login), 'another /64');
+		self::assertSame(0, $throttle->retryAfter($this->request('192.0.2.1'), ThrottleScope::Login));
+	}
+
 	private function request(string $ip): ServerRequest
 	{
 		return new ServerRequest(['REMOTE_ADDR' => $ip]);

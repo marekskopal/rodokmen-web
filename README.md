@@ -13,7 +13,9 @@ The user interface is in Czech, like the skill.
 ## Features
 
 - **Password-only login** for the family (no user accounts). The password is stored only as a hash, the login is
-  a signed cookie, repeated wrong attempts are throttled.
+  a signed cookie, repeated wrong attempts are throttled – per address (an IPv6 /64 counts as one) and, against
+  guesses from many addresses, for all visitors together; browsers that have logged in before are not stopped by
+  that shared limit (only by their own limit per device), so an attack cannot lock the family out.
 - **Everything is private** – scans and photos live outside the web root and are streamed only to logged-in
   visitors.
 - **Ancestor explorer** (`/predci`): one person in focus with three generations of ancestors, click anyone to move
