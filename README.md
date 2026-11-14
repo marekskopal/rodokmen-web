@@ -24,7 +24,7 @@ The user interface is in Czech, like the skill.
   zoom, pan and search.
 - **Person pages** with a life timeline, family, siblings, places on a map, every register entry with the
   highlighted crop of the scan, transcription and translation, and family photos.
-- **Generations**, **map** of places (OpenStreetMap), **register entries**, **photos and documents**, **stories**,
+- **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,
   **research log**, **open questions** and **search**.
 - HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode,
   print-friendly.
@@ -104,9 +104,18 @@ reports, `php-error.log`) and in `docker compose logs`. Updating the website: `g
 
 ### Apache without Docker
 
-Requirements: PHP ≥ 8.5 and Composer. Point the virtual host's `DocumentRoot` to `public/`, enable `mod_rewrite`
-and allow `.htaccess` (`AllowOverride All`), run `composer install --no-dev`, copy `.env.example` to `.env` and
-make `var/` writable by the web server.
+Requirements: PHP ≥ 8.5 and Composer, and for building the front-end libraries Node.js ≥ 20 with
+[pnpm](https://pnpm.io) (`npm install --global pnpm`; only needed at installation, not at runtime). Point the
+virtual host's `DocumentRoot` to `public/`, enable `mod_rewrite` and allow `.htaccess` (`AllowOverride All`), then:
+
+```sh
+composer install --no-dev
+pnpm install --frozen-lockfile   # Leaflet for the map (package.json)
+pnpm build                       # copies it into public/assets/vendor
+cp .env.example .env             # and make var/ writable by the web server
+```
+
+Run the same commands again after every `git pull`. Docker builds the libraries in the image itself.
 
 ### Configuration
 
@@ -133,7 +142,7 @@ export. Changing the password or the secret logs everybody out.
 ## Development
 
 ```sh
-make install                # composer install
+make install                # composer install + pnpm install + pnpm build
 python3 bin/rodokmen-sync -p ../my-rodokmen --target var/data
 cp .env.example .env        # set SITE_PASSWORD_HASH and SITE_SECRET
 make dev                    # http://localhost:8080
@@ -141,11 +150,12 @@ make check                  # phpcs + phpstan + phpunit + tests of the sync clie
 make fix                    # phpcbf
 ```
 
-A small PHP application without a framework or a Node build: one front controller, routes declared with PHP
+A small PHP application without a framework or a JavaScript bundler (pnpm only copies Leaflet into
+`public/assets/vendor`): one front controller, routes declared with PHP
 attributes via [marekskopal/router](https://github.com/marekskopal/router), plain PHP templates, plain CSS and JS.
 
 ```
-public/            web root: index.php, .htaccess, assets/
+public/            web root: index.php, .htaccess, assets/ (assets/vendor is built by pnpm)
 src/
 ├── Kernel.php     bootstrap: config, container, attribute routes, middleware, error pages
 ├── Config.php     settings from environment variables / .env
@@ -157,7 +167,7 @@ src/
 ├── View/          template rendering, HTML helpers, fan chart
 └── Controller/    pages, images, login and the sync API
 templates/         PHP templates
-bin/               rodokmen-sync (Python), hash-password.php, dev-router.php
+bin/               rodokmen-sync (Python), hash-password.php, dev-router.php, build-assets.mjs
 tests/             PHPUnit tests (fixture data in tests/Support/Fixture.php), tests/client for rodokmen-sync
 ```
 

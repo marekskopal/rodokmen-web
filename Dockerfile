@@ -5,6 +5,15 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
 
+# Front-end libraries (Leaflet) from package.json / pnpm-lock.yaml → public/assets/vendor.
+FROM node:24-alpine AS assets
+WORKDIR /app
+RUN npm install --global --no-fund --no-audit pnpm@12.17.0
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY bin/build-assets.mjs ./bin/
+RUN pnpm build
+
 FROM php:8.5-apache
 
 # OPcache is part of PHP since 8.5 (no docker-php-ext-install needed).
@@ -32,6 +41,7 @@ RUN a2enmod rewrite headers \
 WORKDIR /var/www/site
 COPY --from=vendor /app/vendor ./vendor
 COPY public ./public
+COPY --from=assets /app/public/assets/vendor ./public/assets/vendor
 COPY src ./src
 COPY templates ./templates
 

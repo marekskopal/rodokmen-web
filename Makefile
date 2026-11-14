@@ -4,9 +4,11 @@
 help:
 	@awk '/^## /{doc=substr($$0,4); next} /^[a-z-]+:/{if(doc){split($$0,t,":"); printf "  %-10s %s\n", t[1], doc; doc=""}}' $(MAKEFILE_LIST)
 
-## Install PHP dependencies (including the dev tools)
+## Install PHP dependencies (including the dev tools) and build the front-end libraries (pnpm)
 install:
 	composer install
+	pnpm install --frozen-lockfile
+	pnpm build
 
 ## Local server on http://localhost:8080 (log in with SITE_PASSWORD_HASH from .env)
 dev:

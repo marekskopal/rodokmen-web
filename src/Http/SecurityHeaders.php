@@ -21,8 +21,9 @@ final readonly class SecurityHeaders
 
 	private const ContentSecurityPolicy = [
 		"default-src 'self'",
-		"script-src 'self' https://cdnjs.cloudflare.com",
-		"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+		// Leaflet is served from public/assets/vendor: no third party learns who looks at the family tree.
+		"script-src 'self'",
+		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data: https://tile.openstreetmap.org",
 		"font-src 'self'",
 		"connect-src 'self'",
