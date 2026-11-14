@@ -15,6 +15,8 @@ number changes only when old clients or servers could not read it – see *Bundl
 - Front-end tests: Vitest unit tests of the browser scripts (`tests/js`, part of `make check`) and Playwright
   end-to-end tests on the demo family (`tests/e2e`, `make test-e2e`, a new CI job) – a smoke test of every main page
   and the basic cases (login, logout, search, ancestor explorer, theme, mobile navigation).
+- The demo family has an invented register scan (`tests/Support/demo`), so `make demo` and the end-to-end tests
+  show the scan viewer.
 
 ### Website
 

@@ -7,10 +7,13 @@ namespace Rodokmen\Site\Tests\Demo;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Rodokmen\Site\Data\Model\Record;
 use Rodokmen\Site\Data\SiteDataLoader;
 use Rodokmen\Site\Kernel;
 use Rodokmen\Site\Tests\Support\DemoFamily;
+use Rodokmen\Site\Tests\Support\DemoRecords;
 use Rodokmen\Site\Tests\Support\Fixture;
+use const IMAGETYPE_JPEG;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_UNICODE;
 use const PHP_URL_QUERY;
@@ -61,10 +64,26 @@ final class DemoFamilyTest extends TestCase
 		);
 	}
 
+	public function testScansHaveImages(): void
+	{
+		$data = new SiteDataLoader(Fixture::config($this->dir))->load();
+		$scanned = array_keys(array_filter($data->records, static fn (Record $record): bool => $record->img));
+
+		self::assertSame(DemoRecords::Scans, $scanned);
+		foreach ($scanned as $key) {
+			self::assertTrue($data->records[$key]->full);
+			foreach (['img', 'full'] as $folder) {
+				$size = getimagesize(DemoRecords::ImageDir . '/' . $folder . '/' . $key . '.jpg');
+				self::assertNotFalse($size, $folder . '/' . $key . '.jpg');
+				self::assertSame(IMAGETYPE_JPEG, $size[2]);
+			}
+		}
+	}
+
 	/** @return iterable<string, array{string}> */
 	public static function pages(): iterable
 	{
-		foreach (['/', '/predci', '/strom', '/vejir', '/generace', '/mapa', '/zapisy', '/osoba/antonin-skopal-1889', '/zapis/unicov_krest_antonin_skopal_1889', '/zajimavosti', '/pribeh', '/denik', '/hledame', '/hledat?q=Skopal'] as $uri) {
+		foreach (['/', '/predci', '/strom', '/vejir', '/generace', '/mapa', '/zapisy', '/osoba/antonin-skopal-1889', '/zapis/unicov_krest_antonin_skopal_1889', '/zapis/litovel_krest_josef_skopal_1921', '/zajimavosti', '/pribeh', '/denik', '/hledame', '/hledat?q=Skopal'] as $uri) {
 			yield $uri => [$uri];
 		}
 	}
