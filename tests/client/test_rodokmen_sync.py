@@ -4,10 +4,13 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import socket
+import ssl
 import tempfile
 import threading
 import unittest
-from contextlib import redirect_stdout
+import urllib.error
+from contextlib import redirect_stderr, redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -131,6 +134,11 @@ class FakeSite:
         self.token = token
         self.stored = set(have)
         self.committed = None
+        # Injected failures, used up one per request: a status (int, or (status, Retry-After)) or "drop"
+        # (the connection is closed without a response).
+        self.faults = []
+        self.requests = []
+        self.lock = threading.Lock()
         site = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -148,6 +156,29 @@ class FakeSite:
             def body(self):
                 return self.rfile.read(int(self.headers.get("Content-Length", 0)))
 
+            def fault(self):
+                """Records the request and answers with an injected failure if there is one."""
+                body = self.body()
+                with site.lock:
+                    site.requests.append((self.command, self.path))
+                    fault = site.faults.pop(0) if site.faults else None
+                if fault == "drop":
+                    self.close_connection = True
+                    self.connection.shutdown(socket.SHUT_RDWR)
+                    return None
+                if fault is not None:
+                    status, retry_after = fault if isinstance(fault, tuple) else (fault, None)
+                    body_out = json.dumps({"error": "Injected failure"}).encode()
+                    self.send_response(status)
+                    if retry_after is not None:
+                        self.send_header("Retry-After", str(retry_after))
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body_out)))
+                    self.end_headers()
+                    self.wfile.write(body_out)
+                    return None
+                return body
+
             def authorized(self):
                 if self.headers.get("X-Sync-Token") != site.token:
                     self.reply(401, {"error": "Invalid token"})
@@ -155,9 +186,10 @@ class FakeSite:
                 return True
 
             def do_POST(self):
-                if not self.authorized():
+                body = self.fault()
+                if body is None or not self.authorized():
                     return
-                manifest = json.loads(self.body())
+                manifest = json.loads(body)
                 hashes = {f["sha256"] for f in manifest["files"].values()}
                 missing = sorted(hashes - site.stored)
                 if self.path == "/api/sync/plan":
@@ -170,18 +202,20 @@ class FakeSite:
                     self.reply(200, {"release": "20261113-120000-abcdef12", "files": len(manifest["files"])})
 
             def do_PUT(self):
-                if not self.authorized():
+                body = self.fault()
+                if body is None or not self.authorized():
                     return
                 sha = self.path.rsplit("/", 1)[1]
-                if hashlib.sha256(self.body()).hexdigest() != sha:
+                if hashlib.sha256(body).hexdigest() != sha:
                     self.reply(422, {"error": "Uploaded content does not match its hash"})
                     return
-                site.stored.add(sha)
+                with site.lock:
+                    site.stored.add(sha)
                 self.reply(201, {"stored": sha})
 
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.url = f"http://127.0.0.1:{self.server.server_port}"
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True).start()
 
     def close(self):
         self.server.shutdown()
@@ -237,8 +271,87 @@ class ApiTargetTest(unittest.TestCase):
     def test_missing_token_and_unreachable_site(self):
         with self.assertRaises(sync.SyncError):
             sync.Api("https://example.invalid", "")
-        with self.assertRaisesRegex(sync.SyncError, "Cannot reach"):
-            sync.Api("http://127.0.0.1:9", "x").plan(self.manifest)
+        with self.assertRaisesRegex(sync.SyncError, "Cannot reach .*gave up after 5 attempts"):
+            quiet(sync.Api("http://127.0.0.1:9", "x", sleep=lambda s: None).plan, self.manifest)
+
+
+class RetryTest(unittest.TestCase):
+    """Lost connections and temporary server errors are retried; real errors are reported at once."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.files = quiet(sync.collect, make_project(Path(self.tmp.name)))
+        self.manifest = sync.build_manifest(self.files)
+        self.site = FakeSite()
+        self.waits = []
+        self.api = sync.Api(self.site.url, "secret", sleep=self.waits.append)
+
+    def tearDown(self):
+        self.site.close()
+        self.tmp.cleanup()
+
+    def sync(self, jobs=sync.JOBS):
+        return quiet(sync.sync_api, self.files, self.manifest, self.api, jobs=jobs)
+
+    def test_temporary_errors_and_dropped_connections_are_retried(self):
+        self.site.faults = [503, "drop", 502]
+        self.assertEqual(self.sync(jobs=1), {"uploaded": 4, "release": "20261113-120000-abcdef12"})
+        self.assertEqual(self.waits, [2.0, 4.0, 8.0])
+        self.assertEqual(self.site.committed["files"], self.manifest["files"])
+
+    def test_retry_after_is_respected(self):
+        self.site.faults = [(429, 7)]
+        self.sync()
+        self.assertEqual(self.waits, [7.0])
+
+    def test_too_long_retry_after_is_not_waited_for(self):
+        self.site.faults = [(429, 900)]
+        with self.assertRaisesRegex(sync.SyncError, "HTTP 429"):
+            self.sync()
+        self.assertEqual(self.waits, [])
+        self.assertEqual(len(self.site.requests), 1)
+
+    def test_gives_up_after_the_last_retry(self):
+        self.site.faults = [500] * 10
+        with self.assertRaisesRegex(sync.SyncError, r"HTTP 500 .*gave up after 5 attempts"):
+            self.sync()
+        self.assertEqual(len(self.site.requests), 5)
+        self.assertIsNone(self.site.committed)
+
+    def test_client_errors_are_not_retried(self):
+        self.site.faults = [400]
+        with self.assertRaisesRegex(sync.SyncError, "HTTP 400 – Injected failure"):
+            self.sync()
+        self.assertEqual(len(self.site.requests), 1)
+
+    def test_parallel_uploads_send_every_file_once(self):
+        self.assertEqual(self.sync(jobs=3)["uploaded"], 4)
+        uploads = [path for method, path in self.site.requests if method == "PUT"]
+        self.assertEqual(sorted(uploads), sorted(f"/api/sync/file/{f['sha256']}" for f in self.manifest["files"].values()))
+
+    def test_failed_upload_stops_before_the_commit(self):
+        self.site.faults = [None, 413]
+        with self.assertRaisesRegex(sync.SyncError, "HTTP 413"):
+            self.sync(jobs=1)
+        self.assertIsNone(self.site.committed)
+        self.assertFalse(any(method == "POST" and path.endswith("/commit") for method, path in self.site.requests))
+
+    def test_failed_upload_stops_the_retries_of_the_others(self):
+        self.api.stopped.set()
+        self.site.faults = [503]
+        with self.assertRaisesRegex(sync.SyncError, "HTTP 503"):
+            quiet(self.api.plan, self.manifest)
+        self.assertEqual(self.waits, [])
+
+    def test_rejected_certificate_is_not_retried(self):
+        class Opener:
+            def open(self, request, timeout):
+                raise urllib.error.URLError(ssl.SSLCertVerificationError("certificate verify failed"))
+
+        api = sync.Api("https://example.invalid", "x", opener=Opener(), sleep=self.waits.append)
+        with self.assertRaisesRegex(sync.SyncError, "certificate verify failed"):
+            api.plan(self.manifest)
+        self.assertEqual(self.waits, [])
 
 
 class MainTest(unittest.TestCase):
@@ -250,10 +363,13 @@ class MainTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue((data / "site.json").is_file())
 
+    def test_jobs_must_be_positive(self):
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            sync.main(["--jobs", "0"], environ={})
+
     def test_error_without_target(self):
         with tempfile.TemporaryDirectory() as tmp, redirect_stdout(io.StringIO()):
             err = io.StringIO()
-            from contextlib import redirect_stderr
             with redirect_stderr(err):
                 self.assertEqual(sync.main(["-p", tmp, "--no-export"], environ={}), 1)
             self.assertIn("No target", err.getvalue())
