@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Auth\LoginThrottle;
+use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\View\View;
 
 final readonly class LoginController
@@ -35,7 +36,7 @@ final readonly class LoginController
 	{
 		$target = $this->target(self::bodyField($request, 'k'));
 
-		$wait = $this->throttle->retryAfter($request);
+		$wait = $this->throttle->retryAfter($request, ThrottleScope::Login);
 		if ($wait > 0) {
 			$this->logger->warning('Login throttled', ['ip' => $this->throttle->clientIp($request)]);
 
@@ -44,14 +45,14 @@ final readonly class LoginController
 		}
 
 		if (!$this->auth->verifyPassword(self::bodyField($request, 'heslo') ?? '')) {
-			$this->throttle->registerFailure($request);
+			$this->throttle->registerFailure($request, ThrottleScope::Login);
 			$this->logger->warning('Wrong password', ['ip' => $this->throttle->clientIp($request)]);
 			usleep(400000);
 
 			return $this->showForm($request, 'Heslo nesouhlasí.', 401);
 		}
 
-		$this->throttle->reset($request);
+		$this->throttle->reset($request, ThrottleScope::Login);
 
 		return (new RedirectResponse($target))->withAddedHeader('Set-Cookie', $this->auth->loginCookie($request));
 	}

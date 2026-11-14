@@ -7,6 +7,7 @@ namespace Rodokmen\Site\Tests\Auth;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Auth\LoginThrottle;
+use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Tests\Support\Fixture;
 
 final class LoginThrottleTest extends TestCase
@@ -29,31 +30,33 @@ final class LoginThrottleTest extends TestCase
 		$request = $this->request('10.0.0.1');
 
 		for ($i = 0; $i < 4; $i++) {
-			$throttle->registerFailure($request);
+			$throttle->registerFailure($request, ThrottleScope::Login);
 		}
-		self::assertSame(0, $throttle->retryAfter($request));
+		self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
 
-		$throttle->registerFailure($request);
-		self::assertGreaterThan(800, $throttle->retryAfter($request));
-		self::assertSame(0, $throttle->retryAfter($this->request('10.0.0.2')), 'other clients are not affected');
+		$throttle->registerFailure($request, ThrottleScope::Login);
+		self::assertGreaterThan(800, $throttle->retryAfter($request, ThrottleScope::Login));
+		self::assertSame(0, $throttle->retryAfter($this->request('10.0.0.2'), ThrottleScope::Login), 'other clients are not affected');
 
-		$throttle->reset($request);
-		self::assertSame(0, $throttle->retryAfter($request));
+		$throttle->reset($request, ThrottleScope::Login);
+		self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
 	}
 
 	public function testOldAttemptsExpire(): void
 	{
 		$throttle = new LoginThrottle(Fixture::config($this->dir));
 		$request = $this->request('10.0.0.3');
-		$throttle->registerFailure($request);
+		$throttle->registerFailure($request, ThrottleScope::Login);
 
-		$files = glob($this->dir . '/cache/throttle/*.json');
+		$files = glob($this->dir . '/cache/throttle/login-*.json');
 		self::assertIsArray($files);
-		self::assertCount(1, $files);
-		file_put_contents($files[0], json_encode([time() - 1000, time() - 950, time() - 901, time() - 2000, 'x']));
+		self::assertCount(2, $files, 'the client and all clients');
+		foreach ($files as $file) {
+			file_put_contents($file, json_encode([time() - 1000, time() - 950, time() - 901, time() - 2000, 'x']));
+		}
 
-		$throttle->registerFailure($request);
-		self::assertSame(0, $throttle->retryAfter($request));
+		$throttle->registerFailure($request, ThrottleScope::Login);
+		self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
 	}
 
 	public function testClientIp(): void
@@ -117,13 +120,70 @@ final class LoginThrottleTest extends TestCase
 	{
 		$throttle = new LoginThrottle(Fixture::config($this->dir, trustProxy: true));
 		for ($i = 0; $i < 5; $i++) {
-			$throttle->registerFailure($this->request('10.0.0.1')->withHeader('X-Forwarded-For', '198.51.100.' . $i . ', 203.0.113.5'));
+			$throttle->registerFailure(
+				$this->request('10.0.0.1')->withHeader('X-Forwarded-For', '198.51.100.' . $i . ', 203.0.113.5'),
+				ThrottleScope::Login,
+			);
 		}
 
 		self::assertGreaterThan(
 			0,
-			$throttle->retryAfter($this->request('10.0.0.1')->withHeader('X-Forwarded-For', '198.51.100.99, 203.0.113.5')),
+			$throttle->retryAfter(
+				$this->request('10.0.0.1')->withHeader('X-Forwarded-For', '198.51.100.99, 203.0.113.5'),
+				ThrottleScope::Login,
+			),
 		);
+	}
+
+	public function testScopesAreCountedSeparately(): void
+	{
+		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$request = $this->request('10.0.0.4');
+		for ($i = 0; $i < 5; $i++) {
+			$throttle->registerFailure($request, ThrottleScope::Sync);
+		}
+
+		self::assertGreaterThan(0, $throttle->retryAfter($request, ThrottleScope::Sync));
+		self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login), 'wrong sync tokens do not block the login form');
+	}
+
+	public function testGlobalLoginLimit(): void
+	{
+		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		for ($i = 0; $i < 50; $i++) {
+			$request = $this->request('198.51.100.' . $i);
+			self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
+			$throttle->registerFailure($request, ThrottleScope::Login);
+		}
+
+		self::assertGreaterThan(
+			800,
+			$throttle->retryAfter($this->request('198.51.100.200'), ThrottleScope::Login),
+			'guesses from many addresses',
+		);
+		self::assertSame(
+			0,
+			$throttle->retryAfter($this->request('198.51.100.200'), ThrottleScope::Sync),
+			'the sync API has no global limit',
+		);
+	}
+
+	public function testWaitEndsWhenEnoughAttemptsExpire(): void
+	{
+		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$request = $this->request('10.0.0.5');
+		$throttle->registerFailure($request, ThrottleScope::Sync);
+
+		$files = glob($this->dir . '/cache/throttle/sync-*.json');
+		self::assertIsArray($files);
+		self::assertCount(1, $files);
+		$now = time();
+		file_put_contents($files[0], json_encode([$now - 800, $now - 600, $now - 400, $now - 200, $now - 100, $now]));
+
+		// Six attempts: the wait ends when the second oldest expires and the count drops below five.
+		$wait = $throttle->retryAfter($request, ThrottleScope::Sync);
+		self::assertGreaterThanOrEqual(299, $wait);
+		self::assertLessThanOrEqual(300, $wait);
 	}
 
 	private function request(string $ip): ServerRequest
