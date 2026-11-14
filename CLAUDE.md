@@ -10,8 +10,9 @@ Public open-source website for family trees made with the rodokmen Claude Code s
   screenshots (`tests/Support/Demo*.php`) has the author, Marek Skopal, as the home person at his own wish – only
   his name, no facts about him; everybody and everything else in it is invented, except that the places are
   real towns of Haná so that the map makes sense.
-- **Before every commit run `make check`** (phpcs + phpstan max + phpunit + `tests/client`) and fix everything it
-  reports – no baseline, no `@phpstan-ignore`. `make fix` runs phpcbf.
+- **Before every commit run `make check`** (phpcs + phpstan max + phpunit + `tests/client` + Vitest `tests/js`) and fix
+  everything it reports – no baseline, no `@phpstan-ignore`. `make fix` runs phpcbf. When the front end changes
+  (templates, `public/assets`), also run `make test-e2e` (Playwright, `tests/e2e`).
 - Code style: tabs, Slevomat ruleset, readonly DTOs (`src/Data/Model`) instead of arrays. New behaviour gets a test.
 - `bin/rodokmen-sync` must stay a single file using only the Python standard library (3.9+), because users
   download it alone into their rodokmen project.

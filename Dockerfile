@@ -6,12 +6,12 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
 
-# Front-end libraries (Leaflet) from package.json / pnpm-lock.yaml → public/assets/vendor.
+# Front-end libraries (Leaflet) from package.json / pnpm-lock.yaml → public/assets/vendor (without the test tools).
 FROM node:24.22.3-alpine AS assets
 WORKDIR /app
 RUN npm install --global --no-fund --no-audit pnpm@12.17.0
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod
 COPY bin/build-assets.mjs ./bin/
 RUN pnpm build
 
