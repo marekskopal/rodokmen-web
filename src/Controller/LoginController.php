@@ -49,8 +49,8 @@ final readonly class LoginController
 		}
 
 		if (!$this->auth->verifyPassword(self::bodyField($request, 'heslo') ?? '')) {
+			// No artificial delay: the throttle limits the attempts, a sleep would only keep an Apache worker busy.
 			$this->logger->warning('Wrong password', ['ip' => $this->throttle->clientIp($request)]);
-			usleep(400000);
 
 			return $this->showForm($request, 'Heslo nesouhlasí.', 401);
 		}

@@ -12,11 +12,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Rodokmen\Site\Auth\Auth;
 
 /**
- * Every page except the login form requires a valid login cookie. The sync API (/api/) has its own token.
+ * Every page except the login form and the health check requires a valid login cookie. The sync API (/api/) has its own token.
  */
 final readonly class AuthMiddleware implements MiddlewareInterface
 {
-	private const PublicPaths = ['/prihlaseni'];
+	private const PublicPaths = ['/prihlaseni', '/health'];
 
 	private const ApiPrefix = '/api/';
 
