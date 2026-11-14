@@ -49,6 +49,56 @@ final class DataStoreTest extends TestCase
 		self::assertSame([hash('sha256', 'new data')], $this->store->missing($manifest));
 	}
 
+	public function testMissingTrustsTheCurrentManifestInsteadOfHashing(): void
+	{
+		// The manifest lists a hash the file does not have (same size): only a hash_file call would notice.
+		file_put_contents(
+			$this->data . '/' . Manifest::FileName,
+			ManifestTest::json(['site.json' => 'old data', 'img/same.jpg' => 'SAME CROP']),
+		);
+		$manifest = Manifest::fromJson(ManifestTest::json(['site.json' => 'old data', 'img/same.jpg' => 'SAME CROP']));
+
+		self::assertSame([], $this->store->missing($manifest));
+	}
+
+	public function testMissingHashesFilesChangedAfterTheCurrentManifest(): void
+	{
+		// The manifest lists a hash the file does not have, but the file is newer: it is hashed, not trusted.
+		file_put_contents(
+			$this->data . '/' . Manifest::FileName,
+			ManifestTest::json(['site.json' => 'old data', 'img/same.jpg' => 'SAME CROP']),
+		);
+		touch($this->data . '/' . Manifest::FileName, time() - 10);
+		$manifest = Manifest::fromJson(ManifestTest::json(['site.json' => 'old data', 'img/same.jpg' => 'SAME CROP']));
+
+		self::assertSame([hash('sha256', 'SAME CROP')], $this->store->missing($manifest));
+	}
+
+	public function testMissingWithCurrentManifestNeedsUnlistedAndChangedFiles(): void
+	{
+		file_put_contents($this->data . '/' . Manifest::FileName, ManifestTest::json(['site.json' => 'old data']));
+		$manifest = Manifest::fromJson(ManifestTest::json(['site.json' => 'new data', 'img/same.jpg' => 'same crop']));
+
+		self::assertEqualsCanonicalizing(
+			[hash('sha256', 'new data'), hash('sha256', 'same crop')],
+			$this->store->missing($manifest),
+		);
+	}
+
+	public function testCommitAfterCommitReusesFilesOfTheCurrentRelease(): void
+	{
+		$this->upload('new data');
+		$this->store->commit(Manifest::fromJson(ManifestTest::json(['site.json' => 'new data', 'img/same.jpg' => 'same crop'])));
+
+		$next = Manifest::fromJson(ManifestTest::json(['site.json' => 'new data', 'img/same.jpg' => 'same crop', 'md/a.md' => 'a']));
+		self::assertSame([hash('sha256', 'a')], $this->store->missing($next));
+
+		$this->upload('a');
+		$this->store->commit($next);
+		self::assertSame('same crop', file_get_contents($this->data . '/img/same.jpg'));
+		self::assertSame('a', file_get_contents($this->data . '/md/a.md'));
+	}
+
 	public function testUploadRejectsContentNotMatchingItsHash(): void
 	{
 		try {

@@ -42,30 +42,13 @@ final readonly class DataStore
 	 */
 	public function missing(Manifest $manifest): array
 	{
-		$missing = [];
-		foreach ($manifest->files as $path => $file) {
-			if ($this->source($path, $file) === null) {
-				$missing[$file->sha256] = true;
-			}
-		}
-
-		return array_keys($missing);
+		return $this->missingIn($manifest, $this->sources($manifest));
 	}
 
 	/** Whether the website already shows exactly this bundle. */
 	public function isCurrent(Manifest $manifest): bool
 	{
-		$file = $this->config->dataDir . '/' . Manifest::FileName;
-		$json = is_file($file) ? file_get_contents($file) : false;
-		if ($json === false) {
-			return false;
-		}
-
-		try {
-			return Manifest::fromJson($json)->id() === $manifest->id();
-		} catch (InvalidManifestException) {
-			return false;
-		}
+		return $this->currentManifest()?->id() === $manifest->id();
 	}
 
 	/** Stores an uploaded file under its hash after checking that the content matches it. */
@@ -109,14 +92,15 @@ final readonly class DataStore
 		}
 
 		try {
-			$missing = $this->missing($manifest);
+			$sources = $this->sources($manifest);
+			$missing = $this->missingIn($manifest, $sources);
 			if ($missing !== []) {
 				throw new SyncException('Some files have not been uploaded', 409, $missing);
 			}
 
 			// Sortable by time (microseconds, so that quick successive commits keep their order).
 			$id = gmdate('Ymd-His') . '-' . substr(sprintf('%.6F', microtime(true)), -6) . '-' . substr($manifest->id(), 0, 8);
-			$this->build($manifest, $this->releasesDir() . '/' . $id);
+			$this->build($manifest, $sources, $this->releasesDir() . '/' . $id);
 			$this->activate($id);
 			$this->prune($manifest, $id);
 
@@ -127,12 +111,59 @@ final readonly class DataStore
 		}
 	}
 
-	/** Existing file with the expected content: the same path in the current data, or an upload. */
-	private function source(string $path, ManifestFile $file): ?string
+	/**
+	 * Existing file with the expected content for every path of the manifest (null where there is none).
+	 *
+	 * @return array<string, string|null>
+	 */
+	private function sources(Manifest $manifest): array
 	{
-		$current = $this->config->dataDir . '/' . $path;
-		if (is_file($current) && filesize($current) === $file->size && hash_file('sha256', $current) === $file->sha256) {
-			return $current;
+		// The current manifest describes the current data, so its hashes spare reading every file again –
+		// except for files changed after it was written (an interrupted sync, a manual edit), which are hashed.
+		$current = $this->currentManifest()?->files;
+		$writtenAt = $current === null ? 0 : (int) filemtime($this->config->dataDir . '/' . Manifest::FileName);
+		$sources = [];
+		foreach ($manifest->files as $path => $file) {
+			$sources[$path] = $this->source($path, $file, $current, $writtenAt);
+		}
+
+		return $sources;
+	}
+
+	/**
+	 * Hashes of the manifest's files that have no source.
+	 *
+	 * @param array<string, string|null> $sources
+	 * @return list<string>
+	 */
+	private function missingIn(Manifest $manifest, array $sources): array
+	{
+		$missing = [];
+		foreach ($manifest->files as $path => $file) {
+			if ($sources[$path] === null) {
+				$missing[$file->sha256] = true;
+			}
+		}
+
+		return array_keys($missing);
+	}
+
+	/**
+	 * Existing file with the expected content: the same path in the current data, or an upload.
+	 *
+	 * @param array<string, ManifestFile>|null $current files of the current manifest, null when there is none
+	 * @param int $writtenAt modification time of the current manifest
+	 */
+	private function source(string $path, ManifestFile $file, ?array $current, int $writtenAt): ?string
+	{
+		$existing = $this->config->dataDir . '/' . $path;
+		if (is_file($existing) && filesize($existing) === $file->size) {
+			$sha256 = $current === null || filemtime($existing) > $writtenAt
+				? hash_file('sha256', $existing)
+				: ($current[$path]->sha256 ?? null);
+			if ($sha256 === $file->sha256) {
+				return $existing;
+			}
 		}
 
 		$uploaded = $this->uploadsDir() . '/' . $file->sha256;
@@ -140,13 +171,27 @@ final readonly class DataStore
 		return is_file($uploaded) && filesize($uploaded) === $file->size ? $uploaded : null;
 	}
 
-	private function build(Manifest $manifest, string $dir): void
+	/** Manifest of the data the website shows now; null for data without one (e.g. copied by rsync). */
+	private function currentManifest(): ?Manifest
 	{
-		foreach ($manifest->files as $path => $file) {
-			$source = $this->source($path, $file);
-			if ($source === null) {
-				throw new SyncException('File disappeared during the commit: ' . $path, 409);
-			}
+		$file = $this->config->dataDir . '/' . Manifest::FileName;
+		$json = is_file($file) ? file_get_contents($file) : false;
+		if ($json === false) {
+			return null;
+		}
+
+		try {
+			return Manifest::fromJson($json);
+		} catch (InvalidManifestException) {
+			return null;
+		}
+	}
+
+	/** @param array<string, string|null> $sources */
+	private function build(Manifest $manifest, array $sources, string $dir): void
+	{
+		foreach (array_keys($manifest->files) as $path) {
+			$source = $sources[$path] ?? throw new SyncException('Some files have not been uploaded: ' . $path, 409);
 
 			$target = $dir . '/' . $path;
 			$this->fs->ensureDir(dirname($target));
