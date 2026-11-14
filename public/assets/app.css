@@ -335,15 +335,26 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .search-results mark { background: #f3dd9a; color: inherit; padding: 0 1px; border-radius: 2px; }
 
 /* Lightbox */
-.lightbox { position: fixed; inset: 0; background: rgba(15, 12, 10, .92); z-index: 100; display: grid; place-items: center; padding: 24px; cursor: zoom-out; overflow: auto; }
-.lightbox[hidden] { display: none; }
-.lightbox img { max-width: none; width: min(1800px, 100%); height: auto; }
-.lightbox-close { position: fixed; top: 12px; right: 16px; background: none; border: 0; color: #fff; font-size: 2.2rem; cursor: pointer; line-height: 1; }
+/* Zoom-and-pan viewer for scans and photos (viewer.js) */
+.viewer-open, .viewer-open body { overflow: hidden; }
+.viewer { position: fixed; inset: 0; z-index: 100; background: rgba(15, 12, 10, .94); color: #fff; }
+.viewer[hidden] { display: none; }
+.viewer-stage { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.viewer-stage.dragging { cursor: grabbing; }
+.viewer-img { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; will-change: transform; -webkit-user-drag: none; }
+.viewer-img.animate { transition: transform .18s ease-out; }
+.viewer-bar { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 6px; background: rgba(0, 0, 0, .6); border-radius: 999px; box-shadow: 0 2px 12px rgba(0, 0, 0, .4); }
+.viewer-bar button, .viewer-bar a { display: inline-grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #fff; font: 1.35rem/1 var(--sans); text-decoration: none; cursor: pointer; }
+.viewer-bar button:hover, .viewer-bar a:hover { background: rgba(255, 255, 255, .16); }
+.viewer-bar button:focus-visible, .viewer-bar a:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.viewer-zoom { min-width: 4.2em; text-align: center; font: .85rem/1 var(--sans); font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .85); }
+.viewer-status { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 14px; background: rgba(0, 0, 0, .6); border-radius: 999px; font: .88rem/1.4 var(--sans); pointer-events: none; }
+.viewer-status[hidden] { display: none; }
 
 .empty { text-align: center; padding: 80px 16px; }
 
 @media print {
-    .top, .foot, .filters, .person-actions, .explorer-actions { display: none !important; }
+    .top, .foot, .filters, .person-actions, .explorer-actions, .viewer { display: none !important; }
     body { background: #fff; }
 }
 

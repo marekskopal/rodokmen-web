@@ -23,7 +23,8 @@ The user interface is in Czech, like the skill.
 - **Full tree** (`/strom`) drawn left to right with collapsible branches, and a **360° fan chart** (`/vejir`) with
   zoom, pan and search.
 - **Person pages** with a life timeline, family, siblings, places on a map, every register entry with the
-  highlighted crop of the scan, transcription and translation, and family photos.
+  highlighted crop of the scan, transcription and translation, and family photos. Scans and photos open in a
+  viewer with zoom and pan (mouse wheel, pinch, drag) in full resolution.
 - **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,
   **research log**, **open questions** and **search**.
 - HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode,

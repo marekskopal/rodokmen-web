@@ -25,23 +25,6 @@
         try { localStorage.setItem('rk-theme', root.dataset.theme); } catch (e) { /* storage blocked */ }
     }));
 
-    // Lightbox for scans and photos
-    const box = $('.lightbox');
-    if (box) {
-        const img = $('img', box);
-        document.addEventListener('click', (ev) => {
-            const link = ev.target.closest('a[data-lightbox]');
-            if (!link) return;
-            ev.preventDefault();
-            img.src = link.href;
-            img.alt = ($('img', link) || {}).alt || '';
-            box.hidden = false;
-        });
-        const close = () => { box.hidden = true; img.removeAttribute('src'); };
-        box.addEventListener('click', close);
-        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !box.hidden) close(); });
-    }
-
     // Filters (generations table, records grid)
     const filterRoot = $('[data-filter-root]');
     if (filterRoot) {

@@ -18,6 +18,9 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Scan viewer**: register scans and family photos open in a viewer with zoom (mouse wheel, pinch, double-click or
+  double-tap, buttons, `+` / `-` / `0`) and pan (drag, arrow keys). The crop on the page shows at once and the full
+  resolution replaces it when it has loaded.
 - **Rollback** of a data release: `POST /api/sync/rollback` switches the website back to the previous release
   atomically. A commit now keeps the release shown before it (rather than the two newest), so a rollback is never
   undone by the next upload's cleanup.
