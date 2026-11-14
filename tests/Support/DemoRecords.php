@@ -14,6 +14,12 @@ namespace Rodokmen\Site\Tests\Support;
  */
 final class DemoRecords
 {
+	/** Entries with an invented scan in tests/Support/demo/{img,full} (the crop and the same crop in full size). */
+	public const Scans = ['litovel_krest_josef_skopal_1921'];
+
+	/** Folder with the invented scans, copied into the data folder by bin/demo-data.php. */
+	public const ImageDir = __DIR__ . '/demo';
+
 	private const Archive = 'Zemský archiv v Opavě';
 
 	private const Latin = ['Jan' => 'Joannes', 'Josef' => 'Josephus', 'Antonín' => 'Antonius', 'Václav' => 'Wenceslaus', 'Marie' => 'Maria'];
@@ -139,8 +145,8 @@ final class DemoRecords
 			'vdesc' => $volume,
 			'portal' => 'Matriky online',
 			'url' => 'https://example.org/matriky/' . $url,
-			'img' => false,
-			'full' => false,
+			'img' => in_array($key, self::Scans, true),
+			'full' => in_array($key, self::Scans, true),
 			'boxes' => [],
 			'orig' => $orig,
 			'cs' => $cs,

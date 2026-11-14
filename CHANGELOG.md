@@ -15,9 +15,14 @@ number changes only when old clients or servers could not read it – see *Bundl
 - Front-end tests: Vitest unit tests of the browser scripts (`tests/js`, part of `make check`) and Playwright
   end-to-end tests on the demo family (`tests/e2e`, `make test-e2e`, a new CI job) – a smoke test of every main page
   and the basic cases (login, logout, search, ancestor explorer, theme, mobile navigation).
+- The demo family has an invented register scan (`tests/Support/demo`), so `make demo` and the end-to-end tests
+  show the scan viewer.
 
 ### Website
 
+- **Scan viewer**: register scans and family photos open in a viewer with zoom (mouse wheel, pinch, double-click or
+  double-tap, buttons, `+` / `-` / `0`) and pan (drag, arrow keys). The crop on the page shows at once and the full
+  resolution replaces it when it has loaded.
 - **Rollback** of a data release: `POST /api/sync/rollback` switches the website back to the previous release
   atomically. A commit now keeps the release shown before it (rather than the two newest), so a rollback is never
   undone by the next upload's cleanup.

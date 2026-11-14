@@ -23,13 +23,14 @@ $items = [
     <meta name="robots" content="noindex, nofollow">
     <title><?= $v->e(($title ?? '') !== $siteTitle && ($title ?? '') !== '' ? $title . ' · ' . $siteTitle : $siteTitle) ?></title>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/app.css?v=9">
+    <link rel="stylesheet" href="/assets/app.css?v=10">
     <?php if (($nav === 'map') || !empty($needsMap)): ?>
         <?php /* Built by `pnpm build` from package.json; the query changes with the Leaflet version (cache). */ ?>
         <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css?v=1.9.4">
         <script src="/assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
     <?php endif ?>
-    <script src="/assets/app.js?v=9" defer></script>
+    <script src="/assets/app.js?v=10" defer></script>
+    <script src="/assets/viewer.js?v=1" defer></script>
     <script src="/assets/theme.js?v=1"></script>
 </head>
 <body class="<?= $bare ? 'bare' : '' ?>">
@@ -78,6 +79,17 @@ $items = [
     </div>
 </footer>
 <?php endif ?>
-<div class="lightbox" hidden><button type="button" class="lightbox-close" aria-label="Zavřít">×</button><img alt=""></div>
+<div class="viewer" hidden role="dialog" aria-modal="true" aria-label="Prohlížeč obrázku">
+    <div class="viewer-stage"><img class="viewer-img" alt="" draggable="false"></div>
+    <p class="viewer-status" role="status" hidden></p>
+    <div class="viewer-bar">
+        <button type="button" data-viewer="out" aria-label="Oddálit" title="Oddálit (−)">−</button>
+        <span class="viewer-zoom" aria-hidden="true"></span>
+        <button type="button" data-viewer="in" aria-label="Přiblížit" title="Přiblížit (+)">+</button>
+        <button type="button" data-viewer="fit" aria-label="Přizpůsobit oknu" title="Přizpůsobit oknu (0)">⤢</button>
+        <a data-viewer="orig" href="#" target="_blank" rel="noopener" aria-label="Otevřít originál v novém okně" title="Otevřít originál">↗</a>
+        <button type="button" data-viewer="close" aria-label="Zavřít" title="Zavřít (Esc)">×</button>
+    </div>
+</div>
 </body>
 </html>
