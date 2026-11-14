@@ -71,8 +71,13 @@ Then, after every round of research:
 python3 rodokmen-sync              # export + upload
 python3 rodokmen-sync --dry-run    # only show what would be sent
 python3 rodokmen-sync --no-export  # publish the last export as it is
+python3 rodokmen-sync --jobs 8     # more parallel uploads (default 4)
 python3 rodokmen-sync --help
 ```
+
+Uploads to the API run in parallel, and every request is retried a few times (2, 4, 8, 16 s apart, or as the server's
+`Retry-After` says) after a lost connection, a timeout or a temporary server error (HTTP 429, 500, 502, 503, 504).
+Files already uploaded stay on the server, so running the command again after a failure sends only the rest.
 
 Options `--target` and `--token` and the environment variables `RODOKMEN_WEB_TARGET` / `RODOKMEN_WEB_TOKEN`
 override the file. Targets: `https://…` (API), `user@host:/path` or `ssh://user@host:port/path` (rsync over SSH),
