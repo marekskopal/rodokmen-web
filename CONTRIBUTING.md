@@ -12,7 +12,8 @@ client's tests), optionally Docker.
 make install    # composer install, pnpm install, pnpm build (Leaflet into public/assets/vendor)
 make demo       # the demo family on http://localhost:8081, password: demo
 make dev        # http://localhost:8080 with your own data (var/data) and .env
-make check      # phpcs + phpstan + phpunit + the sync client's tests – must pass before every commit
+make check      # phpcs + phpstan + phpunit + the sync client's tests + Vitest – must pass before every commit
+make test-e2e   # end-to-end tests (Playwright) – for front-end changes; once: pnpm exec playwright install chromium
 make fix        # fixes what phpcbf can
 ```
 

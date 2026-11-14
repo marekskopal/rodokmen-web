@@ -139,9 +139,9 @@ virtual host's `DocumentRoot` to `public/`, enable `mod_rewrite` and allow `.hta
 
 ```sh
 composer install --no-dev
-pnpm install --frozen-lockfile   # Leaflet for the map (package.json)
-pnpm build                       # copies it into public/assets/vendor
-cp .env.example .env             # and make var/ writable by the web server
+pnpm install --frozen-lockfile --prod   # Leaflet for the map (package.json), without the test tools
+pnpm build                              # copies it into public/assets/vendor
+cp .env.example .env                    # and make var/ writable by the web server
 ```
 
 Run the same commands again after every `git pull`. Docker builds the libraries in the image itself.
@@ -176,9 +176,15 @@ python3 bin/rodokmen-sync -p ../my-rodokmen --target var/data
 cp .env.example .env        # set SITE_PASSWORD_HASH and SITE_SECRET
 make dev                    # http://localhost:8080
 make demo                   # the demo family on http://localhost:8081, password: demo
-make check                  # phpcs + phpstan + phpunit + tests of the sync client
+make check                  # phpcs + phpstan + phpunit + tests of the sync client + Vitest
+make test-e2e               # end-to-end tests in Chromium (Playwright) on the demo family
 make fix                    # phpcbf
 ```
+
+Front-end tests: `tests/js` are unit tests of the browser scripts in `public/assets` (Vitest; every test loads the
+scripts into its own jsdom window), `tests/e2e` are end-to-end tests (Playwright) against `make e2e-server`, the
+demo family on http://localhost:8090 with fresh data in `var/e2e`. Before the first run install the browser with
+`pnpm exec playwright install chromium`. Every end-to-end test fails on a console error or a CSP violation.
 
 A small PHP application without a framework or a JavaScript bundler (pnpm only copies Leaflet into
 `public/assets/vendor`): one front controller, routes declared with PHP
@@ -198,7 +204,8 @@ src/
 └── Controller/    pages, images, login and the sync API
 templates/         PHP templates
 bin/               rodokmen-sync (Python), hash-password.php, dev-router.php, build-assets.mjs
-tests/             PHPUnit tests (fixture data in tests/Support/Fixture.php), tests/client for rodokmen-sync
+tests/             PHPUnit tests (fixture data in tests/Support/Fixture.php), tests/client for rodokmen-sync,
+                   tests/js (Vitest) and tests/e2e (Playwright) for the front end
 ```
 
 Code style: PHP_CodeSniffer with the Slevomat standard (tabs), PHPStan at level max with strict rules, readonly
