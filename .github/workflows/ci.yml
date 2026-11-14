@@ -90,7 +90,8 @@ jobs:
         timeout-minutes: 5
         strategy:
             matrix:
-                python: ['3.10', '3.x']
+                # 3.9 is the oldest version bin/rodokmen-sync supports (users run it with their own Python).
+                python: ['3.9', '3.10', '3.x']
         steps:
             - uses: actions/checkout@v7
 
