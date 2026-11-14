@@ -6,6 +6,7 @@ namespace Rodokmen\Site\Tests\Support;
 
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Auth\LoginThrottle;
+use Rodokmen\Site\Auth\ThrottleCleanup;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Http\TrustedProxies;
 use const JSON_THROW_ON_ERROR;
@@ -214,7 +215,7 @@ final class Fixture
 
 	public static function throttle(Config $config): LoginThrottle
 	{
-		return new LoginThrottle($config, new TrustedProxies($config));
+		return new LoginThrottle($config, new TrustedProxies($config), new ThrottleCleanup($config));
 	}
 
 	public static function removeDir(string $dir): void

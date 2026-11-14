@@ -6,11 +6,13 @@ namespace Rodokmen\Site\Auth;
 
 use function array_filter;
 use function array_values;
+use function clearstatcache;
 use function dirname;
 use function fclose;
 use function fflush;
 use function flock;
 use function fopen;
+use function fstat;
 use function ftruncate;
 use function fwrite;
 use function is_array;
@@ -21,9 +23,12 @@ use function json_decode;
 use function json_encode;
 use function mkdir;
 use function rewind;
+use function stat;
 use function stream_get_contents;
 use function time;
+use function unlink;
 use const LOCK_EX;
+use const LOCK_NB;
 use const LOCK_SH;
 use const LOCK_UN;
 
@@ -46,14 +51,50 @@ final class ThrottleFile
 			@mkdir($dir, 0775, true);
 		}
 
-		$handle = @fopen($file, 'c+');
-		if ($handle === false) {
-			return null;
+		// The cleanup may remove the file while this request waits for its lock: then the lock is on a removed file,
+		// and what is written would be lost. Open the file again until the locked one is the one on disk.
+		for ($try = 0; $try < 5; $try++) {
+			$handle = @fopen($file, 'c+');
+			if ($handle === false) {
+				return null;
+			}
+
+			flock($handle, LOCK_EX);
+			if (self::isOnDisk($handle, $file)) {
+				return new self($handle, $window);
+			}
+
+			flock($handle, LOCK_UN);
+			fclose($handle);
 		}
 
-		flock($handle, LOCK_EX);
+		return null;
+	}
 
-		return new self($handle, $window);
+	/**
+	 * Removes the file when it holds no attempt within the window. A file that another request has locked is left
+	 * alone (it is in use); the removal happens under the lock, see open(). A parallel cleanup may have removed the
+	 * file meanwhile and a new one with fresh attempts may stand at the path: that one is not removed.
+	 */
+	public static function removeIfExpired(string $file, int $window): bool
+	{
+		$handle = @fopen($file, 'r+');
+		if ($handle === false) {
+			return false;
+		}
+
+		$removed = false;
+		if (flock($handle, LOCK_EX | LOCK_NB)) {
+			if (self::isOnDisk($handle, $file) && new self($handle, $window)->read() === []) {
+				$removed = @unlink($file);
+			}
+
+			flock($handle, LOCK_UN);
+		}
+
+		fclose($handle);
+
+		return $removed;
 	}
 
 	/**
@@ -74,6 +115,20 @@ final class ThrottleFile
 		fclose($handle);
 
 		return $attempts;
+	}
+
+	/**
+	 * Whether the open handle is the file at the path (and not one removed meanwhile).
+	 *
+	 * @param resource $handle
+	 */
+	private static function isOnDisk($handle, string $file): bool
+	{
+		clearstatcache(true, $file);
+		$onDisk = @stat($file);
+		$open = fstat($handle);
+
+		return $onDisk !== false && $open !== false && $onDisk['ino'] === $open['ino'] && $onDisk['dev'] === $open['dev'];
 	}
 
 	/** @return list<int> attempts within the window */
