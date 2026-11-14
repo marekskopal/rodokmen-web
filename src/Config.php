@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site;
 
+use InvalidArgumentException;
+use Rodokmen\Site\Http\TrustedProxies;
 use const FILE_IGNORE_NEW_LINES;
 use const FILE_SKIP_EMPTY_LINES;
+use const PREG_SPLIT_NO_EMPTY;
 
 /**
  * Application configuration read from environment variables (or an optional .env file).
  */
 final readonly class Config
 {
+	/** What SITE_TRUSTED_PROXIES=private (and the older SITE_TRUST_PROXY=1) stands for: loopback and private networks. */
+	public const PrivateNetworks = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '::1/128', 'fc00::/7'];
+
 	public function __construct(
 		public string $rootDir,
 		public string $dataDir,
@@ -19,7 +25,8 @@ final readonly class Config
 		public string $passwordHash,
 		public string $secret,
 		public ?string $defaultPerson,
-		public bool $trustProxy,
+		/** @var list<string> addresses and ranges (CIDR) of the reverse proxies whose forwarded headers are believed */
+		public array $trustedProxies,
 		public int $loginDays,
 		public bool $forceHttps,
 		/** Bearer token of the data upload API (/api/sync/*); empty disables the API. */
@@ -55,7 +62,10 @@ final readonly class Config
 			passwordHash: trim($get('SITE_PASSWORD_HASH')),
 			secret: trim($get('SITE_SECRET')),
 			defaultPerson: $defaultPerson !== '' ? $defaultPerson : null,
-			trustProxy: $get('SITE_TRUST_PROXY', '0') === '1',
+			trustedProxies: self::trustedProxies(
+				$get('SITE_TRUSTED_PROXIES'),
+				getenv('SITE_TRUSTED_PROXIES') === false && $get('SITE_TRUST_PROXY', '0') === '1',
+			),
 			loginDays: max(1, (int) $get('SITE_LOGIN_DAYS', '30')),
 			forceHttps: $get('SITE_FORCE_HTTPS', '1') !== '0',
 			syncToken: $get('SITE_SYNC_TOKEN'),
@@ -64,6 +74,33 @@ final readonly class Config
 			logDebug: $get('SITE_LOG_LEVEL', 'production') === 'debug',
 			logStderr: $get('SITE_LOG_STDERR', '1') !== '0',
 		);
+	}
+
+	/**
+	 * SITE_TRUSTED_PROXIES: addresses and ranges separated by commas or spaces, "private" for the private networks.
+	 * When it is not set at all, the older SITE_TRUST_PROXY=1 means "private"; set but empty means no proxy.
+	 *
+	 * @return list<string>
+	 */
+	private static function trustedProxies(string $value, bool $trustPrivate): array
+	{
+		$entries = preg_split('/[\s,]+/', $value, -1, PREG_SPLIT_NO_EMPTY);
+		$entries = $entries === false || $entries === [] ? ($trustPrivate ? ['private'] : []) : $entries;
+
+		$ranges = [];
+		foreach ($entries as $entry) {
+			if (strtolower($entry) === 'private') {
+				array_push($ranges, ...self::PrivateNetworks);
+			} elseif (TrustedProxies::isValidRange($entry)) {
+				$ranges[] = $entry;
+			} else {
+				throw new InvalidArgumentException(
+					'SITE_TRUSTED_PROXIES: "' . $entry . '" is not an IP address or range (e.g. 10.0.0.0/8)',
+				);
+			}
+		}
+
+		return array_values(array_unique($ranges));
 	}
 
 	/** Minimal .env loader: KEY=value lines, real environment variables take precedence. */

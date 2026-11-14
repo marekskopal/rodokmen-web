@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\Tests\Support;
 
+use Rodokmen\Site\Auth\Auth;
+use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\Config;
+use Rodokmen\Site\Http\TrustedProxies;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_UNICODE;
 
@@ -177,10 +180,11 @@ final class Fixture
 		return $dir;
 	}
 
+	/** @param list<string> $trustedProxies */
 	public static function config(
 		?string $dataDir = null,
 		?string $defaultPerson = null,
-		bool $trustProxy = false,
+		array $trustedProxies = [],
 		bool $forceHttps = false,
 		string $syncToken = '',
 		string $searchHint = '',
@@ -195,12 +199,22 @@ final class Fixture
 			passwordHash: (string) getenv('SITE_PASSWORD_HASH'),
 			secret: (string) getenv('SITE_SECRET'),
 			defaultPerson: $defaultPerson,
-			trustProxy: $trustProxy,
+			trustedProxies: $trustedProxies,
 			loginDays: 30,
 			forceHttps: $forceHttps,
 			syncToken: $syncToken,
 			searchHint: $searchHint,
 		);
+	}
+
+	public static function auth(Config $config): Auth
+	{
+		return new Auth($config, new TrustedProxies($config));
+	}
+
+	public static function throttle(Config $config): LoginThrottle
+	{
+		return new LoginThrottle($config, new TrustedProxies($config));
 	}
 
 	public static function removeDir(string $dir): void

@@ -12,6 +12,7 @@ $testEnv = [
 	'SITE_SECRET' => 'test-secret-test-secret-test-secret-0123',
 	'SITE_DEFAULT_PERSON' => '',
 	'SITE_TRUST_PROXY' => '0',
+	'SITE_TRUSTED_PROXIES' => '',
 	'SITE_LOGIN_DAYS' => '30',
 	'SITE_FORCE_HTTPS' => '0',
 	'SITE_SYNC_TOKEN' => '',

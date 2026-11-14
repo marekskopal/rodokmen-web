@@ -22,7 +22,9 @@ DirectoryIndex index.php
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "DENY"
     Header always set Referrer-Policy "same-origin"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on' || %{HTTP:X-Forwarded-Proto} == 'https'"
+    # Only for TLS terminated by Apache itself: X-Forwarded-Proto can be sent by anybody, PHP sends HSTS to visitors
+    # that came through a trusted proxy (SITE_TRUSTED_PROXIES).
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
     Header always unset X-Powered-By
     <FilesMatch "\.(css|js|svg|woff2?)$">
         Header set Cache-Control "public, max-age=604800"

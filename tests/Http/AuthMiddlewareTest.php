@@ -24,7 +24,7 @@ final class AuthMiddlewareTest extends TestCase
 
 	protected function setUp(): void
 	{
-		$this->auth = new Auth(Fixture::config(sys_get_temp_dir()));
+		$this->auth = Fixture::auth(Fixture::config(sys_get_temp_dir()));
 		$this->middleware = new AuthMiddleware($this->auth);
 		$this->handler = new class implements RequestHandlerInterface {
 			public function handle(ServerRequestInterface $request): ResponseInterface

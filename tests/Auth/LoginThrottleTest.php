@@ -6,8 +6,8 @@ namespace Rodokmen\Site\Tests\Auth;
 
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\TestCase;
-use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\Auth\ThrottleScope;
+use Rodokmen\Site\Config;
 use Rodokmen\Site\Tests\Support\Fixture;
 
 final class LoginThrottleTest extends TestCase
@@ -26,7 +26,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testBlocksAfterFiveFailures(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
 		$request = $this->request('10.0.0.1');
 
 		for ($i = 0; $i < 4; $i++) {
@@ -44,7 +44,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testOldAttemptsExpire(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
 		$request = $this->request('10.0.0.3');
 		$throttle->registerFailure($request, ThrottleScope::Login);
 
@@ -63,14 +63,17 @@ final class LoginThrottleTest extends TestCase
 	{
 		$request = $this->request('10.0.0.1')->withHeader('X-Forwarded-For', '203.0.113.5, 10.0.0.1');
 
-		self::assertSame('10.0.0.1', new LoginThrottle(Fixture::config($this->dir))->clientIp($request));
-		self::assertSame('203.0.113.5', new LoginThrottle(Fixture::config($this->dir, trustProxy: true))->clientIp($request));
-		self::assertSame('unknown', new LoginThrottle(Fixture::config($this->dir))->clientIp(new ServerRequest()));
+		self::assertSame('10.0.0.1', Fixture::throttle(Fixture::config($this->dir))->clientIp($request));
+		self::assertSame(
+			'203.0.113.5',
+			Fixture::throttle(Fixture::config($this->dir, trustedProxies: Config::PrivateNetworks))->clientIp($request),
+		);
+		self::assertSame('unknown', Fixture::throttle(Fixture::config($this->dir))->clientIp(new ServerRequest()));
 	}
 
 	public function testForgedForwardedForIsIgnored(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir, trustProxy: true));
+		$throttle = Fixture::throttle(Fixture::config($this->dir, trustedProxies: Config::PrivateNetworks));
 
 		// Proxy without mod_remoteip: it appended the real client, the client forged the entries to the left.
 		$request = $this->request('172.18.0.2')->withHeader('X-Forwarded-For', '198.51.100.66, 203.0.113.5');
@@ -94,7 +97,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testClientOnThePrivateNetworkCannotForgeItsAddress(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir, trustProxy: true));
+		$throttle = Fixture::throttle(Fixture::config($this->dir, trustedProxies: Config::PrivateNetworks));
 
 		// Every entry is private: the client forged the left one, the proxy appended the right one.
 		$request = $this->request('10.0.0.1')->withHeader('X-Forwarded-For', '10.99.99.7, 192.168.1.20');
@@ -103,7 +106,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testClientIpNormalizesAddresses(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir, trustProxy: true));
+		$throttle = Fixture::throttle(Fixture::config($this->dir, trustedProxies: Config::PrivateNetworks));
 
 		// An IPv4-mapped public address is a direct client, not a proxy: its header is not believed.
 		$request = $this->request('::ffff:203.0.113.5')->withHeader('X-Forwarded-For', '198.51.100.66');
@@ -118,7 +121,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testForgedAddressesDoNotEscapeTheThrottle(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir, trustProxy: true));
+		$throttle = Fixture::throttle(Fixture::config($this->dir, trustedProxies: Config::PrivateNetworks));
 		for ($i = 0; $i < 5; $i++) {
 			$throttle->registerFailure(
 				$this->request('10.0.0.1')->withHeader('X-Forwarded-For', '198.51.100.' . $i . ', 203.0.113.5'),
@@ -137,7 +140,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testScopesAreCountedSeparately(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
 		$request = $this->request('10.0.0.4');
 		for ($i = 0; $i < 5; $i++) {
 			$throttle->registerFailure($request, ThrottleScope::Sync);
@@ -149,7 +152,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testGlobalLoginLimit(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
 		for ($i = 0; $i < 50; $i++) {
 			$request = $this->request('198.51.100.' . $i);
 			self::assertSame(0, $throttle->retryAfter($request, ThrottleScope::Login));
@@ -170,7 +173,7 @@ final class LoginThrottleTest extends TestCase
 
 	public function testWaitEndsWhenEnoughAttemptsExpire(): void
 	{
-		$throttle = new LoginThrottle(Fixture::config($this->dir));
+		$throttle = Fixture::throttle(Fixture::config($this->dir));
 		$request = $this->request('10.0.0.5');
 		$throttle->registerFailure($request, ThrottleScope::Sync);
 

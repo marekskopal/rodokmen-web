@@ -8,7 +8,7 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --opt
 FROM php:8.5-apache
 
 # OPcache is part of PHP since 8.5 (no docker-php-ext-install needed).
-RUN a2enmod rewrite headers remoteip \
+RUN a2enmod rewrite headers \
     && { \
         echo 'opcache.enable=1'; \
         echo 'opcache.memory_consumption=64'; \
@@ -21,8 +21,9 @@ RUN a2enmod rewrite headers remoteip \
     && { \
         echo 'ServerTokens Prod'; \
         echo 'ServerSignature Off'; \
-        echo 'RemoteIPHeader X-Forwarded-For'; \
-        echo 'RemoteIPInternalProxy 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16'; \
+        echo '# The client address is resolved by PHP (SITE_TRUSTED_PROXIES), not by mod_remoteip: PHP has to see'; \
+        echo '# the proxy as REMOTE_ADDR to believe its X-Forwarded-Proto. The access log shows the forwarded chain.'; \
+        printf '%s\n' 'LogFormat "%h [%{X-Forwarded-For}i] %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" combined'; \
     } > /etc/apache2/conf-available/site.conf \
     && a2enconf site \
     && sed -ri 's!/var/www/html!/var/www/site/public!g' /etc/apache2/sites-available/000-default.conf \
@@ -36,7 +37,8 @@ COPY templates ./templates
 
 RUN mkdir -p var/cache log && chown -R www-data:www-data var log
 
-ENV SITE_TRUST_PROXY=1
+# The reverse proxy reaches the container from the Docker network (a private address).
+ENV SITE_TRUSTED_PROXIES=private
 EXPOSE 80
 
 # var/ and log/ are usually bind mounts owned by the host user: let Apache write into them

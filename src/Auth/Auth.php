@@ -6,6 +6,7 @@ namespace Rodokmen\Site\Auth;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Config;
+use Rodokmen\Site\Http\TrustedProxies;
 
 /**
  * Password-only login. The login state is a signed cookie "expiry.signature", so it survives
@@ -15,7 +16,7 @@ final readonly class Auth
 {
 	public const CookieName = 'rk_auth';
 
-	public function __construct(private Config $config)
+	public function __construct(private Config $config, private TrustedProxies $proxies)
 	{
 	}
 
@@ -66,8 +67,8 @@ final readonly class Auth
 			return true;
 		}
 
-		return $this->config->trustProxy
-			&& strtolower($request->getHeaderLine('X-Forwarded-Proto')) === 'https';
+		// Only a trusted proxy may say that the visitor used HTTPS; anybody else could send the header.
+		return strtolower($this->proxies->forwarded($request, 'X-Forwarded-Proto') ?? '') === 'https';
 	}
 
 	private function sign(string $expires): string

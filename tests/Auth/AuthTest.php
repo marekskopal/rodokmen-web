@@ -78,25 +78,32 @@ final class AuthTest extends TestCase
 
 	public function testHttpsDetection(): void
 	{
-		$proxied = new ServerRequest()->withHeader('X-Forwarded-Proto', 'HTTPS');
+		$proxied = new ServerRequest(['REMOTE_ADDR' => '10.0.0.1'])->withHeader('X-Forwarded-Proto', 'HTTPS');
+		$direct = new ServerRequest(['REMOTE_ADDR' => '203.0.113.5'])->withHeader('X-Forwarded-Proto', 'https');
 
 		self::assertTrue($this->auth()->isHttps(new ServerRequest()->withUri(new Uri('https://x/'))));
-		self::assertFalse($this->auth()->isHttps($proxied));
-		self::assertTrue($this->auth(trustProxy: true)->isHttps($proxied));
+		self::assertFalse($this->auth()->isHttps($proxied), 'no trusted proxies');
+		self::assertTrue($this->auth(trustedProxies: ['10.0.0.0/8'])->isHttps($proxied));
+		self::assertFalse(
+			$this->auth(trustedProxies: ['10.0.0.0/8'])->isHttps($direct),
+			'a client reaching the site directly cannot claim HTTPS',
+		);
+		self::assertFalse($this->auth(trustedProxies: ['10.0.0.0/8'])->isHttps($proxied->withHeader('X-Forwarded-Proto', 'http')));
 	}
 
-	private function auth(?string $passwordHash = null, ?string $secret = null, bool $trustProxy = false): Auth
+	/** @param list<string> $trustedProxies */
+	private function auth(?string $passwordHash = null, ?string $secret = null, array $trustedProxies = []): Auth
 	{
 		$base = Fixture::config(sys_get_temp_dir());
 
-		return new Auth(new Config(
+		return Fixture::auth(new Config(
 			$base->rootDir,
 			$base->dataDir,
 			$base->cacheDir,
 			$passwordHash ?? $base->passwordHash,
 			$secret ?? $base->secret,
 			null,
-			$trustProxy,
+			$trustedProxies,
 			30,
 			false,
 		));
