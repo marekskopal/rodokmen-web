@@ -6,11 +6,13 @@ namespace Rodokmen\Site\Tests\Sync;
 
 use Laminas\Diactoros\StreamFactory;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\StreamInterface;
 use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\Filesystem;
 use Rodokmen\Site\Sync\Manifest;
 use Rodokmen\Site\Sync\SyncException;
 use Rodokmen\Site\Tests\Support\Fixture;
+use RuntimeException;
 use function bin2hex;
 use function file_get_contents;
 use function file_put_contents;
@@ -64,6 +66,30 @@ final class DataStoreTest extends TestCase
 			self::fail('Expected a SyncException');
 		} catch (SyncException $e) {
 			self::assertSame(422, $e->status);
+		}
+
+		self::assertSame(['.', '..'], scandir($this->root . '/sync-uploads'));
+	}
+
+	public function testFailedUploadLeavesNothingBehind(): void
+	{
+		$body = self::createStub(StreamInterface::class);
+		$body->method('eof')->willReturn(false);
+		$calls = 0;
+		$body->method('read')->willReturnCallback(static function () use (&$calls): string {
+			$calls++;
+			if ($calls > 1) {
+				throw new RuntimeException('Connection reset');
+			}
+
+			return 'partial content';
+		});
+
+		try {
+			$this->store->upload(hash('sha256', 'whatever'), $body);
+			self::fail('Expected a RuntimeException');
+		} catch (RuntimeException $e) {
+			self::assertSame('Connection reset', $e->getMessage());
 		}
 
 		self::assertSame(['.', '..'], scandir($this->root . '/sync-uploads'));

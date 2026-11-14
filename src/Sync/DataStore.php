@@ -7,6 +7,7 @@ namespace Rodokmen\Site\Sync;
 use Psr\Http\Message\StreamInterface;
 use Rodokmen\Site\Config;
 use RuntimeException;
+use Throwable;
 use function array_keys;
 use function array_slice;
 use function basename;
@@ -20,12 +21,8 @@ use function filemtime;
 use function filesize;
 use function flock;
 use function fopen;
-use function fwrite;
 use function gmdate;
 use function hash_file;
-use function hash_final;
-use function hash_init;
-use function hash_update;
 use function is_dir;
 use function is_file;
 use function is_link;
@@ -35,7 +32,6 @@ use function random_bytes;
 use function rename;
 use function rsort;
 use function sprintf;
-use function strlen;
 use function substr;
 use function symlink;
 use function time;
@@ -110,35 +106,23 @@ final readonly class DataStore
 		$dir = $this->uploadsDir();
 		$this->fs->ensureDir($dir);
 		$tmp = sprintf('%s/.%s.%s.tmp', $dir, $sha256, bin2hex(random_bytes(4)));
-		$out = fopen($tmp, 'wb');
-		if ($out === false) {
-			throw new RuntimeException('Cannot write ' . $tmp);
-		}
-
-		$hash = hash_init('sha256');
-		$size = 0;
 
 		try {
-			while (!$body->eof()) {
-				$chunk = $body->read(self::ChunkSize);
-				$size += strlen($chunk);
-				if ($size > self::MaxFileSize) {
-					throw new SyncException('File is larger than ' . self::MaxFileSize . ' bytes', 413);
-				}
-				hash_update($hash, $chunk);
-				fwrite($out, $chunk);
-			}
-		} finally {
-			fclose($out);
-		}
+			$hash = $this->fs->writeStream($body, $tmp, self::MaxFileSize, self::ChunkSize);
 
-		if (hash_final($hash) !== $sha256) {
+			if ($hash !== $sha256) {
+				throw new SyncException('Uploaded content does not match its hash', 422);
+			}
+
+			if (!rename($tmp, $dir . '/' . $sha256)) {
+				throw new RuntimeException('Cannot store the upload ' . $sha256);
+			}
+		} catch (Throwable $e) {
+			// A failed upload must not leave a partial file behind (it is not used, only removed by a later commit).
 			@unlink($tmp);
 
-			throw new SyncException('Uploaded content does not match its hash', 422);
+			throw $e;
 		}
-
-		rename($tmp, $dir . '/' . $sha256);
 	}
 
 	/**

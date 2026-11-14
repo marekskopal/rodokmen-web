@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Rodokmen\Site\Tests\Sync;
+
+use Laminas\Diactoros\StreamFactory;
+use PHPUnit\Framework\TestCase;
+use Rodokmen\Site\Sync\Filesystem;
+use Rodokmen\Site\Sync\SyncException;
+use Rodokmen\Site\Tests\Support\Fixture;
+use function bin2hex;
+use function file_get_contents;
+use function hash;
+use function mkdir;
+use function random_bytes;
+use function sys_get_temp_dir;
+
+final class FilesystemTest extends TestCase
+{
+	private string $dir;
+
+	protected function setUp(): void
+	{
+		$this->dir = sys_get_temp_dir() . '/rodokmen-fs-' . bin2hex(random_bytes(6));
+		mkdir($this->dir);
+	}
+
+	protected function tearDown(): void
+	{
+		Fixture::removeDir($this->dir);
+	}
+
+	public function testWriteStreamReturnsTheHash(): void
+	{
+		$hash = new Filesystem()->writeStream((new StreamFactory())->createStream('hello world'), $this->dir . '/f', 100, 4);
+
+		self::assertSame(hash('sha256', 'hello world'), $hash);
+		self::assertSame('hello world', file_get_contents($this->dir . '/f'));
+	}
+
+	public function testWriteStreamStopsAtTheSizeLimit(): void
+	{
+		try {
+			new Filesystem()->writeStream((new StreamFactory())->createStream('0123456789'), $this->dir . '/f', 9, 4);
+			self::fail('Expected a SyncException');
+		} catch (SyncException $e) {
+			self::assertSame(413, $e->status);
+		}
+	}
+}
