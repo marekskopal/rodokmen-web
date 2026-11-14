@@ -191,6 +191,15 @@ final class KernelTest extends TestCase
 		self::assertStringNotContainsString('cdnjs', $html);
 	}
 
+	public function testHealthCheckNeedsNoLogin(): void
+	{
+		$response = $this->get('/health');
+
+		self::assertSame(200, $response->getStatusCode());
+		self::assertSame(['status' => 'ok'], json_decode((string) $response->getBody(), true));
+		self::assertSame('private, no-store', $response->getHeaderLine('Cache-Control'));
+	}
+
 	public function testUnknownPages(): void
 	{
 		self::assertSame(404, $this->get('/osoba/nikdo', loggedIn: true)->getStatusCode());

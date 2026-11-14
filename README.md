@@ -100,7 +100,10 @@ docker compose up -d --build
 
 The data live in `./var` (mounted into the container), not in the image. Upload them with `rodokmen-sync` –
 no restart is needed. Logs are in `./log` (Tracy's `error.log`, `warning.log`, `info.log` and exception
-reports, `php-error.log`) and in `docker compose logs`. Updating the website: `git pull && docker compose up -d --build`.
+reports, `php-error.log`) and in `docker compose logs`. Tracy's log files larger than 10 MB are renamed to `*.log.1`
+(three older copies are kept; `php-error.log` is written by PHP itself and is not rotated), exception reports older than 30 days are removed, and the container log is limited to
+3 × 10 MB. `docker compose ps` shows the container's health: the image checks `/health` (no login needed, it tells
+only that the website runs) every 30 seconds. Updating the website: `git pull && docker compose up -d --build`.
 
 ### Apache without Docker
 

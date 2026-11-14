@@ -51,6 +51,44 @@ final class LoggerTest extends TestCase
 		self::assertNotSame([], glob($this->dir . '/error--*.html'));
 	}
 
+	public function testRotatesLargeLogFiles(): void
+	{
+		$dir = $this->dirCreated();
+		$logger = new TracyLogger($dir, false, null);
+		$this->grow($dir . '/warning.log', 'oldest');
+		file_put_contents($dir . '/warning.log.3', 'dropped');
+		file_put_contents($dir . '/warning.log.2', 'third');
+		file_put_contents($dir . '/warning.log.1', 'second');
+
+		$logger->log('Fresh record', TracyLogger::WARNING);
+
+		self::assertStringContainsString('Fresh record', $this->read('warning.log'));
+		self::assertLessThan(1000, (int) filesize($dir . '/warning.log'));
+		self::assertStringStartsWith('oldest', $this->read('warning.log.1'));
+		self::assertSame('second', $this->read('warning.log.2'));
+		self::assertSame('third', $this->read('warning.log.3'));
+		self::assertFileDoesNotExist($dir . '/warning.log.4');
+
+		// A small file is left alone.
+		$logger->log('Another', TracyLogger::WARNING);
+		self::assertStringContainsString('Fresh record', $this->read('warning.log'));
+	}
+
+	public function testRemovesOldExceptionReports(): void
+	{
+		$dir = $this->dirCreated();
+		file_put_contents($dir . '/error--2026-01-01--10-00--0123456789.html', 'old');
+		touch($dir . '/error--2026-01-01--10-00--0123456789.html', time() - 31 * 86400);
+		file_put_contents($dir . '/error--2026-11-01--10-00--abcdefabcd.html', 'recent');
+
+		new TracyLogger($dir, false, null)->log(new RuntimeException('Boom'), TracyLogger::ERROR);
+
+		$reports = glob($dir . '/*.html');
+		self::assertIsArray($reports);
+		self::assertCount(2, $reports, 'the recent one and the new one');
+		self::assertFileDoesNotExist($dir . '/error--2026-01-01--10-00--0123456789.html');
+	}
+
 	public function testCopiesRecordsToStderrStream(): void
 	{
 		$stream = (string) tempnam(sys_get_temp_dir(), 'rodokmen-stderr-');
@@ -104,5 +142,15 @@ final class LoggerTest extends TestCase
 	private function read(string $file): string
 	{
 		return (string) file_get_contents($this->dir . '/' . $file);
+	}
+
+	/** Makes the file just larger than the rotation limit (sparse, so the test stays fast). */
+	private function grow(string $file, string $start): void
+	{
+		file_put_contents($file, $start);
+		$handle = fopen($file, 'r+');
+		self::assertNotFalse($handle);
+		ftruncate($handle, 10 * 1024 * 1024 + 1);
+		fclose($handle);
 	}
 }
