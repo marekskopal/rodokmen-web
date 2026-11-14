@@ -6,7 +6,10 @@ Public open-source website for family trees made with the rodokmen Claude Code s
 - Code, comments, CLI output, README and commit messages in **English**; the website's user interface in
   **Czech** (like the skill).
 - **Never commit personal data**: no real family names, places or scans in code, tests or examples. Test data
-  are the fictional Novák family in `tests/Support/Fixture.php`.
+  are the fictional Novák family in `tests/Support/Fixture.php`. The demo family for `make demo` and the README
+  screenshots (`tests/Support/Demo*.php`) has the author, Marek Skopal, as the home person at his own wish – only
+  his name, no facts about him; everybody and everything else in it is invented, except that the places are
+  real towns of Haná so that the map makes sense.
 - **Before every commit run `make check`** (phpcs + phpstan max + phpunit + `tests/client`) and fix everything it
   reports – no baseline, no `@phpstan-ignore`. `make fix` runs phpcbf.
 - Code style: tabs, Slevomat ruleset, readonly DTOs (`src/Data/Model`) instead of arrays. New behaviour gets a test.

@@ -1,4 +1,4 @@
-.PHONY: help install dev up down logs build test test-php test-client lint phpcs phpstan fix check
+.PHONY: help install dev demo up down logs build test test-php test-client lint phpcs phpstan fix check
 
 ## List the targets
 help:
@@ -13,6 +13,15 @@ install:
 ## Local server on http://localhost:8080 (log in with SITE_PASSWORD_HASH from .env)
 dev:
 	php -S localhost:8080 -t public bin/dev-router.php
+
+## Local server with the demo family on http://localhost:8081 (password: demo)
+demo:
+	php bin/demo-data.php $(CURDIR)/var/demo
+	SITE_DATA_DIR=$(CURDIR)/var/demo SITE_CACHE_DIR=$(CURDIR)/var/demo-cache SITE_FORCE_HTTPS=0 SITE_SYNC_TOKEN= \
+		SITE_DEFAULT_PERSON= SITE_SEARCH_HINT= SITE_TRUSTED_PROXIES= SITE_LOG_DIR=$(CURDIR)/var/demo-log \
+		SITE_PASSWORD_HASH='$$2y$$12$$JloCvcq/xvCOGUKjMt3MKek0wcT5WN30tmUz0t4GcxTnvyJv0xq/q' \
+		SITE_SECRET=demo-secret-only-for-the-local-demo-server-0000 \
+		php -S localhost:8081 -t public bin/dev-router.php
 
 ## Build and start the Docker container (production-like)
 up:
