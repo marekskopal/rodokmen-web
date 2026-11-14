@@ -13,16 +13,6 @@ use Rodokmen\Site\Sync\Manifest;
 use Rodokmen\Site\Sync\SyncException;
 use Rodokmen\Site\Tests\Support\Fixture;
 use RuntimeException;
-use function bin2hex;
-use function file_get_contents;
-use function file_put_contents;
-use function hash;
-use function is_link;
-use function mkdir;
-use function random_bytes;
-use function readlink;
-use function scandir;
-use function sys_get_temp_dir;
 
 final class DataStoreTest extends TestCase
 {

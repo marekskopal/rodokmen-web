@@ -6,18 +6,6 @@ namespace Rodokmen\Site\Http;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Config;
-use function array_reverse;
-use function explode;
-use function filter_var;
-use function inet_pton;
-use function intdiv;
-use function is_string;
-use function ord;
-use function preg_match;
-use function strlen;
-use function strtolower;
-use function substr;
-use function trim;
 use const FILTER_VALIDATE_IP;
 
 /**

@@ -5,20 +5,6 @@ declare(strict_types=1);
 namespace Rodokmen\Site\Auth;
 
 use Rodokmen\Site\Config;
-use function closedir;
-use function ctype_digit;
-use function file_get_contents;
-use function file_put_contents;
-use function filemtime;
-use function is_dir;
-use function max;
-use function microtime;
-use function opendir;
-use function readdir;
-use function str_ends_with;
-use function time;
-use function touch;
-use function trim;
 
 /**
  * Removes throttle files without a recent attempt: every client address (and every known browser) gets a file of its

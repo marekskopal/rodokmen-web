@@ -6,19 +6,6 @@ namespace Rodokmen\Site\Sync;
 
 use Psr\Http\Message\StreamInterface;
 use RuntimeException;
-use function fclose;
-use function fopen;
-use function fwrite;
-use function hash_final;
-use function hash_init;
-use function hash_update;
-use function is_dir;
-use function is_link;
-use function mkdir;
-use function rmdir;
-use function scandir;
-use function strlen;
-use function unlink;
 
 /** Small directory helpers of the data store. */
 final readonly class Filesystem

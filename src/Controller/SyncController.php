@@ -17,9 +17,6 @@ use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\InvalidManifestException;
 use Rodokmen\Site\Sync\Manifest;
 use Rodokmen\Site\Sync\SyncException;
-use function count;
-use function hash_equals;
-use function preg_match;
 
 /**
  * Data upload API used by bin/rodokmen-sync (enabled by SITE_SYNC_TOKEN):

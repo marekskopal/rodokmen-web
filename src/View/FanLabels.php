@@ -4,13 +4,6 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View;
 
-use function array_reverse;
-use function count;
-use function deg2rad;
-use function fmod;
-use function min;
-use function sprintf;
-
 /**
  * Texts of the fan chart segments: along the arc in the inner generations, along the radius in the outer ones.
  */
