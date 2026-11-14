@@ -1,7 +1,9 @@
 services:
   rodokmen:
+    # The released image (amd64, arm64). Updating: docker compose pull && docker compose up -d.
+    # To build the image from this checkout instead: docker compose up -d --build.
+    image: ghcr.io/marekskopal/rodokmen-web:1
     build: .
-    image: rodokmen-site:latest
     restart: unless-stopped
     env_file: .env
     # SITE_TRUSTED_PROXIES defaults to "private" in the image (a proxy on the host or in another container);
