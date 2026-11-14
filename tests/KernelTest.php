@@ -158,6 +158,22 @@ final class KernelTest extends TestCase
 		self::assertSame('/osoba/jan-novak-1990', $response->getHeaderLine('Location'));
 	}
 
+	public function testForwardedHeadersDoNotRewriteTheRequest(): void
+	{
+		$request = Kernel::requestFromGlobals([
+			'REMOTE_ADDR' => '172.17.0.1',
+			'HTTP_HOST' => 'rodokmen.example',
+			'HTTP_X_FORWARDED_PROTO' => 'https',
+			'HTTP_X_FORWARDED_HOST' => 'evil.example',
+			'REQUEST_URI' => '/prihlaseni',
+			'REQUEST_METHOD' => 'GET',
+		]);
+
+		self::assertSame('http', $request->getUri()->getScheme());
+		self::assertSame('rodokmen.example', $request->getUri()->getHost());
+		self::assertSame('https', $request->getHeaderLine('X-Forwarded-Proto'), 'left for TrustedProxies to decide');
+	}
+
 	public function testUnknownPages(): void
 	{
 		self::assertSame(404, $this->get('/osoba/nikdo', loggedIn: true)->getStatusCode());
@@ -229,7 +245,7 @@ final class KernelTest extends TestCase
 			return $request;
 		}
 
-		$auth = new Auth(Fixture::config($this->dir));
+		$auth = Fixture::auth(Fixture::config($this->dir));
 		self::assertSame(1, preg_match('/^rk_auth=([^;]+);/', $auth->loginCookie($request), $m));
 
 		return $request->withCookieParams([Auth::CookieName => rawurldecode($m[1])]);

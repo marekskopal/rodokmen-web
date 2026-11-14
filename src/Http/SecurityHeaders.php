@@ -33,7 +33,7 @@ final readonly class SecurityHeaders
 		'upgrade-insecure-requests',
 	];
 
-	public function __construct(private Config $config, private Auth $auth)
+	public function __construct(private Config $config, private Auth $auth, private TrustedProxies $proxies)
 	{
 	}
 
@@ -44,7 +44,7 @@ final readonly class SecurityHeaders
 			return null;
 		}
 
-		$uri = $request->getUri()->withScheme('https')->withPort(null);
+		$uri = $request->getUri()->withScheme('https')->withHost($this->proxies->host($request))->withPort(null);
 
 		// 308 keeps the method, so a login form posted over HTTP is not silently turned into GET.
 		return new RedirectResponse((string) $uri, $request->getMethod() === 'GET' || $request->getMethod() === 'HEAD' ? 301 : 308);
@@ -75,6 +75,6 @@ final readonly class SecurityHeaders
 
 	private function isLocal(ServerRequestInterface $request): bool
 	{
-		return in_array($request->getUri()->getHost(), ['localhost', '127.0.0.1', '::1', '[::1]'], true);
+		return in_array($this->proxies->host($request), ['localhost', '127.0.0.1', '::1', '[::1]'], true);
 	}
 }

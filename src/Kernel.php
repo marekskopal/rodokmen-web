@@ -7,6 +7,7 @@ namespace Rodokmen\Site;
 use Laminas\Diactoros\Response\HtmlResponse;
 use Laminas\Diactoros\Response\RedirectResponse;
 use Laminas\Diactoros\ServerRequestFactory;
+use Laminas\Diactoros\ServerRequestFilter\DoNotFilter;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use League\Route\Http\Exception\MethodNotAllowedException;
 use League\Route\Http\Exception\NotFoundException;
@@ -46,8 +47,19 @@ final readonly class Kernel
 
 	public function run(): void
 	{
-		$request = ServerRequestFactory::fromGlobals();
-		(new SapiEmitter())->emit($this->handle($request));
+		(new SapiEmitter())->emit($this->handle(self::requestFromGlobals()));
+	}
+
+	/**
+	 * The request from PHP's globals, exactly as the client (or the proxy) sent it. Diactoros would otherwise
+	 * believe X-Forwarded-Proto/Host/Port from any private address and rewrite the URI; forwarded headers are
+	 * trusted only from SITE_TRUSTED_PROXIES (Http\TrustedProxies).
+	 *
+	 * @param array<string, mixed>|null $server $_SERVER by default
+	 */
+	public static function requestFromGlobals(?array $server = null): ServerRequestInterface
+	{
+		return ServerRequestFactory::fromGlobals($server, null, null, null, null, new DoNotFilter());
 	}
 
 	public function handle(ServerRequestInterface $request): ResponseInterface
