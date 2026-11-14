@@ -32,10 +32,14 @@ final readonly class SiteDataLoader
 		}
 
 		// The real path is part of the key: a sync release replaces the data directory behind a symlink.
-		$key = md5((string) realpath($json) . '|' . filemtime($json) . '|' . filesize($json));
+		$realPath = (string) realpath($json);
+		$key = md5($realPath . '|' . filemtime($json) . '|' . filesize($json));
 		$cache = $this->config->cacheDir . '/site-' . $key . '.php';
-		if (is_file($cache)) {
-			return require $cache;
+		// Another request may remove the file between the check and the include (a new release replaced it):
+		// include, unlike require, then only fails, and the JSON is decoded instead.
+		$cached = is_file($cache) ? @include $cache : false;
+		if ($cached !== false) {
+			return $cached;
 		}
 
 		$contents = file_get_contents($json);
@@ -44,25 +48,38 @@ final readonly class SiteDataLoader
 		}
 
 		$data = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-		$this->writeCache($cache, $data);
+		$this->writeCache($cache, $data, $json, $realPath);
 
 		return $data;
 	}
 
-	private function writeCache(string $cache, mixed $data): void
+	private function writeCache(string $cache, mixed $data, string $json, string $realPath): void
 	{
 		if (!is_dir($this->config->cacheDir)) {
 			@mkdir($this->config->cacheDir, 0775, true);
 		}
 
-		$old = glob($this->config->cacheDir . '/site-*.php');
-		foreach ($old === false ? [] : $old as $file) {
-			@unlink($file);
+		$tmp = $cache . '.' . getmypid() . '.tmp';
+		$code = '<?php return ' . var_export($data, true) . ';';
+		// A short write (full disk) must not become the cache: a truncated file would fail every request.
+		if (@file_put_contents($tmp, $code) !== strlen($code) || !@rename($tmp, $cache)) {
+			@unlink($tmp);
+
+			return;
 		}
 
-		$tmp = $cache . '.' . getmypid() . '.tmp';
-		if (@file_put_contents($tmp, '<?php return ' . var_export($data, true) . ';') !== false) {
-			@rename($tmp, $cache);
+		// A request that started before a new release went live must not remove the new release's cache.
+		if (realpath($json) !== $realPath) {
+			return;
+		}
+
+		// Old caches are removed only after the new one is in place, so a request still working with the previous
+		// release finds its file or falls back to the JSON.
+		$old = glob($this->config->cacheDir . '/site-*.php');
+		foreach ($old === false ? [] : $old as $file) {
+			if ($file !== $cache) {
+				@unlink($file);
+			}
 		}
 	}
 }
