@@ -29,7 +29,7 @@ final readonly class LoginThrottle
 	private const GlobalLoginMaxAttempts = 50;
 	private const Window = 900;
 
-	public function __construct(private Config $config, private TrustedProxies $proxies)
+	public function __construct(private Config $config, private TrustedProxies $proxies, private ThrottleCleanup $cleanup)
 	{
 	}
 
@@ -48,6 +48,8 @@ final readonly class LoginThrottle
 		if ($scope === ThrottleScope::Login) {
 			$this->append($this->globalFile($scope));
 		}
+
+		$this->cleanup->maybeRun(self::Window);
 	}
 
 	/**
@@ -58,6 +60,7 @@ final readonly class LoginThrottle
 	public function reserve(ServerRequestInterface $request, ThrottleScope $scope, ?string $device = null): int
 	{
 		$sharedMax = $device !== null ? self::MaxAttempts : self::GlobalLoginMaxAttempts;
+		$this->cleanup->maybeRun(self::Window);
 
 		return $this->locked(
 			$request,
