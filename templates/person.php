@@ -45,6 +45,8 @@ usort($children, static fn (Person|Side $a, Person|Side $b): int
         </div>
         <div class="person-actions">
             <a class="btn btn-primary" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Předci</a>
+            <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/tisk">Vývod předků</a>
+            <button type="button" class="btn btn-ghost" data-print>Tisk / PDF</button>
             <?php if (!$isHome): ?>
                 <form method="post" action="/vychozi/<?= $v->e(rawurlencode($person->slug)) ?>">
                     <button type="submit" class="btn btn-ghost" title="Prohlížeč předků bude začínat touto osobou">Nastavit jako výchozí</button>

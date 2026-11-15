@@ -27,8 +27,9 @@ The user interface is in Czech, like the skill.
   viewer with zoom and pan (mouse wheel, pinch, drag) in full resolution.
 - **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,
   **research log**, **open questions** and **search**.
-- HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode,
-  print-friendly.
+- **Print and PDF**: a numbered list of a person's ancestors (vývod) with their facts and register entries, and
+  print-friendly person pages (the browser's Save as PDF).
+- HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode.
 
 ## Screenshots
 

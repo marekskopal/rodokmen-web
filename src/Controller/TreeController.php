@@ -14,6 +14,7 @@ use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\View\AncestorTable;
 use Rodokmen\Site\View\FanChart;
 use Rodokmen\Site\View\View;
 
@@ -30,6 +31,7 @@ final readonly class TreeController
 		private Auth $auth,
 		private View $view,
 		private FanChart $fanChart,
+		private AncestorTable $ancestorTable,
 	)
 	{
 	}
@@ -101,6 +103,39 @@ final readonly class TreeController
 			'deeper' => $deeper,
 			'path' => $this->repository->pathBetween($person->slug, $homeSlug),
 			'home' => $this->repository->person($homeSlug),
+		]);
+	}
+
+	/**
+	 * Numbered list of a person's ancestors for printing (or saving as PDF); ?generace=N limits the generations,
+	 * ?zapisy=1 adds the transcriptions of the register entries.
+	 *
+	 * @param array<string, string> $args
+	 */
+	#[RouteGet('/predci/{slug}/tisk')]
+	public function printAncestors(ServerRequestInterface $request, array $args): ResponseInterface
+	{
+		$person = $this->repository->person($args['slug']);
+		if ($person === null) {
+			throw new NotFoundException();
+		}
+
+		$available = $this->ancestorTable->availableDepth($person);
+		$query = $request->getQueryParams();
+		$requested = $query['generace'] ?? null;
+		// At least one generation when there is any (the choice offers 1 … available)
+		$depth = is_string($requested) && ctype_digit($requested)
+			? max(min(1, $available), min($available, (int) $requested))
+			: $available;
+
+		return $this->view->page('print-ancestors', [
+			'title' => 'Vývod předků – ' . $person->name,
+			'nav' => 'explorer',
+			'person' => $person,
+			'generations' => $this->ancestorTable->build($person, $depth),
+			'depth' => $depth,
+			'available' => $available,
+			'transcripts' => ($query['zapisy'] ?? null) === '1',
 		]);
 	}
 

@@ -353,11 +353,6 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 
 .empty { text-align: center; padding: 80px 16px; }
 
-@media print {
-    .top, .foot, .filters, .person-actions, .explorer-actions, .viewer { display: none !important; }
-    body { background: #fff; }
-}
-
 /* Small screens: keep the generations table compact */
 .people .plink { display: inline-flex; align-items: baseline; }
 @media (max-width: 640px) {
@@ -423,3 +418,40 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .fan-t-root { fill: var(--accent-ink); }
 .fan-key { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: -2px; background: var(--c); opacity: calc(var(--o) * var(--fan-k)); }
 .fan-key-empty { background: var(--paper-2); border: 1px solid var(--rule); opacity: 1; }
+
+/* Numbered list of ancestors for printing (/predci/{slug}/tisk) */
+.print-toolbar { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.print-toolbar select { width: auto; margin-left: 6px; }
+.anc-legend { font-size: .88rem; margin: 0 0 20px; }
+.anc-gen { margin-bottom: 28px; }
+.anc-person { background: var(--card); border: 1px solid var(--rule); border-left: 4px solid var(--c, var(--rule)); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 10px; }
+.anc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.anc-head h3 { margin: 0; font-size: 1.08rem; }
+.anc-head h3 a { color: inherit; text-decoration: none; }
+.anc-num { min-width: 2.4em; font: 700 .95rem var(--sans); font-variant-numeric: tabular-nums; color: var(--accent); }
+.anc-parents { margin: 4px 0 6px; font-size: .9rem; }
+.anc-facts, .anc-sources { margin: 6px 0 0; padding-left: 20px; font-size: .93rem; }
+.anc-sources { color: var(--ink-2); }
+.anc-url { display: block; font-size: .82rem; word-break: break-all; }
+.anc-texts { margin: 4px 0 8px; padding-left: 10px; border-left: 2px solid var(--rule); }
+.anc-texts p { margin: 4px 0; }
+
+/* Print (and "Save as PDF"): light colours, no navigation or controls, no page break inside a card */
+@page { margin: 16mm 14mm; }
+@media print {
+    :root, :root[data-theme], :root:not([data-theme="light"]) {
+        --paper: #fff; --paper-2: #f4f4f4; --card: #fff; --ink: #000; --ink-2: #333; --muted: #555; --rule: #bbb;
+        --accent: #000; --accent-ink: #fff; --doc: #000; --prob: #000; --fam: #000; --shadow: none;
+    }
+    body { background: #fff; font-size: 10.5pt; }
+    .top, .foot, .filters, .person-actions, .explorer-actions, .viewer, .trail, .minimap, .nav-toggle { display: none !important; }
+    .page { max-width: none; padding: 0; }
+    .person-grid { display: block; }
+    .card, .record, .anc-person, .tl { break-inside: avoid; box-shadow: none; }
+    h1, h2, h3 { break-after: avoid; }
+    a { color: inherit; text-decoration: none; }
+    .record-source a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8.5pt; word-break: break-all; }
+    .scan img { max-height: 9cm; width: auto; max-width: 100%; }
+    .scan a { background: none; }
+    .anc-person { border-left-width: 3px; padding: 6px 10px; }
+}
