@@ -86,6 +86,12 @@ final class Repository
 		return $data->people[$data->aliases[$slug] ?? $slug] ?? null;
 	}
 
+	/** @return array<string, Family> */
+	public function families(): array
+	{
+		return $this->data()->families;
+	}
+
 	public function family(?string $id): ?Family
 	{
 		return $id !== null ? ($this->data()->families[$id] ?? null) : null;

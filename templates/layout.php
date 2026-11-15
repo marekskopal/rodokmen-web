@@ -73,6 +73,7 @@ $items = [
         <p class="foot-links">
             <a href="/denik">Deník hledání</a>
             <a href="/hledame">Co ještě hledáme</a>
+            <a href="/export/rodokmen.ged" download title="Rodokmen pro jiné genealogické programy (GEDCOM)">Stáhnout GEDCOM</a>
             <button type="button" class="linklike" data-theme-toggle>Světlý / tmavý režim</button>
             <form method="post" action="/odhlasit" class="inline"><button type="submit" class="linklike">Odhlásit</button></form>
         </p>
