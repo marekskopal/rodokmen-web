@@ -20,6 +20,11 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **GEDCOM export** ("Stáhnout GEDCOM" in the footer, `/export/rodokmen.ged`): the tree in GEDCOM 5.5.1 (UTF-8) for
+  other genealogy software – the ancestors with birth, baptism, marriage and death (date and place from the facts,
+  otherwise from the life span), the families of their parents with the full siblings, every register entry as a
+  source cited with the scan number and the transcription, and everything else (trades, notes, evidence, other
+  relatives) as notes.
 - **Print and PDF**: a numbered list of a person's ancestors (vývod, `/predci/{slug}/tisk`, linked from the explorer
   and the person page) with their facts and register entries, optionally with the transcriptions, and a choice of
   generations; numbers count from the chosen person (father 2n, mother 2n + 1) and an ancestor met twice points to

@@ -108,6 +108,20 @@ final class KernelTest extends TestCase
 		self::assertSame('nosniff', $response->getHeaderLine('X-Content-Type-Options'));
 	}
 
+	public function testGedcomDownload(): void
+	{
+		$response = $this->get('/export/rodokmen.ged', loggedIn: true);
+		$body = (string) $response->getBody();
+
+		self::assertSame(200, $response->getStatusCode());
+		self::assertSame('text/vnd.familysearch.gedcom; charset=utf-8', $response->getHeaderLine('Content-Type'));
+		self::assertSame('attachment; filename="rodokmen.ged"', $response->getHeaderLine('Content-Disposition'));
+		self::assertStringStartsWith("\u{FEFF}0 HEAD\r\n", $body);
+		self::assertStringContainsString('1 NAME Jan /Novák/', $body);
+		self::assertSame(302, $this->get('/export/rodokmen.ged')->getStatusCode(), 'only for logged-in visitors');
+		self::assertStringContainsString('href="/export/rodokmen.ged"', (string) $this->get('/', loggedIn: true)->getBody());
+	}
+
 	public function testPrintsTheNumberedAncestors(): void
 	{
 		$response = $this->get('/predci/antonin-novak-2024/tisk', loggedIn: true);
