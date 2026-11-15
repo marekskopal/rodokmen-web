@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\Image\Thumbnails;
 use Stringable;
 use Throwable;
 use const ENT_QUOTES;
@@ -26,8 +27,11 @@ final class View
 {
 	private ?GithubFlavoredMarkdownConverter $markdown = null;
 
-	public function __construct(private readonly Config $config, private readonly Repository $repository)
-	{
+	public function __construct(
+		private readonly Config $config,
+		private readonly Repository $repository,
+		private readonly Thumbnails $thumbnails,
+	) {
 	}
 
 	/** @param array<string, mixed> $params */
@@ -100,6 +104,28 @@ final class View
 	public function imageUrl(string $key, bool $full = false): string
 	{
 		return '/obrazek/' . ($full ? 'plny' : 'nahled') . '/' . rawurlencode($key) . '.jpg';
+	}
+
+	/**
+	 * ` srcset="…" sizes="…"` with the WebP copies of img/{key}.jpg, or '' when there are none (no WebP support, no
+	 * source, a source too large to decode). Each candidate is described by its real width: a source narrower than a width is served at its own.
+	 *
+	 * @param string $sizes the image's displayed width, e.g. "(max-width: 860px) 100vw, 800px"
+	 */
+	public function srcset(string $key, string $sizes): string
+	{
+		$source = $this->thumbnails->resizableSize($key);
+		if ($source === null) {
+			return '';
+		}
+
+		$candidates = [];
+		foreach (Thumbnails::Widths as $width) {
+			$real = min($width, $source->width);
+			$candidates[$real] ??= '/obrazek/nahled/' . $width . '/' . rawurlencode($key) . '.webp ' . $real . 'w';
+		}
+
+		return ' srcset="' . $this->e(implode(', ', $candidates)) . '" sizes="' . $this->e($sizes) . '"';
 	}
 
 	/** Link to a person, with the line colour dot. */

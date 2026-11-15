@@ -17,6 +17,23 @@ RUN pnpm build
 
 FROM php:8.5.12-apache
 
+# GD with JPEG and WebP for the WebP thumbnails (src/Image). The -dev packages are needed only to build it: afterwards
+# only the libraries gd.so links to stay installed (the pattern of the official PHP images).
+RUN set -eux; \
+    savedAptMark="$(apt-mark showmanual)"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends libjpeg62-turbo-dev libpng-dev libwebp-dev; \
+    docker-php-ext-configure gd --with-jpeg --with-webp; \
+    docker-php-ext-install -j"$(nproc)" gd; \
+    apt-mark auto '.*' > /dev/null; \
+    [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
+    find /usr/local/lib/php/extensions -name '*.so' -exec ldd '{}' ';' \
+        | awk '/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); printf "*%s\n", so }' \
+        | sort -u | xargs -r dpkg-query --search | cut -d: -f1 | sort -u | xargs -r apt-mark manual; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    rm -rf /var/lib/apt/lists/*; \
+    php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
+
 # OPcache is part of PHP since 8.5 (no docker-php-ext-install needed).
 RUN a2enmod rewrite headers \
     && { \

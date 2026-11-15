@@ -93,7 +93,7 @@ usort($children, static fn (Person|Side $a, Person|Side $b): int
                     <div class="gallery">
                         <?php foreach ($documents as $doc): ?>
                             <figure>
-                                <a href="<?= $v->e($v->imageUrl($doc->img, true)) ?>" data-lightbox><img src="<?= $v->e($v->imageUrl($doc->img)) ?>" alt="<?= $v->e($doc->caption) ?>" loading="lazy"></a>
+                                <a href="<?= $v->e($v->imageUrl($doc->img, true)) ?>" data-lightbox><img src="<?= $v->e($v->imageUrl($doc->img)) ?>"<?= $v->srcset($doc->img, '(max-width: 640px) 50vw, 240px') ?> alt="<?= $v->e($doc->caption) ?>" loading="lazy"></a>
                                 <figcaption><?= $v->e($doc->caption) ?></figcaption>
                             </figure>
                         <?php endforeach ?>

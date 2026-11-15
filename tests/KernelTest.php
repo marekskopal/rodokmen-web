@@ -14,6 +14,7 @@ use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Kernel;
 use Rodokmen\Site\Tests\Support\Fixture;
+use Rodokmen\Site\Tests\Support\Images;
 use const JSON_THROW_ON_ERROR;
 use const PHP_URL_QUERY;
 
@@ -105,6 +106,41 @@ final class KernelTest extends TestCase
 			self::assertStringContainsString($text, $body);
 		}
 		self::assertSame('nosniff', $response->getHeaderLine('X-Content-Type-Options'));
+	}
+
+	public function testServesWebpThumbnails(): void
+	{
+		Images::jpeg($this->dir . '/img/krest.jpg', 1200, 800);
+
+		$response = $this->get('/obrazek/nahled/480/krest.webp', loggedIn: true);
+		self::assertSame(200, $response->getStatusCode());
+		self::assertSame('image/webp', $response->getHeaderLine('Content-Type'));
+		self::assertSame('private, max-age=86400', $response->getHeaderLine('Cache-Control'));
+		$size = getimagesizefromstring((string) $response->getBody());
+		self::assertSame([480, 320], [$size[0] ?? null, $size[1] ?? null]);
+
+		$cached = $this->kernel->handle(
+			$this->request('GET', '/obrazek/nahled/480/krest.webp', true)->withHeader('If-None-Match', $response->getHeaderLine('ETag')),
+		);
+		self::assertSame(304, $cached->getStatusCode());
+
+		self::assertSame(302, $this->get('/obrazek/nahled/480/krest.webp')->getStatusCode(), 'only for logged-in visitors');
+		self::assertSame(404, $this->get('/obrazek/nahled/500/krest.webp', loggedIn: true)->getStatusCode(), 'only the fixed widths');
+		self::assertSame(404, $this->get('/obrazek/nahled/480/chybi.webp', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/obrazek/nahled/480/krest.jpg', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/obrazek/nahled/480/..%2Fkrest.webp', loggedIn: true)->getStatusCode());
+	}
+
+	public function testThumbnailFallsBackToTheJpeg(): void
+	{
+		// A source GD cannot read gets no WebP copy: the JPEG is served instead of a broken image.
+		mkdir($this->dir . '/img');
+		file_put_contents($this->dir . '/img/krest.jpg', 'not really a jpeg');
+
+		$response = $this->get('/obrazek/nahled/960/krest.webp', loggedIn: true);
+		self::assertSame(200, $response->getStatusCode());
+		self::assertSame('image/jpeg', $response->getHeaderLine('Content-Type'));
+		self::assertSame('not really a jpeg', (string) $response->getBody());
 	}
 
 	public function testFooterHasDisclaimerWithContact(): void

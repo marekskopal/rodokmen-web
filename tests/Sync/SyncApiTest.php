@@ -130,8 +130,13 @@ final class SyncApiTest extends TestCase
 		$manifest = ManifestTest::json(['site.json' => $siteJson, 'img/krest.jpg' => 'crop']);
 		self::assertSame(200, $this->send('POST', '/api/sync/commit', $manifest, 'sync-token')->getStatusCode());
 
+		$thumbnail = $this->dir . '/cache/thumbs/480/krest-1-4.webp';
+		mkdir(dirname($thumbnail), 0777, true);
+		file_put_contents($thumbnail, 'old');
+
 		$rollback = $this->send('POST', '/api/sync/rollback', '', 'sync-token');
 		self::assertSame(200, $rollback->getStatusCode());
+		self::assertFileDoesNotExist($thumbnail, 'thumbnails of removed images are pruned');
 		self::assertSame(['release' => $first['release']], $this->json($rollback));
 		self::assertFileDoesNotExist($this->dir . '/site/data/img/krest.jpg');
 		self::assertFalse($this->json($this->send('POST', '/api/sync/plan', $manifest, 'sync-token'))['current']);

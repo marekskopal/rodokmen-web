@@ -10,7 +10,7 @@
 <div class="gallery gallery-large">
     <?php foreach ($documents as $doc): ?>
         <figure>
-            <a href="<?= $v->e($v->imageUrl($doc->img, true)) ?>" data-lightbox><img src="<?= $v->e($v->imageUrl($doc->img)) ?>" alt="<?= $v->e($doc->caption) ?>" loading="lazy"></a>
+            <a href="<?= $v->e($v->imageUrl($doc->img, true)) ?>" data-lightbox><img src="<?= $v->e($v->imageUrl($doc->img)) ?>"<?= $v->srcset($doc->img, '(max-width: 640px) 100vw, 380px') ?> alt="<?= $v->e($doc->caption) ?>" loading="lazy"></a>
             <figcaption>
                 <?= $v->e($doc->caption) ?>
                 <?php if ($doc->people !== []): ?>

@@ -13,6 +13,7 @@ use Psr\Log\LoggerInterface;
 use Rodokmen\Site\Auth\LoginThrottle;
 use Rodokmen\Site\Auth\ThrottleScope;
 use Rodokmen\Site\Config;
+use Rodokmen\Site\Image\Thumbnails;
 use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\InvalidManifestException;
 use Rodokmen\Site\Sync\Manifest;
@@ -35,6 +36,7 @@ final readonly class SyncController
 		private DataStore $store,
 		private LoginThrottle $throttle,
 		private LoggerInterface $logger,
+		private Thumbnails $thumbnails,
 	) {
 	}
 
@@ -73,7 +75,10 @@ final readonly class SyncController
 		return $this->guarded($request, function () use ($request): JsonResponse {
 			$manifest = Manifest::fromJson((string) $request->getBody());
 			$release = $this->store->commit($manifest);
-			$this->logger->info('Data published', ['release' => $release, 'files' => count($manifest->files)]);
+			$this->logger->info(
+				'Data published',
+				['release' => $release, 'files' => count($manifest->files), 'staleThumbnails' => $this->thumbnails->prune()],
+			);
 
 			return new JsonResponse(['release' => $release, 'files' => count($manifest->files)]);
 		});
@@ -84,7 +89,7 @@ final readonly class SyncController
 	{
 		return $this->guarded($request, function (): JsonResponse {
 			$release = $this->store->rollback();
-			$this->logger->info('Data rolled back', ['release' => $release]);
+			$this->logger->info('Data rolled back', ['release' => $release, 'staleThumbnails' => $this->thumbnails->prune()]);
 
 			return new JsonResponse(['release' => $release]);
 		});

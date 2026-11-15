@@ -29,6 +29,9 @@
             "dealerdirect/phpcodesniffer-composer-installer": true
         }
     },
+    "suggest": {
+        "ext-gd": "With JPEG and WebP support: smaller WebP thumbnails of the scans and photos (without it the JPEGs are served)"
+    },
     "require-dev": {
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^2.3",

@@ -20,6 +20,10 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **WebP thumbnails**: pages load smaller WebP copies of the scans and photos sized to the screen (`srcset`, 480,
+  960 and 1440 px, never wider than the original). They are made with GD on the first request and kept in
+  `var/cache/thumbs`; copies of changed images are replaced at once, and an upload through the API removes those of
+  deleted images. Without GD's WebP support the pages load the JPEGs as before. The Docker image now has GD.
 - **Scan viewer**: register scans and family photos open in a viewer with zoom (mouse wheel, pinch, double-click or
   double-tap, buttons, `+` / `-` / `0`) and pan (drag, arrow keys). The crop on the page shows at once and the full
   resolution replaces it when it has loaded.

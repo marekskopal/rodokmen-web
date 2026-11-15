@@ -8,7 +8,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Image\Thumbnails;
+use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\Fixture;
+use Rodokmen\Site\Tests\Support\Images;
 use Rodokmen\Site\View\View;
 use Stringable;
 
@@ -25,7 +28,7 @@ final class ViewTest extends TestCase
 		$this->dir = Fixture::dataDir();
 		$config = Fixture::config($this->dir);
 		$this->repository = new Repository($config, new SiteDataLoader($config));
-		$this->view = new View($config, $this->repository);
+		$this->view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer()));
 	}
 
 	protected function tearDown(): void
@@ -45,6 +48,30 @@ final class ViewTest extends TestCase
 				return 'ok';
 			}
 		}));
+	}
+
+	public function testSrcsetListsTheWebpCopiesAtTheirRealWidths(): void
+	{
+		Images::jpeg($this->dir . '/img/krest.jpg', 1000, 500);
+		$config = Fixture::config($this->dir);
+		$view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer(), true));
+
+		self::assertSame(
+			' srcset="/obrazek/nahled/480/krest.webp 480w, /obrazek/nahled/960/krest.webp 960w, /obrazek/nahled/1440/krest.webp 1000w"'
+			. ' sizes="(max-width: 860px) 100vw, 800px"',
+			$view->srcset('krest', '(max-width: 860px) 100vw, 800px'),
+		);
+
+		Images::jpeg($this->dir . '/img/maly.jpg', 300, 200);
+		self::assertSame(
+			' srcset="/obrazek/nahled/480/maly.webp 300w" sizes="240px"',
+			$view->srcset('maly', '240px'),
+			'a small source is listed once, at its own width',
+		);
+		self::assertSame('', $view->srcset('chybi', '240px'), 'no source');
+
+		$withoutWebp = new View($config, $this->repository, new Thumbnails($config, new WebpResizer(), false));
+		self::assertSame('', $withoutWebp->srcset('krest', '240px'));
 	}
 
 	public function testUrls(): void
@@ -156,6 +183,9 @@ final class ViewTest extends TestCase
 		self::assertSame('Např. příjmení, obec, řemeslo…', $this->view->searchHint());
 
 		$config = Fixture::config($this->dir, searchHint: 'Např. Novák, Lomnice');
-		self::assertSame('Např. Novák, Lomnice', (new View($config, $this->repository))->searchHint());
+		self::assertSame(
+			'Např. Novák, Lomnice',
+			(new View($config, $this->repository, new Thumbnails($config, new WebpResizer())))->searchHint(),
+		);
 	}
 }

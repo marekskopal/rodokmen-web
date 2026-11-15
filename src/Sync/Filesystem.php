@@ -38,6 +38,18 @@ final readonly class Filesystem
 		@rmdir($dir);
 	}
 
+	/**
+	 * Copies $source to $target with the source's modification time, as a hard link would keep it (used when the
+	 * uploads are on another filesystem): the WebP thumbnails are named after it, so an unchanged image keeps them.
+	 */
+	public function copyKeepingTime(string $source, string $target): void
+	{
+		$modified = @filemtime($source);
+		if ($modified === false || !@copy($source, $target) || !@touch($target, $modified)) {
+			throw new RuntimeException('Cannot copy ' . $source . ' to ' . $target);
+		}
+	}
+
 	public function ensureDir(string $dir): void
 	{
 		if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
