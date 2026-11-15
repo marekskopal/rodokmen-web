@@ -42,7 +42,8 @@ jobs:
                   extensions: gd
 
             - name: Check that GD reads JPEG and writes WebP
-              run: php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
+              run: |
+                  php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
 
             - name: Cache composer dependencies
               uses: actions/cache@v6
@@ -109,7 +110,8 @@ jobs:
                   extensions: gd
 
             - name: Check that GD reads JPEG and writes WebP
-              run: php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
+              run: |
+                  php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
 
             - name: Cache composer dependencies
               uses: actions/cache@v6
