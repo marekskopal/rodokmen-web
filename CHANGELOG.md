@@ -20,6 +20,11 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Print and PDF**: a numbered list of a person's ancestors (vývod, `/predci/{slug}/tisk`, linked from the explorer
+  and the person page) with their facts and register entries, optionally with the transcriptions, and a choice of
+  generations; numbers count from the chosen person (father 2n, mother 2n + 1) and an ancestor met twice points to
+  the first number. The print stylesheet prints in light colours without navigation and controls, keeps cards on one
+  page, opens the transcriptions and writes out archive links; "Tisk / PDF" uses the browser's Save as PDF.
 - **WebP thumbnails**: pages load smaller WebP copies of the scans and photos sized to the screen (`srcset`, 480,
   960 and 1440 px, never wider than the original). They are made with GD on the first request and kept in
   `var/cache/thumbs`; copies of changed images are replaced at once, and an upload through the API removes those of

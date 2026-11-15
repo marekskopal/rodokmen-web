@@ -108,6 +108,35 @@ final class KernelTest extends TestCase
 		self::assertSame('nosniff', $response->getHeaderLine('X-Content-Type-Options'));
 	}
 
+	public function testPrintsTheNumberedAncestors(): void
+	{
+		$response = $this->get('/predci/antonin-novak-2024/tisk', loggedIn: true);
+		$body = (string) $response->getBody();
+
+		self::assertSame(200, $response->getStatusCode(), $body);
+		self::assertStringContainsString('Vývod předků', $body);
+		self::assertMatchesRegularExpression('/\s2 generace předků,\s+3 známí předkové\s/u', $body);
+		self::assertStringContainsString('id="c-4"', $body, 'grandfather Josef Novák');
+		self::assertStringNotContainsString('id="c-5"', $body, 'the unknown grandmother has no entry');
+		self::assertStringContainsString('<a href="#c-2">č. 2</a> Jan Novák', $body);
+		self::assertStringContainsString('N Praha 1990, snímek 12', $body);
+		self::assertStringNotContainsString('Joannes', $body, 'transcriptions only on request');
+		self::assertStringContainsString('data-print', $body);
+
+		$withTexts = (string) $this->get('/predci/antonin-novak-2024/tisk?zapisy=1', loggedIn: true)->getBody();
+		self::assertStringContainsString('Joannes', $withTexts);
+
+		$oneGeneration = (string) $this->get('/predci/antonin-novak-2024/tisk?generace=1', loggedIn: true)->getBody();
+		self::assertStringContainsString('id="c-3"', $oneGeneration);
+		self::assertStringNotContainsString('id="c-4"', $oneGeneration);
+		self::assertStringContainsString('<option value="1" selected>', $oneGeneration);
+		self::assertStringContainsString('Otec: Josef Novák', $oneGeneration, 'a parent beyond the limit is named, without a number');
+		self::assertStringNotContainsString('#c-4', $oneGeneration);
+
+		self::assertSame(404, $this->get('/predci/nikdo/tisk', loggedIn: true)->getStatusCode());
+		self::assertSame(302, $this->get('/predci/antonin-novak-2024/tisk')->getStatusCode());
+	}
+
 	public function testServesWebpThumbnails(): void
 	{
 		Images::jpeg($this->dir . '/img/krest.jpg', 1200, 800);

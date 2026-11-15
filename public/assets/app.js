@@ -25,6 +25,15 @@
         try { localStorage.setItem('rk-theme', root.dataset.theme); } catch (e) { /* storage blocked */ }
     }));
 
+    // Printing: buttons, and the transcriptions in <details> open on paper (CSS cannot open them)
+    $$('[data-print]').forEach((btn) => btn.addEventListener('click', () => window.print()));
+    window.addEventListener('beforeprint', () => {
+        $$('details:not([open])').forEach((d) => { d.open = true; d.dataset.printOpened = ''; });
+    });
+    window.addEventListener('afterprint', () => {
+        $$('details[data-print-opened]').forEach((d) => { d.open = false; delete d.dataset.printOpened; });
+    });
+
     // Filters (generations table, records grid)
     const filterRoot = $('[data-filter-root]');
     if (filterRoot) {
