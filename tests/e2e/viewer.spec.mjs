@@ -164,7 +164,8 @@ test('keeps the crop when the full scan cannot be loaded', async ({ page, consol
 test('tells when there is nothing to show', async ({ page, consoleErrors }) => {
 	await page.route('**/obrazek/**', (route) => route.fulfill({ status: 404, body: '' }));
 	await page.goto(recordUrl);
-	await page.locator('a[data-lightbox]').click();
+	// Both images fail, so the link has no size to click on: send the click to it directly.
+	await page.locator('a[data-lightbox]').dispatchEvent('click');
 
 	await expect(page.locator('.viewer-status')).toHaveText('Obrázek se nepodařilo načíst.');
 	await expect(page.locator('.viewer-img')).toBeHidden();

@@ -15,7 +15,15 @@ RUN pnpm install --frozen-lockfile --prod
 COPY bin/build-assets.mjs ./bin/
 RUN pnpm build
 
+FROM mlocati/php-extension-installer:2.13.2 AS php-extension-installer
+
 FROM php:8.5.12-apache
+
+# GD with JPEG and WebP for the WebP thumbnails (src/Image). install-php-extensions installs the libraries it needs
+# and removes the build dependencies afterwards.
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+RUN install-php-extensions gd \
+    && php -r 'exit(imagetypes() & IMG_WEBP && imagetypes() & IMG_JPG ? 0 : 1);'
 
 # OPcache is part of PHP since 8.5 (no docker-php-ext-install needed).
 RUN a2enmod rewrite headers \

@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Sync\Filesystem;
 use Rodokmen\Site\Sync\SyncException;
 use Rodokmen\Site\Tests\Support\Fixture;
+use RuntimeException;
 
 final class FilesystemTest extends TestCase
 {
@@ -23,6 +24,21 @@ final class FilesystemTest extends TestCase
 	protected function tearDown(): void
 	{
 		Fixture::removeDir($this->dir);
+	}
+
+	public function testCopyKeepsTheModificationTime(): void
+	{
+		file_put_contents($this->dir . '/a', 'crop');
+		touch($this->dir . '/a', 1700000000);
+
+		new Filesystem()->copyKeepingTime($this->dir . '/a', $this->dir . '/b');
+
+		clearstatcache();
+		self::assertSame('crop', file_get_contents($this->dir . '/b'));
+		self::assertSame(1700000000, filemtime($this->dir . '/b'));
+
+		$this->expectException(RuntimeException::class);
+		new Filesystem()->copyKeepingTime($this->dir . '/missing', $this->dir . '/c');
 	}
 
 	public function testWriteStreamReturnsTheHash(): void

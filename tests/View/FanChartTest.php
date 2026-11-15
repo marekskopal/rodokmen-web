@@ -8,6 +8,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Image\Thumbnails;
+use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\Fixture;
 use Rodokmen\Site\View\FanChart;
 use Rodokmen\Site\View\FanGeometry;
@@ -28,7 +30,7 @@ final class FanChartTest extends TestCase
 		$this->dir = Fixture::dataDir();
 		$config = Fixture::config($this->dir);
 		$this->repository = new Repository($config, new SiteDataLoader($config));
-		$view = new View($config, $this->repository);
+		$view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer()));
 		$geometry = new FanGeometry();
 		$this->chart = new FanChart($this->repository, $view, $geometry, new FanLabels($view, $geometry), new FanYears());
 	}

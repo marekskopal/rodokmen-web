@@ -17,7 +17,7 @@ The user interface is in Czech, like the skill.
   guesses from many addresses, for all visitors together; browsers that have logged in before are not stopped by
   that shared limit (only by their own limit per device), so an attack cannot lock the family out.
 - **Everything is private** – scans and photos live outside the web root and are streamed only to logged-in
-  visitors.
+  visitors; pages load smaller WebP copies sized to the screen (`srcset`), made on the server and cached.
 - **Ancestor explorer** (`/predci`): one person in focus with three generations of ancestors, click anyone to move
   up. Every visitor can choose their own starting person (remembered in a cookie).
 - **Full tree** (`/strom`) drawn left to right with collapsible branches, and a **360° fan chart** (`/vejir`) with
@@ -134,7 +134,8 @@ Updating the website: `git pull && docker compose pull && docker compose up -d`.
 
 ### Apache without Docker
 
-Requirements: PHP ≥ 8.5 and Composer, and for building the front-end libraries Node.js ≥ 20 with
+Requirements: PHP ≥ 8.5 with GD (JPEG and WebP; e.g. `php-gd`, optional – without it the pages load the full JPEGs)
+and Composer, and for building the front-end libraries Node.js ≥ 20 with
 [pnpm](https://pnpm.io) (`npm install --global pnpm`; only needed at installation, not at runtime). Point the
 virtual host's `DocumentRoot` to `public/`, enable `mod_rewrite` and allow `.htaccess` (`AllowOverride All`), then:
 

@@ -199,8 +199,8 @@ final readonly class DataStore
 
 			$target = $dir . '/' . $path;
 			$this->fs->ensureDir(dirname($target));
-			if (!@link($source, $target) && !copy($source, $target)) {
-				throw new RuntimeException('Cannot copy ' . $source . ' to ' . $target);
+			if (!@link($source, $target)) {
+				$this->fs->copyKeepingTime($source, $target);
 			}
 		}
 

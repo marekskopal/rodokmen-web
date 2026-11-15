@@ -12,7 +12,7 @@ $open ??= false;
     <?php if ($r->img): ?>
         <figure class="scan">
             <a href="<?= $v->e($v->imageUrl($r->key, true)) ?>" data-lightbox>
-                <img src="<?= $v->e($v->imageUrl($r->key)) ?>" alt="<?= $v->e($r->title) ?>" loading="lazy">
+                <img src="<?= $v->e($v->imageUrl($r->key)) ?>"<?= $v->srcset($r->key, '(max-width: 860px) 100vw, 800px') ?> alt="<?= $v->e($r->title) ?>" loading="lazy">
                 <?php foreach ($r->boxes as $box): ?>
                     <span class="scan-box" style="left: <?= $box->x0 * 100 ?>%; top: <?= $box->y0 * 100 ?>%; width: <?= ($box->x1 - $box->x0) * 100 ?>%; height: <?= ($box->y1 - $box->y0) * 100 ?>%"></span>
                 <?php endforeach ?>
