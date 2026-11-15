@@ -10,13 +10,14 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
-### Development
+## [1.1.0] - 2026-11-15
 
-- Front-end tests: Vitest unit tests of the browser scripts (`tests/js`, part of `make check`) and Playwright
-  end-to-end tests on the demo family (`tests/e2e`, `make test-e2e`, a new CI job) – a smoke test of every main page
-  and the basic cases (login, logout, search, ancestor explorer, theme, mobile navigation).
-- The demo family has an invented register scan (`tests/Support/demo`), so `make demo` and the end-to-end tests
-  show the scan viewer.
+Scan viewer, WebP thumbnails, printing, GEDCOM export and rollback of a data release.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d` (the image now contains GD). Apache: optionally
+install PHP's GD extension with JPEG and WebP (e.g. `php-gd`) for the WebP thumbnails – without it the pages load the
+JPEGs as before; then `composer install --no-dev` and `pnpm install --frozen-lockfile --prod && pnpm build` as after
+every update. Installed `rodokmen-sync` 1.1.0 keeps working; update it for `--rollback`.
 
 ### Website
 
@@ -48,6 +49,18 @@ number changes only when old clients or servers could not read it – see *Bundl
 ### rodokmen-sync 1.2.0
 
 - `--rollback` switches the website back to the data of the previous upload (API target only).
+
+### Bundle format
+
+- Unchanged: format 1.
+
+### Development
+
+- Front-end tests: Vitest unit tests of the browser scripts (`tests/js`, part of `make check`) and Playwright
+  end-to-end tests on the demo family (`tests/e2e`, `make test-e2e`, a new CI job) – a smoke test of every main page
+  and the basic cases (login, logout, search, ancestor explorer, theme, mobile navigation).
+- The demo family has an invented register scan (`tests/Support/demo`), so `make demo` and the end-to-end tests
+  show the scan viewer.
 
 ## [1.0.0] - 2026-11-14
 
@@ -85,4 +98,6 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.1.0
 [1.0.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.0.0
