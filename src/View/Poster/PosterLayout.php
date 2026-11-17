@@ -11,6 +11,7 @@ enum PosterLayout: string
 	case HalfFan = 'pulvejir';
 	case Tree = 'strom';
 	case TreeRight = 'strom-vpravo';
+	case PaintedTree = 'maleny-strom';
 
 	public function label(): string
 	{
@@ -19,6 +20,7 @@ enum PosterLayout: string
 			self::HalfFan => 'Půlvějíř 180°',
 			self::Tree => 'Strom (předci nahoře)',
 			self::TreeRight => 'Strom zleva doprava',
+			self::PaintedTree => 'Malovaný strom',
 		};
 	}
 

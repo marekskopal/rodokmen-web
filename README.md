@@ -29,7 +29,7 @@ The user interface is in Czech, like the skill.
   **research log**, **open questions** and **search**.
 - **GEDCOM export** of the whole tree (GEDCOM 5.5.1) with the register entries as sources, for other genealogy
   software.
-- **Ancestor poster** for printing or a print shop: a person's ancestors as a fan, a half fan or a tree on one sheet from A4
+- **Ancestor poster** for printing or a print shop: a person's ancestors as a fan, a half fan, a tree or a painted tree on one sheet from A4
   to A0, in a simple or a historical style, saved as PDF in the browser at the right paper size or downloaded as SVG.
 - **Print and PDF**: a numbered list of a person's ancestors (vývod) with their facts and register entries, and
   print-friendly person pages (the browser's Save as PDF).
