@@ -167,7 +167,8 @@ final readonly class Poster
 				: $this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
 		);
 
-		$rows = $this->footerRows($generations, $options->style);
+		// The painted tree colours men and women, not the family lines: it lists no lines.
+		$rows = $this->footerRows($generations, $options->style, !$painted);
 		[$cornerWidth, $cornerHeight] = $painted
 			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight)
 			: $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
@@ -226,9 +227,10 @@ final readonly class Poster
 	 * Family lines with their colours, a note on uncertain ancestors, the website and the date.
 	 *
 	 * @param non-empty-list<list<?string>> $generations the drawn ancestors
+	 * @param bool $lines whether to list the family lines
 	 * @return non-empty-list<array{string, string, ?string}> [text, CSS class, colour]
 	 */
-	private function footerRows(array $generations, PosterStyle $style): array
+	private function footerRows(array $generations, PosterStyle $style, bool $lines = true): array
 	{
 		// The person is drawn in the accent colour, not in the colour of a family line.
 		$drawn = [];
@@ -241,7 +243,7 @@ final readonly class Poster
 
 		$rows = [];
 		foreach ($this->repository->lines() as $line) {
-			if (isset($drawn[$line->k])) {
+			if ($lines && isset($drawn[$line->k])) {
 				$rows[] = ['rod ' . $line->name, 'pst-t', $style->tint($line->color)];
 			}
 		}
