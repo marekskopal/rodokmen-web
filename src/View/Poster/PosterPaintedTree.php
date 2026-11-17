@@ -10,8 +10,9 @@ use Rodokmen\Site\View\View;
 /**
  * Painted family tree of the poster, like the old ones on parchment: a grassy mound, a trunk with the person at
  * its foot, branches to every known ancestor, names on oval plaques, twigs with leaves and now and then an apple.
- * Measured in millimetres in a rectangle with its top left corner at 0,0. The ancestors keep roughly the places
- * of the upward tree (every one the same share of the width), unknown ones get no branch.
+ * Measured in millimetres in a rectangle with its top left corner at 0,0. Every generation has its row; across
+ * the width the known ancestors stand as close as their trees allow (PaintedLayout), unknown ones get no branch
+ * and no place of their own.
  *
  * The tree is grown, not stamped: every branch bends its own way, is as thick as the number of ancestors it
  * carries (pipe model), plaques sit a little off their row, and all outlines are drawn with an unsteady hand
@@ -48,14 +49,19 @@ final readonly class PosterPaintedTree
 		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
 		$space = new PaintedSpace($nodes, $width, $height, $unit, $this->layout->top($height, $unit), $cornerWidth, $cornerHeight);
 
-		$wood = $this->trunk($nodes[0][0] ?? null, $width, $height, $this->layout->trunk($width, $unit), $style, $random);
+		$wood = $this->trunk($nodes[0][0] ?? null, $height, $this->layout->trunk($width, $unit), $style, $random);
 		$leaves = '';
 		$plaques = '';
 		foreach ($nodes as $g => $row) {
-			[$w, $h, $ribbon] = $this->layout->plaqueSize($g, $width, $unit);
+			// All plaques of a generation have the same size.
+			$first = array_values($row)[0] ?? null;
+			if ($first === null) {
+				continue;
+			}
+			[$w, $h, $ribbon] = [$first->w, $first->h, $first->ribbon];
 			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
 			$text = $this->text->fit($people, $w * self::TextWidth, $h * ($ribbon ? self::RibbonTextHeight : self::TextHeight), $maxFont);
-			$leaf = min($unit * .2, $width / 2 ** $g * .45);
+			$leaf = min($unit * .2, $w * .5);
 			foreach ($row as $node) {
 				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
 				[$grown, $sprays] = $this->grow($node, $nodes, $leaf, $unit * .05, $space, $style, $chance);
@@ -74,10 +80,12 @@ final readonly class PosterPaintedTree
 
 		// Thin wood first, so that the thicker limb covers the joint.
 		usort($wood, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+		// The mound lies under the trunk, as far as it fits on the sheet beside the corner of the legend.
+		$half = $width * PaintedLayout::GroundWidth;
 		$ground = $this->wood->ground(
-			$width / 2,
+			max($half, min($width - $cornerWidth - $half, $nodes[0][0]->x ?? $width / 2)),
 			$height,
-			$width * PaintedLayout::GroundWidth,
+			$half,
 			$height * PaintedLayout::GroundHeight * 1.1,
 			$style,
 			$random->fork('ground'),
@@ -168,7 +176,7 @@ final readonly class PosterPaintedTree
 	 *
 	 * @return list<array{float, string}> thickness and drawing
 	 */
-	private function trunk(?PaintedNode $root, float $width, float $height, float $trunk, PosterStyle $style, PosterRandom $random): array
+	private function trunk(?PaintedNode $root, float $height, float $trunk, PosterStyle $style, PosterRandom $random): array
 	{
 		if ($root === null) {
 			return [];
@@ -179,7 +187,7 @@ final readonly class PosterPaintedTree
 		$wood = [];
 		foreach ([-1, 1, -1, 1, $random->side()] as $k => $side) {
 			$limb = $this->limbs->root(
-				$width / 2,
+				$root->x,
 				$foot,
 				$side,
 				$trunk,
@@ -188,7 +196,7 @@ final readonly class PosterPaintedTree
 			);
 			$wood[] = [$limb->thickness(), $this->wood->limb($limb, $style, $random->fork('rootwood' . $k), $grain)];
 		}
-		$limb = $this->limbs->trunk($width / 2, $foot, $root->y, $trunk, $random->fork('trunk'));
+		$limb = $this->limbs->trunk($root->x, $foot, $root->y, $trunk, $random->fork('trunk'));
 		$wood[] = [$limb->thickness() * 10, $this->wood->limb($limb, $style, $random->fork('trunkwood'), $grain)];
 
 		return $wood;

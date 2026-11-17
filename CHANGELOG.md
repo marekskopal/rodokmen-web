@@ -12,6 +12,13 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Painted tree: the width goes to the ancestors who are known.** The tree kept a place for everybody who could
+  exist, so a line known far back was squeezed into a strip a few millimetres wide under an empty sheet. Now the
+  trees of the father's and the mother's ancestors are pushed together and stretched over the width: a deep line
+  reaches over its shorter neighbours, a lone known parent stands just a little to their side, and the plaques of
+  the old generations are large enough to read (the demo family's seven generations fit an A1 at 6.5 pt). The
+  trunk may stand a little off the middle of the sheet.
+
 - **Painted tree: flatter ovals.** In the first generations too narrow for ribbons, where the names are still
   written across, the ovals were almost circles. They are now clearly wider than high (a little over half as
   high as wide, never lower than a ribbon), which leaves more room for the branches and leaves; only ovals with

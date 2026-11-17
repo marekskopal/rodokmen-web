@@ -22,6 +22,7 @@ use Rodokmen\Site\View\Poster\PaintedFoliage;
 use Rodokmen\Site\View\Poster\PaintedLayout;
 use Rodokmen\Site\View\Poster\PaintedLimbs;
 use Rodokmen\Site\View\Poster\PaintedPlaque;
+use Rodokmen\Site\View\Poster\PaintedSpread;
 use Rodokmen\Site\View\Poster\PaintedWood;
 use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
@@ -460,7 +461,7 @@ final class PosterTest extends TestCase
 			$people,
 			$view,
 			$text,
-			new PaintedLayout(),
+			new PaintedLayout(new PaintedSpread()),
 			new PaintedLimbs($brush),
 			new PaintedWood($brush),
 			new PaintedFoliage($brush),
