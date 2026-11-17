@@ -72,7 +72,7 @@ $points = $sheet->smallestPoints();
 <div class="poster-hint">
     <p>
         <?= $v->e($options->format->label() . ' ' . $options->orientation->label()) ?>
-        (<?= $options->width() ?> × <?= $options->height() ?> mm), nejmenší písmo <?= $v->e(number_format($points, 1, ',', '')) ?> pt.
+        (<?= $options->width() ?> × <?= $options->height() ?> mm), nejmenší písmo jmen <?= $v->e(number_format($points, 1, ',', '')) ?> pt.
         <?php if ($points < Poster::ReadablePoints): ?>
             <strong class="poster-warn">Takové písmo bude špatně čitelné – zvolte větší papír nebo méně generací.</strong>
         <?php endif ?>

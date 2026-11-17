@@ -173,6 +173,11 @@ final class KernelTest extends TestCase
 		self::assertStringContainsString('>Rod Nováků</text>', $chosen);
 		self::assertStringNotContainsString('Josef Novák', $chosen);
 
+		$tree = (string) $this->get('/predci/antonin-novak-2024/plakat?rozvrzeni=strom-vpravo', loggedIn: true)->getBody();
+		self::assertStringContainsString('<option value="strom-vpravo" selected>', $tree);
+		self::assertStringContainsString('>Josef Novák', $tree);
+		self::assertStringContainsString('stroke-dasharray', $tree, 'places of ancestors not found yet');
+
 		foreach (['/predci/antonin-novak-2024', '/vejir/antonin-novak-2024', '/predci/antonin-novak-2024/tisk'] as $page) {
 			self::assertStringContainsString(
 				'href="/predci/antonin-novak-2024/plakat"',

@@ -30,6 +30,18 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	await expect(page.locator('.poster-sheet .pst-title')).toHaveText('Rod Skopalů');
 });
 
+test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
+	await openPoster(page);
+	for (const layout of ['strom', 'strom-vpravo']) {
+		await page.getByLabel('Rozvržení').selectOption(layout);
+		await page.getByRole('button', { name: 'Zobrazit' }).click();
+		await expect(page).toHaveURL(new RegExp(`rozvrzeni=${layout}`));
+		await expect(page.locator('.poster-sheet svg rect[rx]').first()).toBeVisible();
+		expect(await page.locator('.poster-sheet svg rect[rx]').count()).toBeGreaterThan(10);
+	}
+	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[2384, 1684]]);
+});
+
 test('on paper there is only the sheet, at its full size', async ({ page }) => {
 	await openPoster(page);
 	await page.emulateMedia({ media: 'print' });

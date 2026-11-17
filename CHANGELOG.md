@@ -12,6 +12,11 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Ancestor poster: tree layouts.** Besides the fans, the poster draws the ancestors as a tree growing upward
+  (the person at the bottom) or from left to right, with lines between children and parents and dashed boxes for
+  ancestors not found yet. All boxes of a generation have the same size of letters; narrow boxes write the names
+  along themselves.
+
 - **Ancestor poster** (`/predci/{slug}/plakat`, "Plakát předků" in the explorer, the fan chart and the vývod): a
   person's ancestors on one large sheet, A4 to A0, portrait or landscape, as a 360° fan or a 180° half fan, with the
   family lines in a legend and an own heading. The letters are sized for the paper; the page says how small the

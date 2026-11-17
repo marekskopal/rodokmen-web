@@ -27,7 +27,13 @@ final readonly class Poster
 	/** Margin around the drawing relative to the short side of the paper. */
 	private const Margin = .035;
 
-	public function __construct(private Repository $repository, private View $view, private PosterFan $fan, private FanGeometry $geometry)
+	public function __construct(
+		private Repository $repository,
+		private View $view,
+		private PosterFan $fan,
+		private PosterTree $tree,
+		private FanGeometry $geometry,
+	)
 	{
 	}
 
@@ -58,34 +64,13 @@ final readonly class Poster
 		$width = $options->width();
 		$height = $options->height();
 		$margin = min($width, $height) * self::Margin;
-		$areaWidth = $width - 2 * $margin;
-		$areaHeight = $height - 2 * $margin;
-		$half = $options->layout === PosterLayout::HalfFan;
-		$style = $options->style;
-
-		if ($half) {
-			// The upper half of a circle standing on its diameter at the bottom edge; the title goes above it.
-			$radius = min($areaWidth / 2, $areaHeight);
-			$cy = $margin + $areaHeight;
-		} else {
-			$radius = min($areaWidth, $areaHeight) / 2;
-			$cy = $height / 2;
-		}
-		$cx = $width / 2;
-
+		$area = [$margin, $width - 2 * $margin, $height - 2 * $margin];
 		$generations = $this->repository->ancestorGenerations($root->slug, $options->depth);
 		$defs = [];
-		$lines = [];
-		$chart = $this->fan->render($generations, $style, $radius, $half, $defs, $lines);
 
-		$rows = $this->footerRows($lines);
-		$footerSize = max(self::MinFooterFont, $radius * .022);
-		$footer = $this->footer($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
-
-		// Free room for the title: a band above the chart (beside the legend of the half fan), or the corner beside it.
-		$side = ($areaWidth - 2 * $radius) / 2;
-		$reserved = $half ? $this->footerWidth($rows, $footerSize) + 2 * $footerSize : 0.0;
-		$title = $this->title($root, $options, $radius, $margin, $cy - $radius - $margin, $side, $reserved);
+		[$chart, $title, $footer] = $options->layout->isFan()
+			? $this->fanSheet($root, $options, $generations, $area, $defs)
+			: $this->treeSheet($root, $options, $generations, $area);
 
 		$svg = sprintf(
 			'<svg xmlns="http://www.w3.org/2000/svg" class="poster-svg" viewBox="0 0 %d %d" width="%dmm" height="%dmm"'
@@ -94,40 +79,111 @@ final readonly class Poster
 			$height,
 			$width,
 			$height,
-			$this->view->e($style->font()),
+			$this->view->e($options->style->font()),
 			$this->view->e('Předci osoby ' . $root->name),
 		)
-			. '<style>' . $this->css($style) . '</style>'
+			. '<style>' . $this->css($options->style) . '</style>'
 			. '<defs>' . implode('', $defs) . '</defs>'
-			. sprintf('<rect width="%d" height="%d" fill="%s"/>', $width, $height, $style->paper())
-			. sprintf('<g transform="translate(%.1f,%.1f)">%s</g>', $cx, $cy, $chart)
-			. $title . $footer
+			. sprintf('<rect width="%d" height="%d" fill="%s"/>', $width, $height, $options->style->paper())
+			. $chart . $title . $footer
 			. '</svg>';
 
-		// The title is left out: its size follows its length, not the number of generations.
-		return new PosterSheet($svg, $options->depth, $this->smallestFont($chart . $footer));
+		// Only the names count: the title follows its length and the legend its corner, not the generations.
+		return new PosterSheet($svg, $options->depth, $this->smallestFont($chart));
 	}
 
-	/** @param float $reserved width kept free for the legend at the right end of the band above the chart */
-	private function title(
-		Person $root,
-		PosterOptions $options,
-		float $radius,
-		float $margin,
-		float $band,
-		float $side,
-		float $reserved,
-	): string
+	/**
+	 * The fan in the middle of the sheet (the half fan standing on the bottom edge), the title in the top left
+	 * corner, the legend in the bottom right corner (top right for the half fan).
+	 *
+	 * @param non-empty-list<list<?string>> $generations
+	 * @param array{float, float, float} $area margin, width and height of the area inside the margins
+	 * @param list<string> $defs
+	 * @return array{string, string, string} chart, title, legend
+	 */
+	private function fanSheet(Person $root, PosterOptions $options, array $generations, array $area, array &$defs): array
+	{
+		[$margin, $areaWidth, $areaHeight] = $area;
+		$half = $options->layout === PosterLayout::HalfFan;
+		if ($half) {
+			// The upper half of a circle standing on its diameter at the bottom edge; the title goes above it.
+			$radius = min($areaWidth / 2, $areaHeight);
+			$cy = $margin + $areaHeight;
+		} else {
+			$radius = min($areaWidth, $areaHeight) / 2;
+			$cy = $margin + $areaHeight / 2;
+		}
+
+		$chart = sprintf(
+			'<g transform="translate(%.1f,%.1f)">%s</g>',
+			$margin + $areaWidth / 2,
+			$cy,
+			$this->fan->render($generations, $options->style, $radius, $half, $defs),
+		);
+
+		$rows = $this->footerRows($generations);
+		$footerSize = max(self::MinFooterFont, $radius * .022);
+		$footer = $this->footer($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
+
+		// Free room for the title: a band above the chart (beside the legend of the half fan), or the corner beside it.
+		$size = $radius * .075;
+		$band = $cy - $radius - $margin;
+		$reserved = $half ? $this->footerWidth($rows, $footerSize) + 2 * $footerSize : 0.0;
+		$available = $band >= $this->titleHeight($size)
+			? $areaWidth - $reserved
+			: ($areaWidth - 2 * $radius) / 2 + $radius * .5;
+
+		return [$chart, $this->title($root, $options, $margin, $size, $available), $footer];
+	}
+
+	/**
+	 * The title in a band across the top, the tree below it, the legend in the free corner beside the person.
+	 *
+	 * @param non-empty-list<list<?string>> $generations
+	 * @param array{float, float, float} $area margin, width and height of the area inside the margins
+	 * @return array{string, string, string} chart, title, legend
+	 */
+	private function treeSheet(Person $root, PosterOptions $options, array $generations, array $area): array
+	{
+		[$margin, $areaWidth, $areaHeight] = $area;
+		$upward = $options->layout === PosterLayout::Tree;
+		$size = min($areaWidth, $areaHeight) * .0375;
+		$band = $this->titleHeight($size) + $size * .8;
+		$treeHeight = $areaHeight - $band;
+
+		$chart = sprintf(
+			'<g transform="translate(%.1f,%.1f)">%s</g>',
+			$margin,
+			$margin + $band,
+			$this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
+		);
+
+		$rows = $this->footerRows($generations);
+		[$cornerWidth, $cornerHeight] = $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
+		$footerSize = min(
+			max(self::MinFooterFont, min($areaWidth, $areaHeight) * .011),
+			$cornerWidth / $this->footerWidth($rows, 1.0),
+			$cornerHeight * .9 / (count($rows) * 1.6),
+		);
+		$right = $upward ? $margin + $areaWidth : $margin + $cornerWidth;
+		$footer = $this->footer($rows, $footerSize, $right, $margin + $areaHeight, false);
+
+		return [$chart, $this->title($root, $options, $margin, $size, $areaWidth), $footer];
+	}
+
+	/** Height of the heading and the subtitle written with the given heading size. */
+	private function titleHeight(float $size): float
+	{
+		return $size * 1.2 + $size * .45 * 1.6;
+	}
+
+	/** Heading (the visitor's or the site's title) and the subtitle in the top left corner, fitted to $available. */
+	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available): string
 	{
 		$heading = $options->title !== '' ? $options->title : $this->repository->title();
 		$subtitle = 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
-
-		$size = $radius * .075;
-		$block = $size * 1.2 + $size * .45 * 1.6;
-		// Above the chart when the band is high enough, otherwise beside the curve of the chart.
-		$available = $band >= $block ? $options->width() - 2 * $margin - $reserved : $side + $radius * .5;
+		$subSize = $this->geometry->fit($subtitle, $available, $size * .45);
 		$size = $this->geometry->fit($heading, $available, $size);
-		$subSize = $this->geometry->fit($subtitle, $available, $radius * .075 * .45);
 
 		return sprintf(
 			'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
@@ -148,11 +204,20 @@ final readonly class Poster
 	/**
 	 * Family lines with their colours, a note on uncertain ancestors, the website and the date.
 	 *
-	 * @param array<int, true> $drawn numbers of the family lines in the chart
+	 * @param non-empty-list<list<?string>> $generations the drawn ancestors
 	 * @return non-empty-list<array{string, string, ?string}> [text, CSS class, colour]
 	 */
-	private function footerRows(array $drawn): array
+	private function footerRows(array $generations): array
 	{
+		// The person is drawn in the accent colour, not in the colour of a family line.
+		$drawn = [];
+		foreach (array_merge(...array_slice($generations, 1)) as $slug) {
+			$line = $this->repository->person($slug)?->line;
+			if ($line !== null) {
+				$drawn[$line] = true;
+			}
+		}
+
 		$rows = [];
 		foreach ($this->repository->lines() as $line) {
 			if (isset($drawn[$line->k])) {
@@ -227,7 +292,8 @@ final readonly class Poster
 			. '.pst-unk{fill:' . $style->muted() . ';font-style:italic}'
 			. '.pst-muted{fill:' . $style->muted() . '}'
 			. '.pst-line{font-weight:700;letter-spacing:.15em}'
-			. '.pst-root{fill:' . $style->accentInk() . '}';
+			. '.pst-root{fill:' . $style->accentInk() . '}'
+			. '.pst-years{font-weight:400}';
 	}
 
 	/** Smallest font size (mm) written into the SVG – tells the visitor whether the poster is still readable. */
