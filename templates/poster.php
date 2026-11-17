@@ -3,6 +3,7 @@
 /** @var Rodokmen\Site\Data\Repository $repo */
 /** @var Rodokmen\Site\Data\Model\Person $person */
 /** @var Rodokmen\Site\View\Poster\PosterOptions $options */
+/** @var string $heading */
 /** @var int $available */
 /** @var int $readable */
 /** @var bool $auto */
@@ -62,7 +63,7 @@ $points = $sheet->smallestPoints();
         </label>
     <?php endif ?>
     <label class="poster-title-field">Nadpis
-        <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($repo->title()) ?>">
+        <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($heading) ?>">
     </label>
     <button type="submit" class="btn">Zobrazit</button>
     <button type="button" class="btn btn-primary" data-print>Tisk / PDF</button>

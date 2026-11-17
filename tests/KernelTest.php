@@ -173,6 +173,22 @@ final class KernelTest extends TestCase
 		self::assertStringContainsString('>Rod Nováků</text>', $chosen);
 		self::assertStringNotContainsString('Josef Novák', $chosen);
 
+		// The site's title heads the poster of its own person; anybody else gets their family.
+		self::assertStringContainsString('>Rodokmen Testových</text>', $body);
+		self::assertStringContainsString('placeholder="Rodokmen Testových"', $body);
+		$mother = (string) $this->get('/predci/marie-mala-1992/plakat', loggedIn: true)->getBody();
+		self::assertStringContainsString('class="pst-t pst-title"', $mother);
+		self::assertMatchesRegularExpression('/class="pst-t pst-title"[^>]*>Rodokmen Malých<\/text>/', $mother);
+		self::assertStringContainsString('placeholder="Rodokmen Malých"', $mother);
+		self::assertStringContainsString(
+			'>Rodokmen Malých</text>',
+			(string) $this->get('/predci/marie-mala-1992/plakat.svg', loggedIn: true)->getBody(),
+		);
+		self::assertStringContainsString(
+			'>Vlastní</text>',
+			(string) $this->get('/predci/marie-mala-1992/plakat?nadpis=Vlastn%C3%AD', loggedIn: true)->getBody(),
+		);
+
 		$tree = (string) $this->get('/predci/antonin-novak-2024/plakat?rozvrzeni=strom-vpravo', loggedIn: true)->getBody();
 		self::assertStringContainsString('<option value="strom-vpravo" selected>', $tree);
 		self::assertStringContainsString('>Josef Novák', $tree);
