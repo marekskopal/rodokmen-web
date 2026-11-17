@@ -20,13 +20,12 @@ test('the number of generations and the transcriptions can be chosen', async ({ 
 	const all = await page.locator('.anc-person').count();
 
 	await page.getByLabel('Generací').selectOption('1');
-	await page.getByRole('button', { name: 'Zobrazit' }).click();
 	await expect(page).toHaveURL(/generace=1/);
 	await expect(page.locator('.anc-person')).toHaveCount(3);
 	expect(all).toBeGreaterThan(3);
 
+	await expect(page.locator('.lead')).toContainText('1 generace předků');
 	await page.getByLabel('s přepisy zápisů').check();
-	await page.getByRole('button', { name: 'Zobrazit' }).click();
 	await expect(page).toHaveURL(/zapisy=1/);
 });
 
