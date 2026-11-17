@@ -12,6 +12,10 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Painted tree: forks continue the wood below.** Branches to the parents were as thick as the trunk they grew
+  from and left the name ribbon sideways, so their cut ends showed above it. They now start behind the ribbon
+  inside the wood that arrives there, never thicker than it, rise straight up and only then part.
+
 - **Ancestor poster: the heading follows the person.** The poster of anybody but the website's own person is headed
   by their family ("Rodokmen Rybkových" for Miloslav Rybka, also from Rybková), not by the title of the website;
   a heading of your own still replaces it.
