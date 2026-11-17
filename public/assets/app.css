@@ -436,6 +436,28 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .anc-texts { margin: 4px 0 8px; padding-left: 10px; border-left: 2px solid var(--rule); }
 .anc-texts p { margin: 4px 0; }
 
+/* Ancestor poster (/predci/{slug}/plakat): the sheet is an SVG in millimetres, previewed scaled to the screen */
+.poster-title-field { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; }
+.poster-title-field .filter-text { padding: 8px 12px; }
+.poster-hint { margin: -8px 0 16px; font-size: .92rem; }
+.poster-hint p { margin: 0 0 4px; }
+.poster-warn { color: var(--accent); }
+.poster-preview { padding: 24px; background: var(--paper-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.poster-sheet { max-width: min(100%, calc((100vh - 120px) * var(--ratio, 1.42))); margin: 0 auto; }
+.poster-sheet svg { display: block; width: 100%; height: auto; box-shadow: 0 2px 14px rgba(0, 0, 0, .18); }
+
+/* One CSS page per paper size, so that "Save as PDF" gets the poster's size without margins */
+.poster-a4-portrait { page: poster-a4-portrait; } @page poster-a4-portrait { size: 210mm 297mm; margin: 0; }
+.poster-a4-landscape { page: poster-a4-landscape; } @page poster-a4-landscape { size: 297mm 210mm; margin: 0; }
+.poster-a3-portrait { page: poster-a3-portrait; } @page poster-a3-portrait { size: 297mm 420mm; margin: 0; }
+.poster-a3-landscape { page: poster-a3-landscape; } @page poster-a3-landscape { size: 420mm 297mm; margin: 0; }
+.poster-a2-portrait { page: poster-a2-portrait; } @page poster-a2-portrait { size: 420mm 594mm; margin: 0; }
+.poster-a2-landscape { page: poster-a2-landscape; } @page poster-a2-landscape { size: 594mm 420mm; margin: 0; }
+.poster-a1-portrait { page: poster-a1-portrait; } @page poster-a1-portrait { size: 594mm 841mm; margin: 0; }
+.poster-a1-landscape { page: poster-a1-landscape; } @page poster-a1-landscape { size: 841mm 594mm; margin: 0; }
+.poster-a0-portrait { page: poster-a0-portrait; } @page poster-a0-portrait { size: 841mm 1189mm; margin: 0; }
+.poster-a0-landscape { page: poster-a0-landscape; } @page poster-a0-landscape { size: 1189mm 841mm; margin: 0; }
+
 /* Print (and "Save as PDF"): light colours, no navigation or controls, no page break inside a card */
 @page { margin: 16mm 14mm; }
 @media print {
@@ -454,4 +476,8 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
     .scan img { max-height: 9cm; width: auto; max-width: 100%; }
     .scan a { background: none; }
     .anc-person { border-left-width: 3px; padding: 6px 10px; }
+    .poster-head, .poster-hint { display: none; }
+    .poster-preview { padding: 0; background: none; border: 0; border-radius: 0; }
+    .poster-sheet { max-width: none; margin: 0; }
+    .poster-sheet svg { width: var(--w); height: var(--h); box-shadow: none; }
 }

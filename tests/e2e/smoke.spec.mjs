@@ -6,6 +6,7 @@ const pages = [
 	['/predci', 'ancestor explorer'],
 	['/strom', 'full tree'],
 	['/vejir', 'fan chart'],
+	['/predci/marek-skopal/plakat', 'ancestor poster'],
 	['/generace', 'generations'],
 	['/mapa', 'map'],
 	['/zapisy', 'register entries'],

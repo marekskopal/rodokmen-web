@@ -10,6 +10,14 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+### Website
+
+- **Ancestor poster** (`/predci/{slug}/plakat`, "Plakát předků" in the explorer, the fan chart and the vývod): a
+  person's ancestors on one large sheet, A4 to A0, portrait or landscape, as a 360° fan or a 180° half fan, with the
+  family lines in a legend and an own heading. The letters are sized for the paper; the page says how small the
+  smallest ones will be and recommends the most generations that stay readable. "Tisk / PDF" prints just the sheet
+  at its paper size and without margins (Chrome, Edge and Firefox set the size of "Save as PDF" by themselves).
+
 ## [1.1.0] - 2026-11-15
 
 Scan viewer, WebP thumbnails, printing, GEDCOM export and rollback of a data release.

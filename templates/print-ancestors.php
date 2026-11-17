@@ -47,6 +47,7 @@ $parent = function (?string $slug, int $number) use ($repo, $v, $listedNumbers):
     <label class="filter-check"><input type="checkbox" name="zapisy" value="1" <?= $transcripts ? 'checked' : '' ?>> s přepisy zápisů</label>
     <button type="submit" class="btn">Zobrazit</button>
     <button type="button" class="btn btn-primary" data-print>Tisk / PDF</button>
+    <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/plakat">Plakát předků</a>
     <a class="btn btn-ghost" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Zpět do prohlížeče</a>
 </form>
 

@@ -27,6 +27,7 @@ $child = $repo->person($person->child);
         <a class="btn" href="/vejir/<?= $v->e(rawurlencode($person->slug)) ?>">Vějíř předků</a>
         <a class="btn" href="<?= $v->e($v->personUrl($person->slug)) ?>">Detail osoby</a>
         <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/tisk">Vytisknout vývod</a>
+        <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/plakat">Plakát předků</a>
         <?php if ($person->slug !== $home->slug): ?>
             <a class="btn btn-ghost" href="<?= $v->e($v->explorerUrl($home->slug)) ?>">Zpět na <?= $v->e($home->name) ?></a>
         <?php endif ?>
