@@ -32,6 +32,7 @@ final readonly class Poster
 		private View $view,
 		private PosterFan $fan,
 		private PosterTree $tree,
+		private PosterPaintedTree $paintedTree,
 		private PosterDecor $decor,
 		private PosterFonts $fonts,
 		private FanGeometry $geometry,
@@ -150,7 +151,8 @@ final readonly class Poster
 	private function treeSheet(Person $root, PosterOptions $options, array $generations, array $area): array
 	{
 		[$margin, $areaWidth, $areaHeight] = $area;
-		$upward = $options->layout === PosterLayout::Tree;
+		$upward = $options->layout !== PosterLayout::TreeRight;
+		$painted = $options->layout === PosterLayout::PaintedTree;
 		$size = min($areaWidth, $areaHeight) * .0375;
 		$band = $this->titleHeight($size) + $size * .8;
 		$treeHeight = $areaHeight - $band;
@@ -159,11 +161,15 @@ final readonly class Poster
 			'<g transform="translate(%.1f,%.1f)">%s</g>',
 			$margin,
 			$margin + $band,
-			$this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
+			$painted
+				? $this->paintedTree->render($generations, $options->style, $areaWidth, $treeHeight, $size * .9)
+				: $this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
 		);
 
 		$rows = $this->footerRows($generations, $options->style);
-		[$cornerWidth, $cornerHeight] = $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
+		[$cornerWidth, $cornerHeight] = $painted
+			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight)
+			: $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
 		$footerSize = min(
 			max(self::MinFooterFont, min($areaWidth, $areaHeight) * .011),
 			$cornerWidth / $this->footerWidth($rows, 1.0),

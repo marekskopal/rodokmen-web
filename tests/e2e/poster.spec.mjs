@@ -43,6 +43,15 @@ test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[2384, 1684]]);
 });
 
+test('the painted tree grows a trunk, branches and medallions', async ({ page }) => {
+	await openPoster(page);
+	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
+	await page.getByRole('button', { name: 'Zobrazit' }).click();
+	await expect(page).toHaveURL(/rozvrzeni=maleny-strom/);
+	expect(await page.locator('.poster-sheet svg ellipse').count()).toBeGreaterThan(10);
+	await expect(page.locator('.poster-sheet svg text').filter({ hasText: 'Marek Skopal' }).first()).toBeVisible();
+});
+
 test('the historical style decorates the poster and the SVG can be downloaded', async ({ page }) => {
 	await openPoster(page);
 	await page.getByLabel('Styl').selectOption('historicky');

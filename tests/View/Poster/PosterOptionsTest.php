@@ -46,6 +46,7 @@ final class PosterOptionsTest extends TestCase
 	{
 		self::assertSame(PosterLayout::Tree, PosterOptions::fromQuery(['rozvrzeni' => 'strom'], 3)->layout);
 		self::assertSame(PosterLayout::TreeRight, PosterOptions::fromQuery(['rozvrzeni' => 'strom-vpravo'], 3)->layout);
+		self::assertSame(PosterLayout::PaintedTree, PosterOptions::fromQuery(['rozvrzeni' => 'maleny-strom'], 3)->layout);
 		self::assertFalse(PosterLayout::Tree->isFan());
 		self::assertTrue(PosterLayout::HalfFan->isFan());
 	}

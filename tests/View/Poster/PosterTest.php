@@ -25,6 +25,7 @@ use Rodokmen\Site\View\Poster\PosterFan;
 use Rodokmen\Site\View\Poster\PosterFonts;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
+use Rodokmen\Site\View\Poster\PosterPaintedTree;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterStyle;
 use Rodokmen\Site\View\Poster\PosterTree;
@@ -213,7 +214,7 @@ final class PosterTest extends TestCase
 		self::assertSame(9, substr_count($svg, 'fill="#6e2417"'), 'eight diamonds of the frame and the person');
 		self::assertStringContainsString('#4d687d', $svg, 'the line colour mixed with sepia');
 		self::assertStringContainsString('Josef Novák', $svg);
-		if (!$layout->isFan()) {
+		if ($layout === PosterLayout::Tree || $layout === PosterLayout::TreeRight) {
 			// Only the two panels of the cartouche and the legend swatch are rounded; the seven boxes are labels.
 			self::assertSame(3, substr_count($svg, ' rx="'));
 		}
@@ -229,6 +230,54 @@ final class PosterTest extends TestCase
 		self::assertStringNotContainsString('pst-paper', $svg);
 		self::assertStringNotContainsString('@font-face', $svg);
 		self::assertStringContainsString('fill="#336699"', $svg, 'the line colour as it is');
+	}
+
+	public function testPaintedTreeGrowsBranchesOnlyToKnownAncestors(): void
+	{
+		$options = new PosterOptions(PosterLayout::PaintedTree, PaperFormat::A2, Orientation::Portrait, 2, PosterStyle::Simple, '');
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		self::assertNotFalse(simplexml_load_string($svg));
+		// Antonín on one ellipse, his parents and grandfather Josef on two each (a light ground and the colour)
+		self::assertSame(7, substr_count($svg, '<ellipse '));
+		self::assertStringNotContainsString('stroke-dasharray', $svg, 'ancestors not found yet get no branch');
+		self::assertSame(1, preg_match('/<g fill="#6b4a2b"[^>]*>(.*?)<\/g>/', $svg, $branches));
+		self::assertSame(3, substr_count($branches[1], '<path '), 'to Jan, to Marie and from Jan to Josef');
+		self::assertGreaterThan(0, substr_count($svg, 'rotate('), 'leaves');
+		foreach (['Antonín Novák', 'Jan Novák', 'Marie Malá', 'Josef Novák', 'rod Novákovi'] as $text) {
+			self::assertStringContainsString($text, $svg);
+		}
+
+		// Leaves and medallions stay on the sheet.
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $origin));
+		preg_match_all('/translate\((-?[\d.]+),(-?[\d.]+)\) rotate/', $svg, $leaves, PREG_SET_ORDER);
+		foreach ($leaves as [, $x, $y]) {
+			self::assertGreaterThanOrEqual(0, (float) $origin[1] + (float) $x);
+			self::assertLessThanOrEqual($options->width(), (float) $origin[1] + (float) $x);
+			self::assertGreaterThanOrEqual(0, (float) $y, 'not above the tree, in the band of the title');
+		}
+	}
+
+	public function testPaintedTreeStaysInItsArea(): void
+	{
+		// A large sheet with one generation has the thickest trunk and the largest leaves.
+		$options = new PosterOptions(PosterLayout::PaintedTree, PaperFormat::A0, Orientation::Landscape, 1, PosterStyle::Historical, '');
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $origin));
+		$margin = (float) $origin[1];
+		$bottom = $options->height() - $margin - (float) $origin[2];
+		preg_match_all('/translate\((-?[\d.]+),(-?[\d.]+)\) rotate/', $svg, $leaves, PREG_SET_ORDER);
+		self::assertGreaterThan(0, count($leaves));
+		foreach ($leaves as [, , $y]) {
+			self::assertGreaterThanOrEqual(0, (float) $y);
+		}
+		// Roots: the quadratic curves at the foot of the trunk end above the bottom of the area.
+		preg_match_all('/Q-?[\d.]+,-?[\d.]+ -?[\d.]+,(-?[\d.]+)/', $svg, $roots);
+		self::assertGreaterThan(0, count($roots[1]));
+		foreach ($roots[1] as $y) {
+			self::assertLessThanOrEqual($bottom, (float) $y);
+		}
 	}
 
 	public function testReportsTheSmallestLetters(): void
@@ -343,9 +392,11 @@ final class PosterTest extends TestCase
 		$labels = new FanLabels($view, $geometry);
 		$people = new PosterPeople($repository);
 		$fan = new PosterFan($repository, $people, $view, $geometry, $labels, new FanYears());
-		$tree = new PosterTree($people, $view, new PosterBoxText($view, $geometry, $labels, new FanYears()));
+		$text = new PosterBoxText($view, $geometry, $labels, new FanYears());
+		$tree = new PosterTree($people, $view, $text);
+		$painted = new PosterPaintedTree($people, $view, $text);
 
-		return [$repository, new Poster($repository, $view, $fan, $tree, new PosterDecor(), new PosterFonts($config), $geometry)];
+		return [$repository, new Poster($repository, $view, $fan, $tree, $painted, new PosterDecor(), new PosterFonts($config), $geometry)];
 	}
 
 	private function options(PosterLayout $layout, int $depth = 2): PosterOptions
