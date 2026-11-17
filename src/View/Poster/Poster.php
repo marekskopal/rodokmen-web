@@ -35,6 +35,7 @@ final readonly class Poster
 		private PosterPaintedTree $paintedTree,
 		private PosterDecor $decor,
 		private PosterFonts $fonts,
+		private PosterHeading $heading,
 		private FanGeometry $geometry,
 	)
 	{
@@ -187,10 +188,10 @@ final readonly class Poster
 		return $size * 1.2 + $size * .45 * 1.6;
 	}
 
-	/** Heading (the visitor's or the site's title) and the subtitle in the top left corner, fitted to $available. */
+	/** Heading (the visitor's, or the family of the person) and the subtitle in the top left corner, fitted to $available. */
 	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available): string
 	{
-		$heading = $options->title !== '' ? $options->title : $this->repository->title();
+		$heading = $options->title !== '' ? $options->title : $this->heading->of($root);
 		$subtitle = 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
 		$subSize = $this->geometry->fit($subtitle, $available, $size * .45);
 		$size = $this->geometry->fit($heading, $available, $size);

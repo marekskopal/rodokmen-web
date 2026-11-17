@@ -12,6 +12,10 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Ancestor poster: the heading follows the person.** The poster of anybody but the website's own person is headed
+  by their family ("Rodokmen Rybkových" for Miloslav Rybka, also from Rybková), not by the title of the website;
+  a heading of your own still replaces it.
+
 - **Ancestor poster: painted tree** ("Malovaný strom"): the person on a trunk growing from a grassy mound, a
   branch to every known ancestor and the names on ribbons in the colours of the family lines – like old painted
   family trees, especially with the historical style. The tree is grown, not stamped: every branch bends its own

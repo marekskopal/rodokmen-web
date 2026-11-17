@@ -6,6 +6,7 @@ namespace Rodokmen\Site\Tests\View\Poster;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
@@ -29,6 +30,7 @@ use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterDecor;
 use Rodokmen\Site\View\Poster\PosterFan;
 use Rodokmen\Site\View\Poster\PosterFonts;
+use Rodokmen\Site\View\Poster\PosterHeading;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\Poster\PosterPaintedTree;
@@ -465,7 +467,19 @@ final class PosterTest extends TestCase
 			new PaintedPlaque($brush),
 		);
 
-		return [$repository, new Poster($repository, $view, $fan, $tree, $painted, new PosterDecor(), new PosterFonts($config), $geometry)];
+		$poster = new Poster(
+			$repository,
+			$view,
+			$fan,
+			$tree,
+			$painted,
+			new PosterDecor(),
+			new PosterFonts($config),
+			new PosterHeading($repository, new HomePerson($repository, $config)),
+			$geometry,
+		);
+
+		return [$repository, $poster];
 	}
 
 	private function options(PosterLayout $layout, int $depth = 2): PosterOptions

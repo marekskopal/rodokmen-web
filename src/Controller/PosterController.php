@@ -12,6 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\View\Poster\Poster;
+use Rodokmen\Site\View\Poster\PosterHeading;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\View;
 
@@ -20,7 +21,7 @@ use Rodokmen\Site\View\View;
  */
 final readonly class PosterController
 {
-	public function __construct(private Repository $repository, private View $view, private Poster $poster)
+	public function __construct(private Repository $repository, private View $view, private Poster $poster, private PosterHeading $heading,)
 	{
 	}
 
@@ -49,6 +50,7 @@ final readonly class PosterController
 			'nav' => 'explorer',
 			'wide' => true,
 			'person' => $person,
+			'heading' => $this->heading->of($person),
 			'options' => $options,
 			'available' => $available,
 			'readable' => $readable->depth,
