@@ -275,9 +275,10 @@ final readonly class PosterPaintedTree
 				: $this->plaque->root($node, $style, $random);
 		}
 
+		// Men in shades of blue, women in shades of old rose: the colour tells them apart at a glance.
 		$color = $this->people->isUnknown($node->person)
 			? $style->empty()
-			: $this->view->e($style->tint($this->people->color($node->person, $node->g, $node->i)));
+			: $this->view->e($style->tint($this->people->sexShade($node->person, $node->g, $node->i)));
 		$wash = $this->people->isUncertain($node->person) ? .1 : .19;
 
 		return $node->ribbon

@@ -12,6 +12,11 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Painted tree: men in blue, women in old rose.** Men and women were not told apart, which made the tree hard
+  to read. The plaques and ribbons of men are now shades of blue and those of women shades of old rose; the
+  family line turns the shade a little, so neighbouring lines stay apart. The colours explain themselves, so the
+  painted tree no longer lists the family lines in its corner.
+
 - **Ancestor poster: the choices apply at once.** Printing and "Stáhnout SVG" used the last shown settings until
   "Zobrazit" was pressed. Now every choice redraws the preview straight away (the title after a short pause in
   typing), the paper size and the smallest font are shown next to the print and download buttons, and printing

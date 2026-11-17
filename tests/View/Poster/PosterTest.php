@@ -222,8 +222,17 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('/assets/vendor/@fontsource/eb-garamond/', $svg, 'the page links the font files');
 		// Eight diamonds of the frame and the person (whose ribbon in the painted tree has tails and folds too)
 		self::assertSame($layout === PosterLayout::PaintedTree ? 13 : 9, substr_count($svg, 'fill="#6e2417"'));
-		self::assertStringContainsString('#4d687d', $svg, 'the line colour mixed with sepia');
 		self::assertStringContainsString('Josef Novák', $svg);
+		if ($layout === PosterLayout::PaintedTree) {
+			// The painted tree colours Jan Novák (generation 1, the father) in the men's blue, mixed with sepia.
+			$jan = $this->repository->person('jan-novak-1990');
+			self::assertNotNull($jan);
+			$shade = new PosterPeople($this->repository)->sexShade($jan, 1, 0);
+			self::assertStringContainsString(PosterStyle::Historical->tint($shade), $svg, 'the men\'s blue mixed with sepia');
+		} else {
+			self::assertStringContainsString('#4d687d', $svg, 'the line colour mixed with sepia');
+		}
+
 		if ($layout === PosterLayout::Tree || $layout === PosterLayout::TreeRight) {
 			// Only the two panels of the cartouche and the legend swatch are rounded; the seven boxes are labels.
 			self::assertSame(3, substr_count($svg, ' rx="'));
@@ -253,9 +262,13 @@ final class PosterTest extends TestCase
 		self::assertGreaterThan(9, substr_count($svg, 'fill="' . PaintedWood::Bark . '"'));
 		self::assertGreaterThan(5, substr_count($svg, 'rotate('), 'leaves');
 		self::assertSame(4, preg_match_all('/<text class="pst-t pst-name/', $svg));
-		foreach (['Antonín Novák', 'Jan Novák', 'Marie Malá', 'Josef Novák', 'rod Novákovi'] as $text) {
+		foreach (['Antonín Novák', 'Jan Novák', 'Marie Malá', 'Josef Novák'] as $text) {
 			self::assertStringContainsString($text, $svg);
 		}
+
+		// Men and women are told apart by colour, so the family lines are not listed.
+		self::assertStringNotContainsString('rod Novákovi', $svg);
+		self::assertStringContainsString('kurzívou pravděpodobní', $svg);
 	}
 
 	public function testPaintedTreeIsTheSameEveryTimeAndDiffersByPerson(): void
