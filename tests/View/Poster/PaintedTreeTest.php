@@ -14,6 +14,7 @@ use Rodokmen\Site\View\Poster\PaintedLayout;
 use Rodokmen\Site\View\Poster\PaintedLimbs;
 use Rodokmen\Site\View\Poster\PaintedNode;
 use Rodokmen\Site\View\Poster\PaintedSpace;
+use Rodokmen\Site\View\Poster\PaintedSpread;
 use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterRandom;
@@ -83,7 +84,7 @@ final class PaintedTreeTest extends TestCase
 
 	public function testLayoutPlacesEveryKnownAncestor(): void
 	{
-		$layout = new PaintedLayout();
+		$layout = new PaintedLayout(new PaintedSpread());
 		$places = $this->demoPlaces();
 		$nodes = $layout->nodes($places, 800, 500, new PosterRandom('layout'));
 		self::assertEquals($nodes, $layout->nodes($places, 800, 500, new PosterRandom('layout')));
@@ -98,7 +99,8 @@ final class PaintedTreeTest extends TestCase
 		self::assertGreaterThan(30, $known);
 
 		$root = $nodes[0][0];
-		self::assertSame(400.0, $root->x, 'the person stands in the middle');
+		self::assertGreaterThanOrEqual(.2 * 800, $root->x, 'the person stands where the mound fits under the trunk');
+		self::assertLessThanOrEqual(.55 * 800 + 1e-9, $root->x);
 		self::assertTrue($root->ribbon);
 		self::assertFalse($root->tip);
 		self::assertEqualsWithDelta($layout->trunk(800, $layout->unit(7, 500)), $root->girth, 1e-9);
@@ -106,42 +108,51 @@ final class PaintedTreeTest extends TestCase
 
 	public function testPlaquesAreRibbonsThenFlatOvalsThenTallOvals(): void
 	{
-		$layout = new PaintedLayout();
+		$layout = new PaintedLayout(new PaintedSpread());
 
-		// Rows 100 high. A place 200 wide takes a ribbon (width at most 4.6 × its height).
-		self::assertEqualsWithDelta([165.6, 36.0, true], $layout->plaqueSize(2, 800, 100), 1e-9);
-		self::assertEqualsWithDelta([94.0, 36.0, true], $layout->plaqueSize(3, 800, 100), 1e-9);
+		// Rows 100 high. With 200 to the nearest neighbour a plaque is a ribbon (width at most 4.6 × its height).
+		self::assertEqualsWithDelta([165.6, 36.0, true], $layout->plaqueSize(200, 800, 100), 1e-9);
+		self::assertEqualsWithDelta([94.0, 36.0, true], $layout->plaqueSize(100, 800, 100), 1e-9);
 		// Too narrow for a ribbon, wide enough for the name across: an oval a little over half as high as wide …
-		self::assertEqualsWithDelta([81.0, 44.55, false], $layout->plaqueSize(3, 720, 100), 1e-9);
+		self::assertEqualsWithDelta([81.0, 44.55, false], $layout->plaqueSize(90, 720, 100), 1e-9);
 		// … but never lower than a ribbon,
-		self::assertEqualsWithDelta([54.0, 36.0, false], $layout->plaqueSize(3, 480, 100), 1e-9);
-		self::assertEqualsWithDelta([45.0, 36.0, false], $layout->plaqueSize(4, 800, 100), 1e-9);
+		self::assertEqualsWithDelta([54.0, 36.0, false], $layout->plaqueSize(60, 480, 100), 1e-9);
+		self::assertEqualsWithDelta([45.0, 36.0, false], $layout->plaqueSize(50, 800, 100), 1e-9);
 		// and a tall one where the name has to be written along it.
-		self::assertEqualsWithDelta([40.5, 56.0, false], $layout->plaqueSize(4, 720, 100), 1e-9);
-		self::assertEqualsWithDelta([22.5, 56.0, false], $layout->plaqueSize(5, 800, 100), 1e-9);
+		self::assertEqualsWithDelta([40.5, 56.0, false], $layout->plaqueSize(45, 720, 100), 1e-9);
+		self::assertEqualsWithDelta([22.5, 56.0, false], $layout->plaqueSize(25, 800, 100), 1e-9);
 	}
 
 	public function testLayoutKeepsPlaquesApartAndMeasuresTheWood(): void
 	{
-		$nodes = new PaintedLayout()->nodes($this->demoPlaces(), 800, 500, new PosterRandom('layout'));
+		$nodes = new PaintedLayout(new PaintedSpread())->nodes($this->demoPlaces(), 800, 500, new PosterRandom('layout'));
 
-		$ovals = 0;
 		foreach ($nodes as $g => $row) {
-			$slot = 800 / 2 ** $g;
+			$previous = null;
 			foreach ($row as $i => $node) {
-				$ovals += $node->ribbon ? 0 : 1;
-				// Inside its own share of the width, so plaques of a row never overlap.
-				self::assertGreaterThanOrEqual($i * $slot, $node->x - $node->w / 2);
-				self::assertLessThanOrEqual(($i + 1) * $slot, $node->x + $node->w / 2);
+				// On the sheet, right of the previous plaque of the row, and the same size as it.
+				self::assertGreaterThanOrEqual(0, $node->x - $node->w / 2);
+				self::assertLessThanOrEqual(800, $node->x + $node->w / 2);
+				if ($previous !== null) {
+					self::assertLessThan($i, $previous->i);
+					self::assertLessThanOrEqual($node->x - $node->w / 2, $previous->x + $previous->w / 2, 'plaques of a row never overlap');
+					self::assertSame([$previous->w, $previous->h, $previous->ribbon], [$node->w, $node->h, $node->ribbon]);
+				}
+				$previous = $node;
+
 				$parents = array_filter([$nodes[$g + 1][2 * $i] ?? null, $nodes[$g + 1][2 * $i + 1] ?? null]);
 				self::assertSame($parents === [], $node->tip);
 				foreach ($parents as $parent) {
+					self::assertSame(
+						$parent->i % 2 === 0 ? -1 : 1,
+						$parent->x <=> $node->x,
+						'the father to the left, the mother to the right',
+					);
 					self::assertLessThan($node->y, $parent->y, 'parents are above');
 					self::assertLessThanOrEqual($node->girth, $parent->girth, 'a branch is never thicker than the one that carries it');
 				}
 			}
 		}
-		self::assertGreaterThan(0, $ovals, 'the narrow top generations fall back to ovals');
 	}
 
 	public function testBranchRunsFromTheChildToTheParentAndTapers(): void
@@ -190,7 +201,7 @@ final class PaintedTreeTest extends TestCase
 
 	public function testForksContinueTheWoodBelow(): void
 	{
-		$nodes = new PaintedLayout()->nodes($this->demoPlaces(), 800, 500, new PosterRandom('forks'));
+		$nodes = new PaintedLayout(new PaintedSpread())->nodes($this->demoPlaces(), 800, 500, new PosterRandom('forks'));
 		$limbs = new PaintedLimbs(new PosterBrush());
 
 		$forks = 0;

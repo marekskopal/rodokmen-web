@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
+use LogicException;
 use Rodokmen\Site\Data\Model\Person;
+use const INF;
 
 /**
- * Where the ancestors of the painted tree sit: every generation a row above the person's, every ancestor near the
- * middle of the same share of the width as in the upward tree, but a little off at random, so that the rows do not
- * look ruled. Also measures the wood: a branch is as thick as the number of ancestors it carries (pipe model).
+ * Where the ancestors of the painted tree sit: every generation a row above the person's, across the width as
+ * PaintedSpread packs the known ancestors (no full place is kept for the unknown ones), a little off at random, so
+ * that the rows do not look ruled. Also measures the wood: a branch is as thick as the number of ancestors it
+ * carries (pipe model).
  */
 final readonly class PaintedLayout
 {
@@ -46,8 +49,17 @@ final readonly class PaintedLayout
 	/** Largest plaque width relative to the whole width. */
 	private const MaxShare = .3;
 
+	/** The person of the poster stands between these shares of the width from the left. */
+	private const RootLeft = .2;
+
+	private const RootRight = .55;
+
 	/** How far a plaque may sit off its row, in rows. */
 	private const RowJitter = .08;
+
+	public function __construct(private PaintedSpread $spread)
+	{
+	}
 
 	/**
 	 * Room for the legend: width and height of the free corner beside the mound, bottom right.
@@ -79,10 +91,12 @@ final readonly class PaintedLayout
 		return min($width * .05, $unit * .42);
 	}
 
-	/** @return array{float, float, bool} width and height of the plaques of generation g, and whether they are ribbons */
-	public function plaqueSize(int $g, float $width, float $unit): array
+	/**
+	 * @param float $slot room for one plaque: the distance to its nearest neighbour in the generation
+	 * @return array{float, float, bool} width and height of the plaque, and whether it is a ribbon
+	 */
+	public function plaqueSize(float $slot, float $width, float $unit): array
 	{
-		$slot = $width / 2 ** $g;
 		$h = $unit * self::RibbonHeight;
 		if ($slot * .94 >= $h * self::RibbonMinWidth) {
 			return [min($slot * .94, $h * self::RibbonWidth, $width * self::MaxShare), $h, true];
@@ -98,7 +112,8 @@ final readonly class PaintedLayout
 	}
 
 	/**
-	 * The known ancestors with their plaques.
+	 * The known ancestors with their plaques. All plaques of a generation have the same size, set by the two
+	 * that stand closest to each other.
 	 *
 	 * @param array<int, array<int, ?Person>> $places
 	 * @return array<int, array<int, PaintedNode>>
@@ -108,20 +123,21 @@ final readonly class PaintedLayout
 		$unit = $this->unit(count($places), $height);
 		$all = max(1, $this->count($places, 0, 0));
 		$nodes = [];
-		foreach ($places as $g => $row) {
-			foreach ($row as $i => $person) {
-				if ($person === null) {
-					continue;
-				}
-
-				[$x, $y] = $this->centre($g, $i, $width, $height, $unit, $random->fork(sprintf('place%d.%d', $g, $i)));
-				[$w, $h, $ribbon] = $this->plaqueSize($g, $width, $unit);
+		$columns = $this->columns($places, $width);
+		foreach ($columns as $g => $row) {
+			$slot = $this->slot($row, $width);
+			[$w, $h, $ribbon] = $this->plaqueSize($slot, $width, $unit);
+			$y = $g === 0 ? $this->top($height, $unit) + $unit * .5 : $this->top($height, $unit) - ($g - .5) * $unit;
+			foreach ($row as $i => $x) {
+				$chance = $random->fork(sprintf('place%d.%d', $g, $i));
+				// A little off its place, so that the rows do not look ruled; the person stands still.
+				$aside = $g === 0 ? 0.0 : $chance->float(-1, 1) * min(($slot - $w) / 2 * .6, $w * .12, $this->leeway($columns, $g, $i));
 				$nodes[$g][$i] = new PaintedNode(
-					$person,
+					$places[$g][$i] ?? throw new LogicException('A place without an ancestor.'),
 					$g,
 					$i,
-					$x,
-					$y,
+					$x + $aside,
+					$y + ($g === 0 ? 0.0 : $chance->float(-1, 1) * $unit * self::RowJitter),
 					$w,
 					$h,
 					max($unit * .03, $this->trunk($width, $unit) * sqrt($this->count($places, $g, $i) / $all)),
@@ -134,20 +150,67 @@ final readonly class PaintedLayout
 		return $nodes;
 	}
 
-	/** @return array{float, float} centre of the plaque: the middle of its place, moved a little at random */
-	private function centre(int $g, int $i, float $width, float $height, float $unit, PosterRandom $random): array
+	/**
+	 * How far an ancestor may step aside and still stay on their side of their child and of their parents (the
+	 * father left, the mother right), whatever those do: under half of the smallest distance to them.
+	 *
+	 * @param array<int, array<int, float>> $columns
+	 */
+	private function leeway(array $columns, int $g, int $i): float
 	{
-		$slot = $width / 2 ** $g;
-		if ($g === 0) {
-			return [$slot / 2, $this->top($height, $unit) + $unit * .5];
+		$x = $columns[$g][$i] ?? 0.0;
+		$relatives = [$columns[$g - 1][intdiv($i, 2)] ?? null, $columns[$g + 1][2 * $i] ?? null, $columns[$g + 1][2 * $i + 1] ?? null];
+		$leeway = INF;
+		foreach ($relatives as $relative) {
+			$leeway = $relative === null ? $leeway : min($leeway, abs($relative - $x) * .45);
 		}
 
-		[$w] = $this->plaqueSize($g, $width, $unit);
+		return $leeway;
+	}
 
-		return [
-			($i + .5) * $slot + $random->float(-1, 1) * min(($slot - $w) / 2 * .6, $slot * .12),
-			$this->top($height, $unit) - ($g - .5) * $unit + $random->float(-1, 1) * $unit * self::RowJitter,
-		];
+	/**
+	 * Where every known ancestor stands across the width: the tree as PaintedSpread packs it, stretched over the
+	 * whole width. The person stays between RootLeft and RootRight of the width, so that the mound fits under
+	 * the trunk and keeps off the legend; what room is left goes evenly to both sides.
+	 *
+	 * @param array<int, array<int, ?Person>> $places
+	 * @return array<int, array<int, float>> generation → index → x, both in rising order
+	 */
+	private function columns(array $places, float $width): array
+	{
+		[$positions, $left, $right] = $this->spread->spread($places);
+		$scale = min($width / ($right - $left), self::RootRight * $width / -$left, (1 - self::RootLeft) * $width / $right);
+		$free = $width - ($right - $left) * $scale;
+		$root = max(
+			max(-$left * $scale, self::RootLeft * $width),
+			min(-$left * $scale + $free / 2, $width - $right * $scale, self::RootRight * $width),
+		);
+
+		$columns = [];
+		foreach ($positions as $g => $row) {
+			foreach ($row as $i => $x) {
+				$columns[$g][$i] = $root + $x * $scale;
+			}
+		}
+
+		return $columns;
+	}
+
+	/**
+	 * Room for one plaque of a generation: the smallest distance between two neighbours, or from the outermost
+	 * ones to the edge.
+	 *
+	 * @param array<int, float> $row x of the ancestors of one generation, in rising order
+	 */
+	private function slot(array $row, float $width): float
+	{
+		$xs = array_values($row);
+		$slot = $xs === [] ? $width : 2 * min($xs[0], $width - $xs[count($xs) - 1]);
+		for ($k = 1; $k < count($xs); $k++) {
+			$slot = min($slot, $xs[$k] - $xs[$k - 1]);
+		}
+
+		return $slot;
 	}
 
 	/**
