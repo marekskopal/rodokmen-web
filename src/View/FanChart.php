@@ -27,11 +27,26 @@ final readonly class FanChart
 	/** Font sizes [name, years] of generations written along the arcs. */
 	private const ArcFont = [1 => [40.0, 30.0], 2 => [34.0, 27.0], 3 => [30.0, 24.0], 4 => [27.0, 22.0]];
 
+	/** Font size limits [min, max] of generations written along the radius. */
+	private const RadialFont = [
+		5 => [15.0, 26.0],
+		6 => [13.0, 22.0],
+		7 => [11.0, 18.0],
+		8 => [9.5, 14.0],
+		9 => [8.5, 11.0],
+		10 => [7.5, 9.0],
+		11 => [6.5, 8.0],
+		12 => [6.0, 7.0],
+	];
+
+	/** Room left free along the radius in generations written along the radius. */
+	private const RadialPad = 22.0;
+
 	/** Segment opacity by generation (older generations are paler). */
 	private const Opacity = [1 => .6, 2 => .6, 3 => 1, 4 => .82, 5 => .68, 6 => .56, 7 => .45, 8 => .36, 9 => .28, 10 => .22, 11 => .19, 12 => .16];
 
 	/** Colours of people outside any family line: father's side, mother's side. */
-	private const SideColors = ['#C9A97C', '#8FAFC9'];
+	public const SideColors = ['#C9A97C', '#8FAFC9'];
 
 	private const Padding = 20;
 
@@ -119,7 +134,17 @@ final readonly class FanChart
 
 		$text = $g <= self::LastArcGeneration
 			? $this->labels->alongArc(sprintf('fp%d_%d', $g, $i), $this->arcLines($person, $g, $years, $style), $r0, $r1, $a0, $a1, $defs)
-			: $this->labels->alongRadius($g, $person->name, $years, $style, $r0, $r1, $a0, $a1);
+			: $this->labels->alongRadius(
+				$person->name,
+				$years,
+				['fan-t fan-t-name' . $style, 'fan-t' . $style],
+				$r0,
+				$r1,
+				$a0,
+				$a1,
+				self::RadialFont[$g],
+				self::RadialPad,
+			);
 
 		return $this->link($person, $years) . $this->segment($person, $g, $i) . $text . '</a>';
 	}

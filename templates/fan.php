@@ -18,6 +18,7 @@ sort($presets);
     </div>
     <div class="explorer-actions">
         <a class="btn" href="/strom/<?= $v->e(rawurlencode($person->slug)) ?>">Celý strom předků</a>
+        <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/plakat">Plakát k tisku</a>
         <a class="btn" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Zpět na prohlížeč</a>
         <?php if ($person->slug !== $home->slug): ?>
             <a class="btn btn-ghost" href="/vejir/<?= $v->e(rawurlencode($home->slug)) ?>">Vějíř osoby <?= $v->e($home->name) ?></a>

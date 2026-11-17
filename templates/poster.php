@@ -1,0 +1,87 @@
+<?php
+/** @var Rodokmen\Site\View\View $v */
+/** @var Rodokmen\Site\Data\Repository $repo */
+/** @var Rodokmen\Site\Data\Model\Person $person */
+/** @var Rodokmen\Site\View\Poster\PosterOptions $options */
+/** @var int $available */
+/** @var int $readable */
+/** @var bool $auto */
+/** @var Rodokmen\Site\View\Poster\PosterSheet $sheet */
+use Rodokmen\Site\View\Poster\Orientation;
+use Rodokmen\Site\View\Poster\PaperFormat;
+use Rodokmen\Site\View\Poster\Poster;
+use Rodokmen\Site\View\Poster\PosterLayout;
+use Rodokmen\Site\View\Poster\PosterOptions;
+use Rodokmen\Site\View\Poster\PosterStyle;
+
+$points = $sheet->smallestPoints();
+?>
+<header class="page-head poster-head">
+    <p class="eyebrow"><a href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Prohlížeč předků</a></p>
+    <h1>Plakát předků <span class="muted thin"><?= $v->e($person->name) ?></span></h1>
+    <p class="lead">Předci na jednom velkém listu papíru – k vytištění, nebo k uložení jako PDF pro tiskárnu.</p>
+</header>
+
+<form class="filters print-toolbar poster-toolbar" method="get">
+    <label>Rozvržení
+        <select name="rozvrzeni">
+            <?php foreach (PosterLayout::cases() as $layout): ?>
+                <option value="<?= $layout->value ?>" <?= $layout === $options->layout ? 'selected' : '' ?>><?= $v->e($layout->label()) ?></option>
+            <?php endforeach ?>
+        </select>
+    </label>
+    <label>Papír
+        <select name="format">
+            <?php foreach (PaperFormat::cases() as $format): ?>
+                <option value="<?= $format->value ?>" <?= $format === $options->format ? 'selected' : '' ?>><?= $v->e($format->label()) ?></option>
+            <?php endforeach ?>
+        </select>
+    </label>
+    <label>Orientace
+        <select name="orientace">
+            <?php foreach (Orientation::cases() as $orientation): ?>
+                <option value="<?= $orientation->value ?>" <?= $orientation === $options->orientation ? 'selected' : '' ?>><?= $v->e($orientation->label()) ?></option>
+            <?php endforeach ?>
+        </select>
+    </label>
+    <label>Generací
+        <select name="generace">
+            <option value="" <?= $auto ? 'selected' : '' ?>>doporučeno (<?= $readable ?>)</option>
+            <?php for ($i = 1; $i <= max(1, $available); $i++): ?>
+                <option value="<?= $i ?>" <?= !$auto && $i === $options->depth ? 'selected' : '' ?>><?= $i ?></option>
+            <?php endfor ?>
+        </select>
+    </label>
+    <?php if (count(PosterStyle::cases()) > 1): ?>
+        <label>Styl
+            <select name="styl">
+                <?php foreach (PosterStyle::cases() as $style): ?>
+                    <option value="<?= $style->value ?>" <?= $style === $options->style ? 'selected' : '' ?>><?= $v->e($style->label()) ?></option>
+                <?php endforeach ?>
+            </select>
+        </label>
+    <?php endif ?>
+    <label class="poster-title-field">Nadpis
+        <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($repo->title()) ?>">
+    </label>
+    <button type="submit" class="btn">Zobrazit</button>
+    <button type="button" class="btn btn-primary" data-print>Tisk / PDF</button>
+    <a class="btn btn-ghost" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Zpět do prohlížeče</a>
+</form>
+
+<div class="poster-hint">
+    <p>
+        <?= $v->e($options->format->label() . ' ' . $options->orientation->label()) ?>
+        (<?= $options->width() ?> × <?= $options->height() ?> mm), nejmenší písmo <?= $v->e(number_format($points, 1, ',', '')) ?> pt.
+        <?php if ($points < Poster::ReadablePoints): ?>
+            <strong class="poster-warn">Takové písmo bude špatně čitelné – zvolte větší papír nebo méně generací.</strong>
+        <?php endif ?>
+    </p>
+    <p class="muted">V dialogu tisku zvolte „Uložit jako PDF“ (nebo tiskárnu) – velikost papíru se nastaví sama a okraje nejsou potřeba. Nejspolehlivěji to funguje v Chrome, Edge a Firefoxu.</p>
+</div>
+
+<div class="poster-preview">
+    <div class="poster-sheet <?= $v->e($options->pageName()) ?>" style="--w: <?= $options->width() ?>mm; --h: <?= $options->height() ?>mm; --ratio: <?= round($options->width() / $options->height(), 4) ?>">
+        <?= $sheet->svg ?>
+    </div>
+</div>

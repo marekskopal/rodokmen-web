@@ -151,6 +151,39 @@ final class KernelTest extends TestCase
 		self::assertSame(302, $this->get('/predci/antonin-novak-2024/tisk')->getStatusCode());
 	}
 
+	public function testDrawsTheAncestorPoster(): void
+	{
+		$response = $this->get('/predci/antonin-novak-2024/plakat', loggedIn: true);
+		$body = (string) $response->getBody();
+
+		self::assertSame(200, $response->getStatusCode(), $body);
+		self::assertStringContainsString('Plakát předků', $body);
+		self::assertStringContainsString('class="poster-sheet poster-a1-landscape"', $body);
+		self::assertStringContainsString('width="841mm" height="594mm"', $body);
+		self::assertStringContainsString('<option value="" selected>doporučeno (2)</option>', $body);
+		self::assertStringContainsString('Josef Novák', $body);
+		self::assertStringContainsString('data-print', $body);
+
+		$query = '?rozvrzeni=pulvejir&format=a3&orientace=na-vysku&generace=1&nadpis=Rod+Nov%C3%A1k%C5%AF';
+		$chosen = (string) $this->get('/predci/antonin-novak-2024/plakat' . $query, loggedIn: true)->getBody();
+		self::assertStringContainsString('class="poster-sheet poster-a3-portrait"', $chosen);
+		self::assertStringContainsString('<option value="pulvejir" selected>', $chosen);
+		self::assertStringContainsString('<option value="1" selected>1</option>', $chosen);
+		self::assertStringContainsString('value="Rod Nováků"', $chosen);
+		self::assertStringContainsString('>Rod Nováků</text>', $chosen);
+		self::assertStringNotContainsString('Josef Novák', $chosen);
+
+		foreach (['/predci/antonin-novak-2024', '/vejir/antonin-novak-2024', '/predci/antonin-novak-2024/tisk'] as $page) {
+			self::assertStringContainsString(
+				'href="/predci/antonin-novak-2024/plakat"',
+				(string) $this->get($page, loggedIn: true)->getBody(),
+				$page,
+			);
+		}
+		self::assertSame(404, $this->get('/predci/nikdo/plakat', loggedIn: true)->getStatusCode());
+		self::assertSame(302, $this->get('/predci/antonin-novak-2024/plakat')->getStatusCode());
+	}
+
 	public function testServesWebpThumbnails(): void
 	{
 		Images::jpeg($this->dir . '/img/krest.jpg', 1200, 800);

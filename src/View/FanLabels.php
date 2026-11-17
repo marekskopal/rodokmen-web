@@ -12,18 +12,6 @@ final readonly class FanLabels
 	/** Line height relative to the font size. */
 	private const Leading = 1.25;
 
-	/** Font size limits [min, max] of generations written radially. */
-	private const RadialFont = [
-		5 => [15, 26],
-		6 => [13, 22],
-		7 => [11, 18],
-		8 => [9.5, 14],
-		9 => [8.5, 11],
-		10 => [7.5, 9],
-		11 => [6.5, 8],
-		12 => [6, 7],
-	];
-
 	public function __construct(private View $view, private FanGeometry $geometry)
 	{
 	}
@@ -59,12 +47,29 @@ final readonly class FanLabels
 		return $out;
 	}
 
-	/** Name, and the years when there is room, written along the radius of a narrow segment. */
-	public function alongRadius(int $g, string $name, string $years, string $style, float $r0, float $r1, float $a0, float $a1): string
+	/**
+	 * Name, and the years when there is room, written along the radius of a narrow segment.
+	 *
+	 * @param array{string, string} $classes CSS classes of the name and of the years
+	 * @param array{float, float} $font font size limits [min, max] of the name
+	 * @param float $pad room left free along the radius (both ends together)
+	 */
+	public function alongRadius(
+		string $name,
+		string $years,
+		array $classes,
+		float $r0,
+		float $r1,
+		float $a0,
+		float $a1,
+		array $font,
+		float $pad,
+	): string
 	{
-		[$min, $max] = self::RadialFont[$g] ?? self::RadialFont[12];
+		[$min, $max] = $font;
+		[$nameClass, $yearsClass] = $classes;
 		$rm = ($r0 + $r1) / 2;
-		$length = $r1 - $r0 - 22;
+		$length = $r1 - $r0 - $pad;
 		$arc = deg2rad($a1 - $a0) * $rm;
 		$nameSize = $this->geometry->fit($name, $length, $max, $min);
 		$yearsSize = $years !== '' ? $this->geometry->fit($years, $length, $max * .85, $min * .9) : 0.0;
@@ -78,14 +83,14 @@ final readonly class FanLabels
 		[$x, $y] = $this->geometry->point($rm, $middle);
 		$out = sprintf('<g transform="translate(%.1f,%.1f) rotate(%.2f)">', $x, $y, $rotate);
 		if (!$two) {
-			return $out . $this->text('fan-t fan-t-name' . $style, $nameSize * .35, $nameSize, $name) . '</g>';
+			return $out . $this->text($nameClass, $nameSize * .35, $nameSize, $name) . '</g>';
 		}
 
 		$h = ($nameSize + $yearsSize) * 1.08;
 
 		return $out
-			. $this->text('fan-t fan-t-name' . $style, -$h / 2 + $nameSize * .85, $nameSize, $name)
-			. $this->text('fan-t' . $style, $h / 2 - $yearsSize * .15, $yearsSize, $years)
+			. $this->text($nameClass, -$h / 2 + $nameSize * .85, $nameSize, $name)
+			. $this->text($yearsClass, $h / 2 - $yearsSize * .15, $yearsSize, $years)
 			. '</g>';
 	}
 
