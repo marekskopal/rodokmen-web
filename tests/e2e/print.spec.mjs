@@ -15,6 +15,8 @@ test('the explorer leads to the numbered list of ancestors', async ({ page }) =>
 test('the number of generations and the transcriptions can be chosen', async ({ page }) => {
 	await page.goto('/predci');
 	await page.getByRole('link', { name: 'Vytisknout vývod' }).click();
+	// Wait for the list: counting right after the click could catch the page before it is drawn.
+	await expect(page.locator('#c-1')).toBeVisible();
 	const all = await page.locator('.anc-person').count();
 
 	await page.getByLabel('Generací').selectOption('1');

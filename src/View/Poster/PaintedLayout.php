@@ -23,10 +23,8 @@ final readonly class PaintedLayout
 
 	private const CrownRoom = .3;
 
-	/** Oval plaque: height relative to the row; its width relative to its height at most. */
+	/** Tall oval plaque (the name written along it): height relative to the row. */
 	private const PlaqueHeight = .56;
-
-	private const PlaqueWidth = 2.4;
 
 	/** Ribbon: height relative to the row, width relative to its height at most and at least (else an oval). */
 	private const RibbonHeight = .36;
@@ -34,6 +32,16 @@ final readonly class PaintedLayout
 	private const RibbonWidth = 4.6;
 
 	private const RibbonMinWidth = 2.4;
+
+	/**
+	 * An oval at least this wide (in rows) carries its name across and is flat: its height relative to its width.
+	 * The width is where PosterBoxText stops turning the name in a tall oval (PlaqueHeight × the text's share of the
+	 * height / its share of the width / AlongBonus = .56 × .66 / .76 / 1.15 ≈ .42), so that no tall oval is left
+	 * with its name across.
+	 */
+	private const FlatOvalWidth = .43;
+
+	private const FlatOvalHeight = .55;
 
 	/** Largest plaque width relative to the whole width. */
 	private const MaxShare = .3;
@@ -80,9 +88,13 @@ final readonly class PaintedLayout
 			return [min($slot * .94, $h * self::RibbonWidth, $width * self::MaxShare), $h, true];
 		}
 
-		$h = $unit * self::PlaqueHeight;
+		$tall = $unit * self::PlaqueHeight;
+		$w = min($slot * .9, $width * self::MaxShare);
+		// Wide enough for the name written across: a flat oval, no taller than the name needs. Narrower ones
+		// stay tall, because there the name is written along the plaque.
+		$h = $w >= $unit * self::FlatOvalWidth ? max($unit * self::RibbonHeight, $w * self::FlatOvalHeight) : $tall;
 
-		return [min($slot * .9, $h * self::PlaqueWidth, $width * self::MaxShare), $h, false];
+		return [$w, $h, false];
 	}
 
 	/**
