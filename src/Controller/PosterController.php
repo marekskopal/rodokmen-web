@@ -23,7 +23,7 @@ final readonly class PosterController
 	}
 
 	/**
-	 * ?rozvrzeni=vejir|pulvejir, ?format=a4…a0, ?orientace=na-sirku|na-vysku, ?generace=N, ?styl=…, ?nadpis=…
+	 * ?rozvrzeni=vejir|pulvejir|strom|strom-vpravo, ?format=a4…a0, ?orientace=na-sirku|na-vysku, ?generace=N, ?styl=…, ?nadpis=…
 	 *
 	 * @param array<string, string> $args
 	 */

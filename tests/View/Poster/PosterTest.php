@@ -19,10 +19,13 @@ use Rodokmen\Site\View\FanYears;
 use Rodokmen\Site\View\Poster\Orientation;
 use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
+use Rodokmen\Site\View\Poster\PosterBoxText;
 use Rodokmen\Site\View\Poster\PosterFan;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
+use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterStyle;
+use Rodokmen\Site\View\Poster\PosterTree;
 use Rodokmen\Site\View\View;
 use const PREG_SET_ORDER;
 
@@ -130,6 +133,62 @@ final class PosterTest extends TestCase
 		}
 	}
 
+	/** @return iterable<string, array{PosterLayout, PaperFormat, Orientation}> */
+	public static function treeSheets(): iterable
+	{
+		foreach ([PosterLayout::Tree, PosterLayout::TreeRight] as $layout) {
+			foreach ([PaperFormat::A4, PaperFormat::A1] as $format) {
+				foreach (Orientation::cases() as $orientation) {
+					yield $layout->value . ' ' . $format->value . ' ' . $orientation->value => [$layout, $format, $orientation];
+				}
+			}
+		}
+	}
+
+	#[DataProvider('treeSheets')]
+	public function testTreeBoxesStayOnTheSheetAndDoNotOverlap(PosterLayout $layout, PaperFormat $format, Orientation $orientation): void
+	{
+		$options = new PosterOptions($layout, $format, $orientation, 2, PosterStyle::Simple, '');
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $origin));
+		preg_match_all('/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" rx/', $svg, $found, PREG_SET_ORDER);
+		// Antonín, his parents, Josef and three places of ancestors not found yet, all inside the moved group;
+		// after them the swatches of the legend, placed on the sheet directly.
+		self::assertCount(8, $found);
+		$boxes = [];
+		foreach ($found as $n => [, $x, $y, $w, $h]) {
+			[$dx, $dy] = $n < 7 ? [(float) $origin[1], (float) $origin[2]] : [0.0, 0.0];
+			$boxes[] = [$dx + (float) $x, $dy + (float) $y, (float) $w, (float) $h];
+		}
+		self::assertSame(3, substr_count($svg, 'stroke-dasharray'));
+		foreach ($boxes as [$x, $y, $w, $h]) {
+			self::assertGreaterThanOrEqual(0, $x);
+			self::assertGreaterThanOrEqual(0, $y);
+			self::assertLessThanOrEqual($options->width(), $x + $w);
+			self::assertLessThanOrEqual($options->height(), $y + $h);
+		}
+		foreach ($boxes as $a => [$x1, $y1, $w1, $h1]) {
+			foreach ($boxes as $b => [$x2, $y2, $w2, $h2]) {
+				$apart = $x1 + $w1 <= $x2 || $x2 + $w2 <= $x1 || $y1 + $h1 <= $y2 || $y2 + $h2 <= $y1;
+				self::assertTrue($a === $b || $apart, sprintf('boxes %d and %d overlap', $a, $b));
+			}
+		}
+		self::assertStringContainsString('>Josef Novák', $svg);
+		self::assertStringContainsString('>rod Novákovi</text>', $svg);
+	}
+
+	public function testTreeGenerationHasOneTextSize(): void
+	{
+		$options = new PosterOptions(PosterLayout::TreeRight, PaperFormat::A3, Orientation::Portrait, 2, PosterStyle::Simple, '');
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		// Jan Novák and Marie Malá, the parents, are one generation.
+		self::assertSame(1, preg_match('/font-size="([\d.]+)">Jan Novák/', $svg, $jan));
+		self::assertSame(1, preg_match('/font-size="([\d.]+)">Marie Malá/', $svg, $marie));
+		self::assertSame($jan[1], $marie[1]);
+	}
+
 	public function testReportsTheSmallestLetters(): void
 	{
 		$large = $this->poster->render($this->root(), $this->options(PosterLayout::Fan))->smallestPoints();
@@ -201,7 +260,7 @@ final class PosterTest extends TestCase
 		}
 	}
 
-	#[DataProvider('layouts')]
+	#[DataProvider('fans')]
 	public function testTextAlongTheRadiusIsNeverUpsideDown(PosterLayout $layout): void
 	{
 		// The demo family has enough generations for text along the radius.
@@ -226,11 +285,10 @@ final class PosterTest extends TestCase
 	}
 
 	/** @return iterable<string, array{PosterLayout}> */
-	public static function layouts(): iterable
+	public static function fans(): iterable
 	{
-		foreach (PosterLayout::cases() as $layout) {
-			yield $layout->value => [$layout];
-		}
+		yield 'fan' => [PosterLayout::Fan];
+		yield 'half fan' => [PosterLayout::HalfFan];
 	}
 
 	/** @return array{Repository, Poster} */
@@ -240,9 +298,12 @@ final class PosterTest extends TestCase
 		$repository = new Repository($config, new SiteDataLoader($config));
 		$view = new View($config, $repository, new Thumbnails($config, new WebpResizer()));
 		$geometry = new FanGeometry();
-		$fan = new PosterFan($repository, $view, $geometry, new FanLabels($view, $geometry), new FanYears());
+		$labels = new FanLabels($view, $geometry);
+		$people = new PosterPeople($repository);
+		$fan = new PosterFan($repository, $people, $view, $geometry, $labels, new FanYears());
+		$tree = new PosterTree($people, $view, new PosterBoxText($view, $geometry, $labels, new FanYears()));
 
-		return [$repository, new Poster($repository, $view, $fan, $geometry)];
+		return [$repository, new Poster($repository, $view, $fan, $tree, $geometry)];
 	}
 
 	private function options(PosterLayout $layout, int $depth = 2): PosterOptions

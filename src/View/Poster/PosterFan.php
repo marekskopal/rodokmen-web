@@ -6,7 +6,6 @@ namespace Rodokmen\Site\View\Poster;
 
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
-use Rodokmen\Site\View\FanChart;
 use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\FanLabels;
 use Rodokmen\Site\View\FanYears;
@@ -32,6 +31,7 @@ final readonly class PosterFan
 
 	public function __construct(
 		private Repository $repository,
+		private PosterPeople $people,
 		private View $view,
 		private FanGeometry $geometry,
 		private FanLabels $labels,
@@ -42,32 +42,22 @@ final readonly class PosterFan
 	/**
 	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
 	 * @param list<string> $defs text paths, added to the SVG's defs
-	 * @param array<int, true> $lines numbers of the family lines that were drawn
 	 */
-	public function render(array $generations, PosterStyle $style, float $radius, bool $half, array &$defs, array &$lines): string
+	public function render(array $generations, PosterStyle $style, float $radius, bool $half, array &$defs): string
 	{
 		$edges = $this->edges(count($generations) - 1, $radius);
 		$stroke = min(.5, $edges[1] / self::CentreWeight * .012);
 
 		$out = '';
-		for ($g = 1; $g < count($generations); $g++) {
-			foreach ($generations[$g] as $i => $slug) {
-				// Draw a place only where the child is known: an empty place means "parent not found yet".
-				if ($generations[$g - 1][intdiv($i, 2)] === null) {
-					continue;
-				}
-
+		foreach (array_slice($this->people->places($generations), 1, null, true) as $g => $row) {
+			foreach ($row as $i => $person) {
 				[$a0, $a1] = $this->angles($g, $i, $half);
 				$sector = $this->geometry->sector($edges[$g], $edges[$g + 1], $a0, $a1);
-				$person = $this->repository->person($slug);
 				if ($person === null) {
 					$out .= $this->path($sector, $style->empty(), 1.0, $style->paper(), $stroke);
 					continue;
 				}
 
-				if ($person->line !== null) {
-					$lines[$person->line] = true;
-				}
 				$out .= $this->segment($person, $style, $sector, $g, $i, $stroke)
 					. $this->label($person, $g, $i, $edges[$g], $edges[$g + 1], $a0, $a1, $defs);
 			}
@@ -117,16 +107,13 @@ final readonly class PosterFan
 
 	private function segment(Person $person, PosterStyle $style, string $sector, int $g, int $i, float $stroke): string
 	{
-		if ($person->st === 'unk') {
+		if ($this->people->isUnknown($person)) {
 			return $this->path($sector, $style->empty(), 1.0, $style->paper(), $stroke);
 		}
 
-		$weak = $person->st === 'prob' || $person->st === 'mh';
-		$color = $person->line !== null
-			? $this->repository->lineColor($person->line)
-			: FanChart::SideColors[($i >> $g - 1) & 1];
+		$opacity = max(.22, .66 - .04 * $g) * ($this->people->isUncertain($person) ? .6 : 1);
 
-		return $this->path($sector, $color, max(.22, .66 - .04 * $g) * ($weak ? .6 : 1), $style->paper(), $stroke);
+		return $this->path($sector, $this->people->color($person, $g, $i), $opacity, $style->paper(), $stroke);
 	}
 
 	/** @param list<string> $defs */
@@ -134,11 +121,7 @@ final readonly class PosterFan
 	{
 		$width = $r1 - $r0;
 		$years = $this->years->format($person->y);
-		$style = match ($person->st) {
-			'unk' => ' pst-unk',
-			'prob', 'mh' => ' pst-prob',
-			default => '',
-		};
+		$style = $this->people->textClass($person);
 
 		$arcLength = deg2rad($a1 - $a0) * ($r0 + $r1) / 2;
 		if ($g > self::LastArcGeneration || $arcLength < $width * 1.2) {

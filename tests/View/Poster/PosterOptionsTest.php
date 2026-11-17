@@ -42,6 +42,14 @@ final class PosterOptionsTest extends TestCase
 		self::assertTrue(PosterOptions::hasDepth($query));
 	}
 
+	public function testReadsTheTreeLayouts(): void
+	{
+		self::assertSame(PosterLayout::Tree, PosterOptions::fromQuery(['rozvrzeni' => 'strom'], 3)->layout);
+		self::assertSame(PosterLayout::TreeRight, PosterOptions::fromQuery(['rozvrzeni' => 'strom-vpravo'], 3)->layout);
+		self::assertFalse(PosterLayout::Tree->isFan());
+		self::assertTrue(PosterLayout::HalfFan->isFan());
+	}
+
 	public function testInvalidValuesFallBackToDefaults(): void
 	{
 		$options = PosterOptions::fromQuery(
