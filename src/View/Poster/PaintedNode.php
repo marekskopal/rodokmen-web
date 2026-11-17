@@ -20,7 +20,7 @@ final readonly class PaintedNode
 		/** Size of the plaque. */
 		public float $w,
 		public float $h,
-		/** Thickness of the branch that carries this ancestor and everybody above (pipe model). */
+		/** Thickness of the wood where it reaches this ancestor: it carries them and everybody above (pipe model). */
 		public float $girth,
 		/** No known parents: a tip of the tree. */
 		public bool $tip,

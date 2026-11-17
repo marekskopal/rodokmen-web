@@ -12,30 +12,46 @@ use const M_PI;
  */
 final readonly class PaintedLimbs
 {
+	/** A branch is at most this much thicker at the fork than where it reaches the parent. */
+	private const ForkSwell = 1.1;
+
 	public function __construct(private PosterBrush $brush)
 	{
 	}
 
 	/**
-	 * Branch from a child's plaque up to a parent's: it leaves sideways and arrives from below, as if the parent's
-	 * plaque hung on its end. Widest at the fork.
+	 * Branch from a child's plaque up to a parent's. It continues the wood that arrives at the child: it starts
+	 * behind the child's plaque, inside that wood and never thicker than it, heads upward first and only then
+	 * parts towards the parent, where it arrives from below, as if the parent's plaque hung on its end.
+	 *
+	 * With both parents known the two branches start side by side, their outer edges on the edges of the wood
+	 * below, so the fork reads as one piece of wood splitting.
 	 */
-	public function branch(PaintedNode $child, PaintedNode $parent, float $from, float $to, PosterRandom $random): PaintedLimb
+	public function branch(PaintedNode $child, PaintedNode $parent, PosterRandom $random): PaintedLimb
 	{
-		$rise = $child->y - $parent->y;
-		$start = [$child->x + ($parent->x <=> $child->x) * $child->w * .12, $child->y];
+		// Wood wider than the plaque (tiny plaques of the top generations) would show its cut end beside it.
+		$wood = min($child->girth, $child->w * .9);
+		$from = min($parent->girth * self::ForkSwell, $wood, $child->w * .45);
+		$aside = ($wood - $from) / 2;
+		$foot = [$child->x + ($parent->x <=> $child->x) * $aside, $child->y];
+		// Straight up behind the plaque, so that its cut end and the fork stay hidden; the curve starts at its top,
+		// which on an oval is the lower the further from the middle the branch reaches.
+		$edge = min(1.0, ($aside + $from / 2) / ($child->w / 2));
+		$start = [$foot[0], $child->y - $child->h * .45 * ($child->ribbon ? 1.0 : sqrt(1 - $edge ** 2))];
+		$rise = $start[1] - $parent->y;
 		$span = $parent->x - $start[0];
 		$sway = $random->float(-1, 1) * $parent->w * .1;
 
 		return $this->limb(
 			$start,
-			[$start[0] + $span * $random->float(.05, .35), $start[1] - $rise * $random->float(.2, .5)],
+			[$start[0] + $span * $random->float(0, .06), $start[1] - $rise * $random->float(.3, .5)],
 			[$parent->x - $span * $random->float(-.08, .18) + $sway, $parent->y + $rise * $random->float(.3, .6)],
 			[$parent->x, $parent->y],
-			[$from, $to, .3],
-			min($rise * .04, abs($span) * .08 + $to),
+			[$from, $parent->girth, 0.0],
+			min($rise * .04, abs($span) * .08 + $parent->girth),
 			$random,
 			12,
+			$foot,
 		);
 	}
 
@@ -97,13 +113,14 @@ final readonly class PaintedLimbs
 	}
 
 	/**
-	 * A limb along a Bézier curve that sways sideways (not at its ends) and whose width tapers and wavers.
+	 * A limb along a Bézier curve that sways sideways and whose width tapers and wavers (neither at its ends).
 	 *
 	 * @param array{float, float} $p0
 	 * @param array{float, float} $p1
 	 * @param array{float, float} $p2
 	 * @param array{float, float} $p3
 	 * @param array{float, float, float} $taper width at the start, at the end, and the extra share where it flares at the start
+	 * @param ?array{float, float} $foot a point before the curve from which the limb runs straight to its start
 	 */
 	private function limb(
 		array $p0,
@@ -114,20 +131,28 @@ final readonly class PaintedLimbs
 		float $sway,
 		PosterRandom $random,
 		int $steps,
+		?array $foot = null,
 	): PaintedLimb
 	{
 		[$from, $to, $flare] = $taper;
 		$curve = $this->brush->bezier($p0, $p1, $p2, $p3, $steps);
-		$last = count($curve) - 1;
+		// The straight run from the foot keeps the starting width and does not sway: it only leads to the curve.
+		$lead = $foot === null ? 0 : 1;
+		if ($foot !== null) {
+			array_unshift($curve, $foot);
+		}
+		$last = count($curve) - 1 - $lead;
 		$phase = $random->float(0, 2 * M_PI);
 		$waves = $random->float(.8, 2.2);
 
 		$push = [];
 		$widths = [];
 		foreach (array_keys($curve) as $i) {
-			$t = $i / $last;
+			$t = max(0, $i - $lead) / $last;
 			$push[] = $sway * sin(M_PI * $t) * sin($waves * 2 * M_PI * $t + $phase) * 2;
-			$widths[] = max(.05, ($from + ($to - $from) * $t) * (1 + $flare * (1 - $t) ** 3) * (1 + $random->float(-.07, .07)));
+			// The width wavers along the limb, but not at its ends, where it has to fit the wood it joins.
+			$waver = 1 + $random->float(-.07, .07) * sin(M_PI * $t);
+			$widths[] = max(.05, ($from + ($to - $from) * $t) * (1 + $flare * (1 - $t) ** 3) * $waver);
 		}
 
 		// offset() moves by a share of half of the given "widths": here the sideways push of every point.

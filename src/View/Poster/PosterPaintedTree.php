@@ -157,13 +157,7 @@ final readonly class PosterPaintedTree
 				continue;
 			}
 
-			$limbs[] = $this->limbs->branch(
-				$node,
-				$parent,
-				min($parent->girth * 1.15, $node->w * .4),
-				$parent->girth * .8,
-				$random->fork('branch' . $k),
-			);
+			$limbs[] = $this->limbs->branch($node, $parent, $random->fork('branch' . $k));
 		}
 
 		return $limbs;

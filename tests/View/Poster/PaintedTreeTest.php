@@ -143,20 +143,24 @@ final class PaintedTreeTest extends TestCase
 		$child = new PaintedNode($someone, 1, 0, 100, 200, 60, 20, 8, false, true);
 		$parent = new PaintedNode($someone, 2, 1, 150, 120, 40, 20, 5, true, true);
 		$limbs = new PaintedLimbs(new PosterBrush());
-		$limb = $limbs->branch($child, $parent, 6, 4, new PosterRandom('branch'));
+		$limb = $limbs->branch($child, $parent, new PosterRandom('branch'));
 
 		self::assertEqualsWithDelta(200.0, $limb->at(0)[1], .01);
 		self::assertTrue($child->covers(...$limb->at(0)), 'it starts under the child\'s ribbon');
 		self::assertEqualsWithDelta(150.0, $limb->at(1)[0], .01);
 		self::assertEqualsWithDelta(120.0, $limb->at(1)[1], .01);
-		self::assertGreaterThan($limb->widthAt(1), $limb->widthAt(0), 'widest at the fork');
+		// The wood arriving at the child is 8 wide, the parent's 5: a little swell at the fork, then 5 at the parent.
+		self::assertEqualsWithDelta(5.5, $limb->widthAt(0), 1e-9);
+		self::assertEqualsWithDelta(5.0, $limb->widthAt(1), 1e-9);
+		self::assertEqualsWithDelta(100 + (8 - 5.5) / 2, $limb->at(0)[0], 1e-9, 'its outer edge on the edge of the wood below');
+		self::assertEqualsWithDelta(-90, $limb->angleAt(0), 25, 'it leaves upward');
 		self::assertLessThan(0, $limb->angleAt(1), 'it arrives from below');
 		self::assertNotEquals(
 			$limb,
-			$limbs->branch($child, $parent, 6, 4, new PosterRandom('another branch')),
+			$limbs->branch($child, $parent, new PosterRandom('another branch')),
 			'every branch is different',
 		);
-		self::assertEquals($limb, $limbs->branch($child, $parent, 6, 4, new PosterRandom('branch')));
+		self::assertEquals($limb, $limbs->branch($child, $parent, new PosterRandom('branch')));
 
 		$space = new PaintedSpace([1 => [0 => $child], 2 => [1 => $parent]], 400, 300, 80, 240, 100, 50);
 		self::assertFalse($space->free(100, 200), 'on the child\'s ribbon');
@@ -165,6 +169,50 @@ final class PaintedTreeTest extends TestCase
 		self::assertFalse($space->free(-1, 160));
 		self::assertFalse($space->free(100, 301));
 		self::assertFalse($space->free(350, 280), 'the corner of the legend');
+	}
+
+	public function testForksContinueTheWoodBelow(): void
+	{
+		$nodes = new PaintedLayout()->nodes($this->demoPlaces(), 800, 500, new PosterRandom('forks'));
+		$limbs = new PaintedLimbs(new PosterBrush());
+
+		$forks = 0;
+		foreach ($nodes as $g => $row) {
+			foreach ($row as $i => $node) {
+				$starts = [];
+				foreach ([2 * $i, 2 * $i + 1] as $k) {
+					$parent = $nodes[$g + 1][$k] ?? null;
+					if ($parent === null) {
+						continue;
+					}
+
+					$limb = $limbs->branch($node, $parent, new PosterRandom('fork' . $g . '.' . $k));
+					[$x, $y] = $limb->at(0);
+					$starts[] = $x;
+					self::assertSame($node->y, $y);
+					self::assertLessThanOrEqual($node->girth + 1e-9, $limb->widthAt(0), 'never thicker than the wood it grows from');
+					self::assertLessThanOrEqual($node->girth / 2 + 1e-9, abs($x - $node->x) + $limb->widthAt(0) / 2, 'inside that wood');
+					self::assertLessThanOrEqual($node->w / 2, abs($x - $node->x) + $limb->widthAt(0) / 2, 'its end is behind the plaque');
+					self::assertEqualsWithDelta(-90, $limb->angleAt(0), 30, 'it leaves upward');
+					// The straight run up to where the branches part is hidden, behind a ribbon and an oval alike.
+					[$topX, $topY] = $limb->spine[1];
+					self::assertSame($x, $topX, 'straight up');
+					self::assertSame($limb->widthAt(0), $limb->widths[1]);
+					self::assertTrue($node->covers($topX - $limb->widths[1] / 2, $topY), 'the fork is behind the plaque');
+					self::assertTrue($node->covers($topX + $limb->widths[1] / 2, $topY), 'the fork is behind the plaque');
+					self::assertLessThanOrEqual(max($limb->widthAt(0), $parent->girth) * 1.08, $limb->thickness());
+					self::assertEqualsWithDelta($parent->girth, $limb->widthAt(1), 1e-9, 'the next fork starts from this width');
+				}
+				if (count($starts) !== 2) {
+					continue;
+				}
+
+				$forks++;
+				self::assertLessThanOrEqual($node->x, $starts[0], 'the father\'s branch on the left');
+				self::assertGreaterThanOrEqual($node->x, $starts[1]);
+			}
+		}
+		self::assertGreaterThan(10, $forks);
 	}
 
 	/** @return array<int, array<int, ?Person>> places of six generations of the demo family */
