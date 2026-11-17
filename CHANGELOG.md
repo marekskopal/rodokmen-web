@@ -12,9 +12,13 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
-- **Ancestor poster: painted tree** ("Malovaný strom"): the person on a trunk growing from a grassy mound, tapering
-  branches to every known ancestor, the names on oval medallions in the colours of the family lines and leaves
-  around them – like old painted family trees, especially with the historical style. Vector only, sharp up to A0.
+- **Ancestor poster: painted tree** ("Malovaný strom"): the person on a trunk growing from a grassy mound, a
+  branch to every known ancestor and the names on ribbons in the colours of the family lines – like old painted
+  family trees, especially with the historical style. The tree is grown, not stamped: every branch bends its own
+  way and is as thick as the number of ancestors it carries, twigs end in sprays of leaves with an apple here and
+  there, the ribbons sag and lean, and all outlines are drawn with an unsteady hand in ink over uneven washes.
+  The same tree is drawn every time. Vector only (no filters), sharp up to A0. Notes on the historical models
+  are in `docs/research/painted-trees.md`.
 
 - **Ancestor poster: historical style and SVG download.** "Styl: Historický" draws the poster on parchment with a
   double frame and ornaments, the title in a cartouche, the names in EB Garamond (self-hosted, SIL Open Font

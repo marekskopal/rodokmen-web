@@ -17,9 +17,15 @@ use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\FanLabels;
 use Rodokmen\Site\View\FanYears;
 use Rodokmen\Site\View\Poster\Orientation;
+use Rodokmen\Site\View\Poster\PaintedFoliage;
+use Rodokmen\Site\View\Poster\PaintedLayout;
+use Rodokmen\Site\View\Poster\PaintedLimbs;
+use Rodokmen\Site\View\Poster\PaintedPlaque;
+use Rodokmen\Site\View\Poster\PaintedWood;
 use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
 use Rodokmen\Site\View\Poster\PosterBoxText;
+use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterDecor;
 use Rodokmen\Site\View\Poster\PosterFan;
 use Rodokmen\Site\View\Poster\PosterFonts;
@@ -211,7 +217,8 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('font-family="&quot;EB Garamond&quot;', $svg);
 		self::assertStringContainsString('@font-face{font-family:"EB Garamond"', $svg);
 		self::assertStringContainsString('/assets/vendor/@fontsource/eb-garamond/', $svg, 'the page links the font files');
-		self::assertSame(9, substr_count($svg, 'fill="#6e2417"'), 'eight diamonds of the frame and the person');
+		// Eight diamonds of the frame and the person (whose ribbon in the painted tree has tails and folds too)
+		self::assertSame($layout === PosterLayout::PaintedTree ? 13 : 9, substr_count($svg, 'fill="#6e2417"'));
 		self::assertStringContainsString('#4d687d', $svg, 'the line colour mixed with sepia');
 		self::assertStringContainsString('Josef Novák', $svg);
 		if ($layout === PosterLayout::Tree || $layout === PosterLayout::TreeRight) {
@@ -232,51 +239,103 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('fill="#336699"', $svg, 'the line colour as it is');
 	}
 
-	public function testPaintedTreeGrowsBranchesOnlyToKnownAncestors(): void
+	public function testPaintedTreeGrowsOnlyToKnownAncestors(): void
 	{
 		$options = new PosterOptions(PosterLayout::PaintedTree, PaperFormat::A2, Orientation::Portrait, 2, PosterStyle::Simple, '');
 		$svg = $this->poster->render($this->root(), $options)->svg;
 
 		self::assertNotFalse(simplexml_load_string($svg));
-		// Antonín on one ellipse, his parents and grandfather Josef on two each (a light ground and the colour)
-		self::assertSame(7, substr_count($svg, '<ellipse '));
-		self::assertStringNotContainsString('stroke-dasharray', $svg, 'ancestors not found yet get no branch');
-		self::assertSame(1, preg_match('/<g fill="#6b4a2b"[^>]*>(.*?)<\/g>/', $svg, $branches));
-		self::assertSame(3, substr_count($branches[1], '<path '), 'to Jan, to Marie and from Jan to Josef');
-		self::assertGreaterThan(0, substr_count($svg, 'rotate('), 'leaves');
+		self::assertStringNotContainsString('stroke-dasharray', $svg, 'ancestors not found yet get no place');
+		// Trunk, five roots, branches to Jan, to Marie and from Jan to Josef, and at least one twig
+		self::assertGreaterThan(9, substr_count($svg, 'fill="' . PaintedWood::Bark . '"'));
+		self::assertGreaterThan(5, substr_count($svg, 'rotate('), 'leaves');
+		self::assertSame(4, preg_match_all('/<text class="pst-t pst-name/', $svg));
 		foreach (['Antonín Novák', 'Jan Novák', 'Marie Malá', 'Josef Novák', 'rod Novákovi'] as $text) {
 			self::assertStringContainsString($text, $svg);
 		}
-
-		// Leaves and medallions stay on the sheet.
-		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $origin));
-		preg_match_all('/translate\((-?[\d.]+),(-?[\d.]+)\) rotate/', $svg, $leaves, PREG_SET_ORDER);
-		foreach ($leaves as [, $x, $y]) {
-			self::assertGreaterThanOrEqual(0, (float) $origin[1] + (float) $x);
-			self::assertLessThanOrEqual($options->width(), (float) $origin[1] + (float) $x);
-			self::assertGreaterThanOrEqual(0, (float) $y, 'not above the tree, in the band of the title');
-		}
 	}
 
-	public function testPaintedTreeStaysInItsArea(): void
+	public function testPaintedTreeIsTheSameEveryTimeAndDiffersByPerson(): void
+	{
+		$options = new PosterOptions(PosterLayout::PaintedTree, PaperFormat::A2, Orientation::Landscape, 1, PosterStyle::Historical, '');
+		$tree = static fn (string $svg): string => (string) preg_replace('/^.*?<g transform="translate/s', '', $svg);
+		$first = $tree($this->poster->render($this->root(), $options)->svg);
+
+		self::assertSame($first, $tree($this->poster->render($this->root(), $options)->svg));
+
+		// Jan also has one generation above him, but his tree grows its own way.
+		$other = $tree($this->poster->render($this->person('jan-novak-1990'), $options)->svg);
+		self::assertNotSame(
+			preg_replace('/<text.*?<\/text>/', '', $first),
+			preg_replace('/<text.*?<\/text>/', '', $other),
+		);
+	}
+
+	/** @return iterable<string, array{string, PaperFormat, Orientation, int, PosterStyle}> */
+	public static function paintedTrees(): iterable
 	{
 		// A large sheet with one generation has the thickest trunk and the largest leaves.
-		$options = new PosterOptions(PosterLayout::PaintedTree, PaperFormat::A0, Orientation::Landscape, 1, PosterStyle::Historical, '');
-		$svg = $this->poster->render($this->root(), $options)->svg;
+		yield 'A0, one generation' => ['fixture', PaperFormat::A0, Orientation::Landscape, 1, PosterStyle::Historical];
+		yield 'A4 portrait' => ['fixture', PaperFormat::A4, Orientation::Portrait, 2, PosterStyle::Simple];
+		yield 'demo, A1, 7 generations' => ['demo', PaperFormat::A1, Orientation::Landscape, 7, PosterStyle::Historical];
+		yield 'demo, A3 portrait, 4 generations' => ['demo', PaperFormat::A3, Orientation::Portrait, 4, PosterStyle::Simple];
+		yield 'demo, A1 portrait (the tallest mound for its width)' => ['demo', PaperFormat::A1, Orientation::Portrait, 3, PosterStyle::Simple];
+	}
 
-		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $origin));
-		$margin = (float) $origin[1];
-		$bottom = $options->height() - $margin - (float) $origin[2];
-		preg_match_all('/translate\((-?[\d.]+),(-?[\d.]+)\) rotate/', $svg, $leaves, PREG_SET_ORDER);
-		self::assertGreaterThan(0, count($leaves));
-		foreach ($leaves as [, , $y]) {
-			self::assertGreaterThanOrEqual(0, (float) $y);
+	#[DataProvider('paintedTrees')]
+	public function testPaintedTreeStaysInItsArea(
+		string $family,
+		PaperFormat $format,
+		Orientation $orientation,
+		int $depth,
+		PosterStyle $style,
+	): void
+	{
+		$options = new PosterOptions(PosterLayout::PaintedTree, $format, $orientation, $depth, $style, '');
+		$dir = Fixture::dataDir($family === 'demo' ? DemoFamily::siteData() : null);
+
+		try {
+			[$repository, $poster] = self::poster($dir);
+			$root = $repository->person($family === 'demo' ? 'marek-skopal' : 'antonin-novak-2024');
+			self::assertNotNull($root);
+			$svg = $poster->render($root, $options)->svg;
+		} finally {
+			Fixture::removeDir($dir);
 		}
-		// Roots: the quadratic curves at the foot of the trunk end above the bottom of the area.
-		preg_match_all('/Q-?[\d.]+,-?[\d.]+ -?[\d.]+,(-?[\d.]+)/', $svg, $roots);
-		self::assertGreaterThan(0, count($roots[1]));
-		foreach ($roots[1] as $y) {
-			self::assertLessThanOrEqual($bottom, (float) $y);
+
+		// The tree is the group moved to the corner of its area, below the title.
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">(.*)$/s', $svg, $tree));
+		$width = $options->width() - 2 * (float) $tree[1];
+		$height = $options->height() - (float) $tree[1] - (float) $tree[2];
+		// A hand-drawn outline may run over by a hair.
+		$slack = $width * .006;
+
+		// Leaves and texts: where their groups are put.
+		preg_match_all('/<g transform="translate\((-?[\d.]+),(-?[\d.]+)\)/', $tree[3], $groups, PREG_SET_ORDER);
+		self::assertGreaterThan(5, count($groups));
+		foreach ($groups as [, $x, $y]) {
+			self::assertGreaterThanOrEqual(0, (float) $x);
+			self::assertLessThanOrEqual($width, (float) $x);
+			self::assertGreaterThanOrEqual(0, (float) $y, 'not above the tree, in the band of the title');
+			self::assertLessThanOrEqual($height, (float) $y);
+		}
+
+		// Wood, ground and plaques: every point of their paths (the leaves are drawn around 0,0 of their groups).
+		// The ink lines of the wood and of the ground are in groups of their own: unwrapped, so that the first
+		// closing tag left is the end of the tree.
+		$shapes = (string) preg_replace(
+			['/<g transform="translate.*?<\/g>/s', '/<g fill="none"[^>]*>(.*?)<\/g>/s', '/<\/g>.*$/s'],
+			['', '$1', ''],
+			$tree[3],
+		);
+		self::assertStringContainsString('fill="' . $style->tint(PaintedWood::Bark) . '"', $shapes, 'the wood is checked too');
+		preg_match_all('/(-?\d+\.\d+),(-?\d+\.\d+)/', $shapes, $points, PREG_SET_ORDER);
+		self::assertGreaterThan(1000, count($points));
+		foreach ($points as [$point, $x, $y]) {
+			self::assertGreaterThanOrEqual(-$slack, (float) $x, $point);
+			self::assertLessThanOrEqual($width + $slack, (float) $x, $point);
+			self::assertGreaterThanOrEqual(-$slack, (float) $y, $point);
+			self::assertLessThanOrEqual($height + $slack, (float) $y, $point);
 		}
 	}
 
@@ -394,7 +453,17 @@ final class PosterTest extends TestCase
 		$fan = new PosterFan($repository, $people, $view, $geometry, $labels, new FanYears());
 		$text = new PosterBoxText($view, $geometry, $labels, new FanYears());
 		$tree = new PosterTree($people, $view, $text);
-		$painted = new PosterPaintedTree($people, $view, $text);
+		$brush = new PosterBrush();
+		$painted = new PosterPaintedTree(
+			$people,
+			$view,
+			$text,
+			new PaintedLayout(),
+			new PaintedLimbs($brush),
+			new PaintedWood($brush),
+			new PaintedFoliage($brush),
+			new PaintedPlaque($brush),
+		);
 
 		return [$repository, new Poster($repository, $view, $fan, $tree, $painted, new PosterDecor(), new PosterFonts($config), $geometry)];
 	}

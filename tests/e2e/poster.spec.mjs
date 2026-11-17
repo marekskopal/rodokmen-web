@@ -43,12 +43,17 @@ test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[2384, 1684]]);
 });
 
-test('the painted tree grows a trunk, branches and medallions', async ({ page }) => {
+test('the painted tree grows a trunk, branches, leaves and name ribbons', async ({ page }) => {
 	await openPoster(page);
 	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
 	await page.getByRole('button', { name: 'Zobrazit' }).click();
 	await expect(page).toHaveURL(/rozvrzeni=maleny-strom/);
-	expect(await page.locator('.poster-sheet svg ellipse').count()).toBeGreaterThan(10);
+	// Every leaf is a small turned group; wood and ribbons are paths.
+	expect(await page.locator('.poster-sheet svg g[transform*="rotate"]').count()).toBeGreaterThan(50);
+	expect(await page.locator('.poster-sheet svg path').count()).toBeGreaterThan(300);
+	const first = await page.locator('.poster-sheet svg').innerHTML();
+	await page.reload();
+	expect(await page.locator('.poster-sheet svg').innerHTML()).toBe(first);
 	await expect(page.locator('.poster-sheet svg text').filter({ hasText: 'Marek Skopal' }).first()).toBeVisible();
 });
 
