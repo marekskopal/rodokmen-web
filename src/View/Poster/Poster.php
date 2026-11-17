@@ -32,6 +32,8 @@ final readonly class Poster
 		private View $view,
 		private PosterFan $fan,
 		private PosterTree $tree,
+		private PosterDecor $decor,
+		private PosterFonts $fonts,
 		private FanGeometry $geometry,
 	)
 	{
@@ -59,7 +61,8 @@ final readonly class Poster
 		return $this->render($root, $options->withDepth(min(1, $options->depth)));
 	}
 
-	public function render(Person $root, PosterOptions $options): PosterSheet
+	/** @param bool $standalone for a file that leaves the website: with the font files inside */
+	public function render(Person $root, PosterOptions $options, bool $standalone = false): PosterSheet
 	{
 		$width = $options->width();
 		$height = $options->height();
@@ -82,9 +85,10 @@ final readonly class Poster
 			$this->view->e($options->style->font()),
 			$this->view->e('Předci osoby ' . $root->name),
 		)
-			. '<style>' . $this->css($options->style) . '</style>'
+			. '<style>' . ($options->style->usesWebFont() ? $this->fonts->css($standalone) : '') . $this->css($options->style) . '</style>'
 			. '<defs>' . implode('', $defs) . '</defs>'
-			. sprintf('<rect width="%d" height="%d" fill="%s"/>', $width, $height, $options->style->paper())
+			. $this->decor->paper($options->style, $width, $height)
+			. $this->decor->frame($options->style, $width, $height, $margin)
 			. $chart . $title . $footer
 			. '</svg>';
 
@@ -121,7 +125,7 @@ final readonly class Poster
 			$this->fan->render($generations, $options->style, $radius, $half, $defs),
 		);
 
-		$rows = $this->footerRows($generations);
+		$rows = $this->footerRows($generations, $options->style);
 		$footerSize = max(self::MinFooterFont, $radius * .022);
 		$footer = $this->footer($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
 
@@ -158,7 +162,7 @@ final readonly class Poster
 			$this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
 		);
 
-		$rows = $this->footerRows($generations);
+		$rows = $this->footerRows($generations, $options->style);
 		[$cornerWidth, $cornerHeight] = $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
 		$footerSize = min(
 			max(self::MinFooterFont, min($areaWidth, $areaHeight) * .011),
@@ -184,8 +188,18 @@ final readonly class Poster
 		$subtitle = 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
 		$subSize = $this->geometry->fit($subtitle, $available, $size * .45);
 		$size = $this->geometry->fit($heading, $available, $size);
+		// The glyph width is an average; wide capitals get a little room to spare.
+		$textWidth = max(mb_strlen($heading) * $size, mb_strlen($subtitle) * $subSize) * FanGeometry::GlyphWidth * 1.1;
+		$cartouche = $this->decor->cartouche(
+			$options->style,
+			$margin,
+			$margin,
+			min($available, $textWidth),
+			$size * 1.2 + $subSize * 1.4,
+			min($size * .4, $margin * .3),
+		);
 
-		return sprintf(
+		return $cartouche . sprintf(
 			'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
 			$margin,
 			$margin + $size * .9,
@@ -207,7 +221,7 @@ final readonly class Poster
 	 * @param non-empty-list<list<?string>> $generations the drawn ancestors
 	 * @return non-empty-list<array{string, string, ?string}> [text, CSS class, colour]
 	 */
-	private function footerRows(array $generations): array
+	private function footerRows(array $generations, PosterStyle $style): array
 	{
 		// The person is drawn in the accent colour, not in the colour of a family line.
 		$drawn = [];
@@ -221,7 +235,7 @@ final readonly class Poster
 		$rows = [];
 		foreach ($this->repository->lines() as $line) {
 			if (isset($drawn[$line->k])) {
-				$rows[] = ['rod ' . $line->name, 'pst-t', $line->color];
+				$rows[] = ['rod ' . $line->name, 'pst-t', $style->tint($line->color)];
 			}
 		}
 		$rows[] = ['kurzívou pravděpodobní nebo nejistí předci', 'pst-t pst-prob pst-muted', null];

@@ -66,6 +66,7 @@ $points = $sheet->smallestPoints();
     </label>
     <button type="submit" class="btn">Zobrazit</button>
     <button type="button" class="btn btn-primary" data-print>Tisk / PDF</button>
+    <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/plakat.svg?<?= $v->e($options->query(!$auto)) ?>" download>Stáhnout SVG</a>
     <a class="btn btn-ghost" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Zpět do prohlížeče</a>
 </form>
 
@@ -77,7 +78,7 @@ $points = $sheet->smallestPoints();
             <strong class="poster-warn">Takové písmo bude špatně čitelné – zvolte větší papír nebo méně generací.</strong>
         <?php endif ?>
     </p>
-    <p class="muted">V dialogu tisku zvolte „Uložit jako PDF“ (nebo tiskárnu) – velikost papíru se nastaví sama a okraje nejsou potřeba. Nejspolehlivěji to funguje v Chrome, Edge a Firefoxu.</p>
+    <p class="muted">V dialogu tisku zvolte „Uložit jako PDF“ (nebo tiskárnu) – velikost papíru se nastaví sama a okraje nejsou potřeba. Nejspolehlivěji to funguje v Chrome, Edge a Firefoxu. SVG je pro tiskárnu nebo další úpravy; písmo historického stylu (EB Garamond) má v sobě.</p>
 </div>
 
 <div class="poster-preview">

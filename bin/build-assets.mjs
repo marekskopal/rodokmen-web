@@ -1,4 +1,4 @@
-// Copies the front-end libraries installed by pnpm into public/assets/vendor (served by the website, not committed).
+// Copies the front-end libraries and fonts installed by pnpm into public/assets/vendor (served by the website, not committed).
 // Run after `pnpm install`: `pnpm build`.
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -8,9 +8,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const vendor = join(root, 'public', 'assets', 'vendor');
 
 // package → files (or directories) copied from node_modules/<package> into public/assets/vendor/<package>
-// (dist/images: leaflet.css refers to images/*.png for the default marker and the layers control)
+// (dist/images: leaflet.css refers to images/*.png for the default marker and the layers control;
+// EB Garamond is the typeface of the historical poster, src/View/Poster/PosterFonts.php)
+const garamond = ['latin', 'latin-ext'].flatMap((subset) => ['400-normal', '400-italic', '600-normal', '600-italic']
+	.map((face) => `files/eb-garamond-${subset}-${face}.woff2`));
 const assets = {
 	leaflet: ['dist/leaflet.js', 'dist/leaflet.css', 'dist/images', 'LICENSE'],
+	'@fontsource/eb-garamond': [...garamond, 'LICENSE'],
 };
 
 // Check the sources first, so that a failed build does not leave the website without its libraries.

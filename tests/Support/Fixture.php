@@ -191,12 +191,13 @@ final class Fixture
 		bool $forceHttps = false,
 		string $syncToken = '',
 		string $searchHint = '',
+		?string $rootDir = null,
 	): Config
 	{
 		$dataDir ??= self::dataDir();
 
 		return new Config(
-			rootDir: dirname(__DIR__, 2),
+			rootDir: $rootDir ?? dirname(__DIR__, 2),
 			dataDir: $dataDir,
 			cacheDir: $dataDir . '/cache',
 			passwordHash: (string) getenv('SITE_PASSWORD_HASH'),

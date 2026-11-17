@@ -95,16 +95,54 @@ final readonly class PosterTree
 	private function box(?Person $person, int $g, int $i, PosterStyle $style, array $rect, float $stroke, BoxText $text): string
 	{
 		[$x, $y, $w, $h] = $rect;
-		$shape = '<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" fill="%s" fill-opacity="%.2f" stroke="%s" stroke-width="%.2f"%s/>';
-		$radius = min($w, $h) * .12;
 		if ($person === null) {
-			return sprintf($shape, $x, $y, $w, $h, $radius, $style->empty(), .6, $style->muted(), $stroke, ' stroke-dasharray="1.5 1"');
+			$paint = sprintf(
+				'fill="%s" fill-opacity=".6" stroke="%s" stroke-width="%.2f" stroke-dasharray="1.5 1"',
+				$style->empty(),
+				$style->muted(),
+				$stroke,
+			);
+
+			return $this->shape($style, $rect, $paint);
 		}
 
 		[$fill, $opacity, $class] = $this->paint($person, $g, $i, $style);
+		$fill = $this->view->e($fill);
+		$paint = sprintf('fill="%s" fill-opacity="%.2f" stroke="%s" stroke-width="%.2f"', $fill, $opacity, $fill, $stroke);
 
-		return sprintf($shape, $x, $y, $w, $h, $radius, $this->view->e($fill), $opacity, $this->view->e($fill), $stroke, '')
-			. $this->text->write($person, $class, $x + $w / 2, $y + $h / 2, $text);
+		return $this->shape($style, $rect, $paint) . $this->text->write($person, $class, $x + $w / 2, $y + $h / 2, $text);
+	}
+
+	/**
+	 * A box with rounded corners, or a label with cut corners in the historical style.
+	 *
+	 * @param array{float, float, float, float} $rect x, y, width, height
+	 */
+	private function shape(PosterStyle $style, array $rect, string $paint): string
+	{
+		[$x, $y, $w, $h] = $rect;
+		if (!$style->isOrnate()) {
+			return sprintf('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" %s/>', $x, $y, $w, $h, min($w, $h) * .12, $paint);
+		}
+
+		$c = min($w, $h) * .2;
+
+		return sprintf(
+			'<path d="M%.1f,%.1f H%.1f L%.1f,%.1f V%.1f L%.1f,%.1f H%.1f L%.1f,%.1f V%.1f Z" %s/>',
+			$x + $c,
+			$y,
+			$x + $w - $c,
+			$x + $w,
+			$y + $c,
+			$y + $h - $c,
+			$x + $w - $c,
+			$y + $h,
+			$x + $c,
+			$x,
+			$y + $h - $c,
+			$y + $c,
+			$paint,
+		);
 	}
 
 	/** @return array{string, float, string} fill colour, its opacity and the CSS class of the text */
@@ -117,7 +155,11 @@ final readonly class PosterTree
 			return [$style->empty(), 1.0, $this->people->textClass($person)];
 		}
 
-		return [$this->people->color($person, $g, $i), $this->people->isUncertain($person) ? .22 : .4, $this->people->textClass($person)];
+		return [
+			$style->tint($this->people->color($person, $g, $i)),
+			$this->people->isUncertain($person) ? .22 : .4,
+			$this->people->textClass($person),
+		];
 	}
 
 	/** Lines from the child's box to the boxes of its parents, with the bend halfway between the generations. */
