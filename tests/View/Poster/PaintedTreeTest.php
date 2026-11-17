@@ -104,6 +104,23 @@ final class PaintedTreeTest extends TestCase
 		self::assertEqualsWithDelta($layout->trunk(800, $layout->unit(7, 500)), $root->girth, 1e-9);
 	}
 
+	public function testPlaquesAreRibbonsThenFlatOvalsThenTallOvals(): void
+	{
+		$layout = new PaintedLayout();
+
+		// Rows 100 high. A place 200 wide takes a ribbon (width at most 4.6 × its height).
+		self::assertEqualsWithDelta([165.6, 36.0, true], $layout->plaqueSize(2, 800, 100), 1e-9);
+		self::assertEqualsWithDelta([94.0, 36.0, true], $layout->plaqueSize(3, 800, 100), 1e-9);
+		// Too narrow for a ribbon, wide enough for the name across: an oval a little over half as high as wide …
+		self::assertEqualsWithDelta([81.0, 44.55, false], $layout->plaqueSize(3, 720, 100), 1e-9);
+		// … but never lower than a ribbon,
+		self::assertEqualsWithDelta([54.0, 36.0, false], $layout->plaqueSize(3, 480, 100), 1e-9);
+		self::assertEqualsWithDelta([45.0, 36.0, false], $layout->plaqueSize(4, 800, 100), 1e-9);
+		// and a tall one where the name has to be written along it.
+		self::assertEqualsWithDelta([40.5, 56.0, false], $layout->plaqueSize(4, 720, 100), 1e-9);
+		self::assertEqualsWithDelta([22.5, 56.0, false], $layout->plaqueSize(5, 800, 100), 1e-9);
+	}
+
 	public function testLayoutKeepsPlaquesApartAndMeasuresTheWood(): void
 	{
 		$nodes = new PaintedLayout()->nodes($this->demoPlaces(), 800, 500, new PosterRandom('layout'));

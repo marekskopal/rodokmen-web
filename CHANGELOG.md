@@ -12,6 +12,11 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Painted tree: flatter ovals.** In the first generations too narrow for ribbons, where the names are still
+  written across, the ovals were almost circles. They are now clearly wider than high (a little over half as
+  high as wide, never lower than a ribbon), which leaves more room for the branches and leaves; only ovals with
+  the name written along them stay tall.
+
 - **Painted tree: forks continue the wood below.** Branches to the parents were as thick as the trunk they grew
   from and left the name ribbon sideways, so their cut ends showed above it. They now start behind the ribbon
   inside the wood that arrives there, never thicker than it, rise straight up and only then part.
