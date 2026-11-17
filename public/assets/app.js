@@ -26,7 +26,66 @@
     }));
 
     // Printing: buttons, and the transcriptions in <details> open on paper (CSS cannot open them)
-    $$('[data-print]').forEach((btn) => btn.addEventListener('click', () => window.print()));
+    // Forms that apply a choice at once (ancestor poster, numbered list of ancestors): the page is fetched again
+    // with the new query and its live parts ([data-live]) are swapped in, so that the preview, printing and the
+    // download always follow the controls. Without JavaScript the submit button does the same with a page load.
+    let pending = null;
+    $$('form[data-live-form]').forEach((form) => {
+        const queryOf = () => {
+            const params = new URLSearchParams();
+            new FormData(form).forEach((value, key) => { if (value !== '') params.append(key, String(value)); });
+            return params.toString();
+        };
+        let shown = queryOf();
+        let request = null;
+        let timer = 0;
+        const apply = () => {
+            clearTimeout(timer);
+            const query = queryOf();
+            if (query === shown) return;
+            shown = query;
+            const url = location.pathname + (query ? '?' + query : '');
+            if (request) request.abort();
+            const current = request = new AbortController();
+            const busy = $$('[data-live-busy]');
+            busy.forEach((el) => el.setAttribute('aria-busy', 'true'));
+            pending = fetch(url, { signal: current.signal, credentials: 'same-origin' })
+                .then((response) => {
+                    if (!response.ok || response.redirected) throw new Error('page load needed');
+                    return response.text();
+                })
+                .then((html) => {
+                    const next = new DOMParser().parseFromString(html, 'text/html');
+                    $$('[data-live]').forEach((el) => {
+                        const fresh = $(`[data-live="${el.dataset.live}"]`, next);
+                        if (!fresh) return;
+                        Array.from(el.attributes).forEach((a) => { if (!fresh.hasAttribute(a.name) && a.name !== 'aria-busy') el.removeAttribute(a.name); });
+                        Array.from(fresh.attributes).forEach((a) => el.setAttribute(a.name, a.value));
+                        el.innerHTML = fresh.innerHTML;
+                    });
+                    history.replaceState(history.state, '', url);
+                })
+                .catch((error) => { if (error.name !== 'AbortError') location.assign(url); })
+                .finally(() => {
+                    if (request !== current) return;
+                    busy.forEach((el) => el.removeAttribute('aria-busy'));
+                    request = null;
+                    pending = null;
+                });
+        };
+        $$('[data-live-submit]', form).forEach((btn) => { btn.hidden = true; });
+        form.addEventListener('change', apply);
+        form.addEventListener('input', (event) => {
+            if (event.target instanceof HTMLInputElement && event.target.type === 'text') {
+                clearTimeout(timer);
+                timer = setTimeout(apply, 600);
+            }
+        });
+        form.addEventListener('submit', (event) => { event.preventDefault(); apply(); });
+    });
+
+    // Printing waits for a choice that is still loading.
+    $$('[data-print]').forEach((btn) => btn.addEventListener('click', () => (pending ? pending.then(() => window.print()) : window.print())));
     window.addEventListener('beforeprint', () => {
         $$('details:not([open])').forEach((d) => { d.open = true; d.dataset.printOpened = ''; });
     });

@@ -18,24 +18,50 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	await openPoster(page);
 	await expect(page.locator('.poster-sheet svg')).toBeVisible();
 	await expect(page.locator('.poster-sheet')).toHaveClass(/poster-a1-landscape/);
-	await expect(page.locator('.poster-hint')).toContainText('841 × 594 mm');
+	await expect(page.locator('.poster-summary')).toContainText('841 × 594 mm');
+	// The choices apply at once, there is nothing to confirm.
+	await expect(page.getByRole('button', { name: 'Zobrazit' })).toBeHidden();
 
 	await page.getByLabel('Rozvržení').selectOption('pulvejir');
 	await page.getByLabel('Papír').selectOption('a3');
 	await page.getByLabel('Orientace').selectOption('na-vysku');
 	await page.getByLabel('Nadpis').fill('Rod Skopalů');
-	await page.getByRole('button', { name: 'Zobrazit' }).click();
 
-	await expect(page).toHaveURL(/rozvrzeni=pulvejir.*format=a3.*orientace=na-vysku/);
+	await expect(page).toHaveURL(/rozvrzeni=pulvejir.*format=a3.*orientace=na-vysku.*nadpis=Rod/);
 	await expect(page.locator('.poster-sheet')).toHaveClass(/poster-a3-portrait/);
+	await expect(page.locator('.poster-summary')).toContainText('297 × 420 mm');
 	await expect(page.locator('.poster-sheet .pst-title')).toHaveText('Rod Skopalů');
+	// Printing and the download follow the choices without a page load.
+	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /format=a3&orientace=na-vysku/);
+	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[842, 1191]]);
+});
+
+test('the select boxes look like the text input', async ({ page }) => {
+	await openPoster(page);
+	const look = (locator) => locator.evaluate((el) => {
+		const css = getComputedStyle(el);
+		return [css.borderTopColor, css.borderTopLeftRadius, css.backgroundColor, css.fontFamily];
+	});
+	expect(await look(page.getByLabel('Papír'))).toEqual(await look(page.getByLabel('Nadpis')));
+	expect(await page.getByLabel('Papír').evaluate((el) => getComputedStyle(el).appearance)).toBe('none');
+});
+
+test.describe('without JavaScript', () => {
+	test.use({ javaScriptEnabled: false });
+
+	test('the button applies the choices', async ({ page }) => {
+		await page.goto('/predci/marek-skopal/plakat');
+		await page.getByLabel('Papír').selectOption('a3');
+		await page.getByRole('button', { name: 'Zobrazit' }).click();
+		await expect(page).toHaveURL(/format=a3/);
+		await expect(page.locator('.poster-sheet')).toHaveClass(/poster-a3-landscape/);
+	});
 });
 
 test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 	await openPoster(page);
 	for (const layout of ['strom', 'strom-vpravo']) {
 		await page.getByLabel('Rozvržení').selectOption(layout);
-		await page.getByRole('button', { name: 'Zobrazit' }).click();
 		await expect(page).toHaveURL(new RegExp(`rozvrzeni=${layout}`));
 		await expect(page.locator('.poster-sheet svg rect[rx]').first()).toBeVisible();
 		expect(await page.locator('.poster-sheet svg rect[rx]').count()).toBeGreaterThan(10);
@@ -46,7 +72,6 @@ test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 test('the painted tree grows a trunk, branches, leaves and name ribbons', async ({ page }) => {
 	await openPoster(page);
 	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
-	await page.getByRole('button', { name: 'Zobrazit' }).click();
 	await expect(page).toHaveURL(/rozvrzeni=maleny-strom/);
 	// Every leaf is a small turned group; wood and ribbons are paths.
 	expect(await page.locator('.poster-sheet svg g[transform*="rotate"]').count()).toBeGreaterThan(50);
@@ -60,7 +85,6 @@ test('the painted tree grows a trunk, branches, leaves and name ribbons', async 
 test('the historical style decorates the poster and the SVG can be downloaded', async ({ page }) => {
 	await openPoster(page);
 	await page.getByLabel('Styl').selectOption('historicky');
-	await page.getByRole('button', { name: 'Zobrazit' }).click();
 	await expect(page).toHaveURL(/styl=historicky/);
 	await expect(page.locator('.poster-sheet svg rect[fill="url(#pst-paper)"]')).toHaveCount(1);
 	// The font of the historical style is self-hosted and loads under the Content-Security-Policy.

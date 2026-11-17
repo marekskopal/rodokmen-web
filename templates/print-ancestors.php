@@ -29,14 +29,14 @@ $parent = function (?string $slug, int $number) use ($repo, $v, $listedNumbers):
 <header class="page-head print-head">
     <p class="eyebrow">Vývod předků</p>
     <h1><?= $v->e($person->name) ?> <span class="muted thin"><?= $v->e($v->years($person)) ?></span></h1>
-    <p class="lead">
+    <p class="lead" data-live="lead">
         <?= $v->e($v->plural($depth, 'generace', 'generace', 'generací')) ?> předků,
         <?= $v->e($v->plural($count, 'známý předek', 'známí předkové', 'známých předků')) ?>
         · <?= $v->e($repo->title()) ?> · <?= date('j. n. Y') ?>
     </p>
 </header>
 
-<form class="filters print-toolbar" method="get">
+<form class="filters print-toolbar" method="get" data-live-form>
     <label>Generací
         <select name="generace">
             <?php for ($i = 1; $i <= max(1, $available); $i++): ?>
@@ -45,12 +45,13 @@ $parent = function (?string $slug, int $number) use ($repo, $v, $listedNumbers):
         </select>
     </label>
     <label class="filter-check"><input type="checkbox" name="zapisy" value="1" <?= $transcripts ? 'checked' : '' ?>> s přepisy zápisů</label>
-    <button type="submit" class="btn">Zobrazit</button>
+    <button type="submit" class="btn" data-live-submit>Zobrazit</button>
     <button type="button" class="btn btn-primary" data-print>Tisk / PDF</button>
     <a class="btn" href="/predci/<?= $v->e(rawurlencode($person->slug)) ?>/plakat">Plakát předků</a>
     <a class="btn btn-ghost" href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Zpět do prohlížeče</a>
 </form>
 
+<div data-live="list" data-live-busy>
 <p class="muted anc-legend">Číslování: osoba má číslo 1, otec osoby s číslem n má číslo 2n, matka 2n + 1. Chybějící číslo znamená předka, kterého zatím neznáme.</p>
 
 <?php foreach ($generations as $generation): ?>
@@ -103,3 +104,4 @@ $parent = function (?string $slug, int $number) use ($repo, $v, $listedNumbers):
         <?php endforeach ?>
     </section>
 <?php endforeach ?>
+</div>

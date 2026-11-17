@@ -12,6 +12,14 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Ancestor poster: the choices apply at once.** Printing and "Stáhnout SVG" used the last shown settings until
+  "Zobrazit" was pressed. Now every choice redraws the preview straight away (the title after a short pause in
+  typing), the paper size and the smallest font are shown next to the print and download buttons, and printing
+  waits for a choice that is still loading. The fields stand in a grid with their labels above them. The numbered
+  list of ancestors works the same way. Without JavaScript the "Zobrazit" button still does the job.
+
+- **Select boxes look like the text inputs** (same border, corners, background and font, with a drawn arrow).
+
 - **Generations: one table to read.** The columns of the generations now stand under each other (every table
   used to size its columns by its own content), and from the 6th generation on the relation is just "předek v
   6. generaci" without the chain of "pra" in brackets, which made the column far too wide.
