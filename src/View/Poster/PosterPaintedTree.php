@@ -8,89 +8,82 @@ use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\View\View;
 
 /**
- * Painted family tree of the poster, like the old ones on parchment: a mound at the bottom, a trunk with the person
- * at its foot, tapering branches to the parents and on to every known ancestor, names on oval medallions and
- * leaves around them. Measured in millimetres in a rectangle with its top left corner at 0,0; the ancestors keep
- * the places of the upward tree (every one the same share of the width), unknown ones get no branch.
+ * Painted family tree of the poster, like the old ones on parchment: a grassy mound, a trunk with the person at
+ * its foot, branches to every known ancestor, names on oval plaques, twigs with leaves and now and then an apple.
+ * Measured in millimetres in a rectangle with its top left corner at 0,0. The ancestors keep roughly the places
+ * of the upward tree (every one the same share of the width), unknown ones get no branch.
  *
- * All vector shapes, no filters or pictures, so the PDF stays sharp at A0. The leaves are placed by a fixed rule,
- * not at random, so that the same tree is drawn every time.
+ * The tree is grown, not stamped: every branch bends its own way, is as thick as the number of ancestors it
+ * carries (pipe model), plaques sit a little off their row, and all outlines are drawn with an unsteady hand
+ * (PosterBrush). The chance behind it is seeded by the person (PosterRandom), so the same tree is drawn every
+ * time. All vector shapes, no filters or pictures, so the PDF stays sharp at A0.
  */
 final readonly class PosterPaintedTree
 {
-	/** Height of the mound relative to the whole height, and its half-width relative to the width. */
-	private const GroundHeight = .07;
+	/** Share of a plaque's width and height that the text may take. */
+	private const TextWidth = .76;
 
-	private const GroundWidth = .22;
+	private const TextHeight = .66;
 
-	/** Height of the person's row (with the trunk) relative to the other rows. */
-	private const RootRow = 1.6;
+	private const RibbonTextHeight = .84;
 
-	/** Medallion height relative to the row; its width relative to its height at most. */
-	private const MedallionHeight = .56;
-
-	private const MedallionWidth = 2.4;
-
-	/** Largest medallion width relative to the whole width. */
-	private const MaxShare = .3;
-
-	/** Each generation's branches are this much thinner than the one below. */
-	private const Taper = .62;
-
-	private const Bark = '#6b4a2b';
-
-	private const BarkLine = '#45301c';
-
-	private const Grass = '#6f8a3c';
-
-	/** Greens of the leaves, taken in turn. */
-	private const Leaves = ['#5f7f34', '#7e9a46', '#4e6b2c', '#8aa552'];
-
-	public function __construct(private PosterPeople $people, private View $view, private PosterBoxText $text)
-	{
+	public function __construct(
+		private PosterPeople $people,
+		private View $view,
+		private PosterBoxText $text,
+		private PaintedLayout $layout,
+		private PaintedLimbs $limbs,
+		private PaintedWood $wood,
+		private PaintedFoliage $foliage,
+		private PaintedPlaque $plaque,
+	) {
 	}
 
 	/** @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first */
 	public function render(array $generations, PosterStyle $style, float $width, float $height, float $maxFont): string
 	{
-		$places = $this->people->places($generations);
-		$unit = $this->unit(count($generations), $height);
-		$trunk = min($width * .06, $unit * .45);
+		$random = new PosterRandom('painted-tree|' . ($generations[0][0] ?? ''));
+		$unit = $this->layout->unit(count($generations), $height);
+		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, $random);
+		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
+		$space = new PaintedSpace($nodes, $width, $height, $unit, $this->layout->top($height, $unit), $cornerWidth, $cornerHeight);
 
-		$branches = '';
+		$wood = $this->trunk($nodes[0][0] ?? null, $width, $height, $this->layout->trunk($width, $unit), $style, $random);
 		$leaves = '';
-		$medallions = '';
-		foreach ($places as $g => $row) {
-			[$w, $h] = $this->medallion($g, $width, $unit);
-			$people = array_values(array_filter($row));
-			$text = $this->text->fit($people, $w * .78, $h * .7, $maxFont);
-			foreach ($row as $i => $person) {
-				if ($person === null) {
-					continue;
-				}
-
-				[$x, $y] = $this->centre($g, $i, $width, $height, $unit);
-				$medallions .= $this->medallionShape($person, $g, $i, $style, $x, $y, $w, $h)
-					. $this->text->write($person, $this->textClass($person, $g), $x, $y, $text);
-				if ($g > 0) {
-					// The leaves above the top row stay below the edge of the tree (and off the title).
-					$size = min($unit * .28, $width / 2 ** $g * .35, ($y - $h / 2) / 1.2);
-					$leaves .= $this->leavesAround($g, $i, [$x, $y, $w, $h], $width, $size, $style);
-				}
-				$branches .= $this->branchesUp($places, $g, $i, [$x, $y], $width, $height, $unit, $trunk);
+		$plaques = '';
+		foreach ($nodes as $g => $row) {
+			[$w, $h, $ribbon] = $this->layout->plaqueSize($g, $width, $unit);
+			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
+			$text = $this->text->fit($people, $w * self::TextWidth, $h * ($ribbon ? self::RibbonTextHeight : self::TextHeight), $maxFont);
+			$leaf = min($unit * .2, $width / 2 ** $g * .45);
+			foreach ($row as $node) {
+				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
+				[$grown, $sprays] = $this->grow($node, $nodes, $leaf, $unit * .05, $space, $style, $chance);
+				array_push($wood, ...$grown);
+				$leaves .= $sprays;
+				$plaques .= $this->plaque($node, $style, $chance->fork('plaque'))
+					. $this->text->write(
+						$node->person,
+						$g === 0 ? ' pst-root' : $this->people->textClass($node->person),
+						$node->x,
+						$node->y,
+						$text,
+					);
 			}
 		}
 
-		return $this->ground($width, $height, $style)
-			. $this->trunk($width, $height, $unit, $trunk, $style)
-			. sprintf(
-				'<g fill="%s" stroke="%s" stroke-width="%.2f">%s</g>',
-				$style->tint(self::Bark),
-				$style->tint(self::BarkLine),
-				max(.15, $trunk * .02),
-				$branches,
-			)
-			. $leaves . $medallions;
+		// Thin wood first, so that the thicker limb covers the joint.
+		usort($wood, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+		$ground = $this->wood->ground(
+			$width / 2,
+			$height,
+			$width * PaintedLayout::GroundWidth,
+			$height * PaintedLayout::GroundHeight * 1.1,
+			$style,
+			$random->fork('ground'),
+		);
+
+		return $ground . implode('', array_column($wood, 1)) . $leaves . $plaques;
 	}
 
 	/**
@@ -100,236 +93,193 @@ final readonly class PosterPaintedTree
 	 */
 	public function corner(int $depth, float $width, float $height): array
 	{
-		$unit = $this->unit($depth + 1, $height);
-
-		return [($width / 2 - $width * self::GroundWidth) * .9, $height * self::GroundHeight + $unit * self::RootRow * .9];
-	}
-
-	/** Height of one generation's row. */
-	private function unit(int $rows, float $height): float
-	{
-		return $height * (1 - self::GroundHeight) / ($rows - 1 + self::RootRow);
-	}
-
-	/** @return array{float, float} centre of the i-th ancestor of generation g */
-	private function centre(int $g, int $i, float $width, float $height, float $unit): array
-	{
-		$top = $height * (1 - self::GroundHeight) - self::RootRow * $unit;
-		$y = $g === 0 ? $top + $unit * .5 : $top - ($g - .5) * $unit;
-
-		return [($i + .5) * $width / 2 ** $g, $y];
-	}
-
-	/** @return array{float, float} width and height of the medallions of generation g */
-	private function medallion(int $g, float $width, float $unit): array
-	{
-		$h = $unit * self::MedallionHeight;
-
-		return [min($width / 2 ** $g * .9, $h * self::MedallionWidth, $width * self::MaxShare), $h];
-	}
-
-	private function medallionShape(Person $person, int $g, int $i, PosterStyle $style, float $x, float $y, float $w, float $h): string
-	{
-		$ellipse = '<ellipse cx="%.1f" cy="%.1f" rx="%.1f" ry="%.1f" fill="%s" fill-opacity="%.2f" stroke="%s" stroke-width="%.2f"/>';
-		$stroke = max(.2, $h * .04);
-		if ($g === 0) {
-			return sprintf($ellipse, $x, $y, $w / 2, $h / 2, $style->accent(), 1, $style->tint(self::BarkLine), $stroke);
-		}
-
-		$color = $this->people->isUnknown($person) ? $style->empty() : $this->view->e($style->tint($this->people->color($person, $g, $i)));
-
-		return sprintf($ellipse, $x, $y, $w / 2, $h / 2, '#fbf6e9', 1, $color, $stroke)
-			. sprintf($ellipse, $x, $y, $w / 2, $h / 2, $color, $this->people->isUncertain($person) ? .22 : .38, $color, $stroke);
-	}
-
-	private function textClass(Person $person, int $g): string
-	{
-		return $g === 0 ? ' pst-root' : $this->people->textClass($person);
+		return $this->layout->corner($depth, $width, $height);
 	}
 
 	/**
-	 * Branches from the i-th ancestor of generation g to those of its parents that are known.
+	 * What grows from an ancestor: the branches to the known parents with their twigs, or the twigs of a tip.
 	 *
-	 * @param array<int, array<int, ?Person>> $places
-	 * @param array{float, float} $centre of the ancestor's medallion
+	 * @param array<int, array<int, PaintedNode>> $nodes
+	 * @return array{list<array{float, string}>, string} wood (thickness and drawing) and leaves
 	 */
-	private function branchesUp(
-		array $places,
-		int $g,
-		int $i,
-		array $centre,
-		float $width,
-		float $height,
-		float $unit,
-		float $trunk,
-	): string
+	private function grow(
+		PaintedNode $node,
+		array $nodes,
+		float $leaf,
+		float $grain,
+		PaintedSpace $space,
+		PosterStyle $style,
+		PosterRandom $random,
+	): array
 	{
-		[$x, $y] = $centre;
-		$out = '';
-		foreach ([2 * $i, 2 * $i + 1] as $parent) {
-			if (($places[$g + 1][$parent] ?? null) !== null) {
-				[$px, $py] = $this->centre($g + 1, $parent, $width, $height, $unit);
-				$out .= $this->branch($x, $y, $px, $py, $trunk * self::Taper ** $g * .85, $trunk * self::Taper ** ($g + 1));
-			}
+		$wood = [];
+		$leaves = '';
+		foreach ($this->branches($node, $nodes, $random) as $k => $limb) {
+			$wood[] = [$limb->thickness(), $this->wood->limb($limb, $style, $random->fork('wood' . $k), $grain)];
+			[$twigs, $sprays] = $this->twigs($limb, $leaf, $space, $style, $random->fork('twigs' . $k));
+			array_push($wood, ...$twigs);
+			$leaves .= $sprays;
+		}
+		if ($node->g > 0) {
+			// A tuft of leaves peeping from behind the top edge of the plaque.
+			$leaves .= $this->foliage->spray(
+				$node->x + $random->float(-.3, .3) * $node->w,
+				$node->y - $node->h * .3,
+				-90 + $random->float(-30, 30),
+				$leaf + $node->h * .3,
+				$space,
+				$style,
+				$random->fork('tuft'),
+				behind: true,
+			);
+		}
+		if ($node->tip && $node->g > 0) {
+			[$twigs, $sprays] = $this->crown($node, $leaf, $space, $style, $random->fork('crown'));
+			array_push($wood, ...$twigs);
+			$leaves .= $sprays;
 		}
 
-		return $out;
-	}
-
-	/** Tapering branch from the child's medallion up to the parent's, leaving the child straight up. */
-	private function branch(float $x0, float $y0, float $x1, float $y1, float $from, float $to): string
-	{
-		$rise = $y0 - $y1;
-
-		return sprintf(
-			'<path d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z"/>',
-			$x0 - $from / 2,
-			$y0,
-			$x0 - $from / 2,
-			$y0 - $rise * .55,
-			$x1 - $to / 2,
-			$y1 + $rise * .45,
-			$x1 - $to / 2,
-			$y1,
-			$x1 + $to / 2,
-			$y1,
-			$x1 + $to / 2,
-			$y1 + $rise * .45,
-			$x0 + $from / 2,
-			$y0 - $rise * .55,
-			$x0 + $from / 2,
-			$y0,
-		);
-	}
-
-	/** Grassy mound at the bottom edge. */
-	private function ground(float $width, float $height, PosterStyle $style): string
-	{
-		$half = $width * self::GroundWidth;
-		$cx = $width / 2;
-
-		return sprintf(
-			'<path d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z" fill="%s" fill-opacity=".55" stroke="%s" stroke-width="%.2f"/>',
-			$cx - $half,
-			$height,
-			$cx - $half * .4,
-			$height - $height * self::GroundHeight * 1.5,
-			$cx + $half * .4,
-			$height - $height * self::GroundHeight * 1.5,
-			$cx + $half,
-			$height,
-			$style->tint(self::Grass),
-			$style->tint('#4e6b2c'),
-			max(.2, $half * .004),
-		);
-	}
-
-	/** Trunk from the mound up to the person, wider at its foot, with a few roots. */
-	private function trunk(float $width, float $height, float $unit, float $trunk, PosterStyle $style): string
-	{
-		$cx = $width / 2;
-		$foot = $height * (1 - self::GroundHeight * .45);
-		[, $top] = $this->centre(0, 0, $width, $height, $unit);
-		$rise = $foot - $top;
-		$path = sprintf(
-			'M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z',
-			$cx - $trunk * .95,
-			$foot,
-			$cx - $trunk * .55,
-			$foot - $rise * .3,
-			$cx - $trunk / 2,
-			$top + $rise * .4,
-			$cx - $trunk / 2,
-			$top,
-			$cx + $trunk / 2,
-			$top,
-			$cx + $trunk / 2,
-			$top + $rise * .4,
-			$cx + $trunk * .55,
-			$foot - $rise * .3,
-			$cx + $trunk * .95,
-			$foot,
-		);
-
-		// The roots end above the bottom edge, their line included.
-		$drop = min($trunk * .25, $height * self::GroundHeight * .15);
-		$roots = '';
-		foreach ([-1, 1] as $side) {
-			foreach ([1.0, 1.9] as $spread) {
-				$roots .= sprintf(
-					'M%.1f,%.1f Q%.1f,%.1f %.1f,%.1f ',
-					$cx + $side * $trunk * .5,
-					$foot - $trunk * .1,
-					$cx + $side * $trunk * $spread,
-					$foot,
-					$cx + $side * $trunk * ($spread + 1),
-					$foot + $drop * $spread,
-				);
-			}
-		}
-
-		return sprintf(
-			'<path d="%s" fill="%s" stroke="%s" stroke-width="%.2f"/><path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>',
-			$path,
-			$style->tint(self::Bark),
-			$style->tint(self::BarkLine),
-			max(.15, $trunk * .02),
-			$roots,
-			$style->tint(self::Bark),
-			$trunk * .18,
-		);
+		return [$wood, $leaves];
 	}
 
 	/**
-	 * Leaves above an ancestor's medallion, and beside it where there is room before the next one and the edge;
-	 * turned a little differently each time.
+	 * Branches from an ancestor to the known parents.
 	 *
-	 * @param array{float, float, float, float} $medallion centre x, y, width, height
+	 * @param array<int, array<int, PaintedNode>> $nodes
+	 * @return list<PaintedLimb>
 	 */
-	private function leavesAround(int $g, int $i, array $medallion, float $width, float $size, PosterStyle $style): string
+	private function branches(PaintedNode $node, array $nodes, PosterRandom $random): array
 	{
-		[$x, $y, $w, $h] = $medallion;
-		$spots = [[-$w * .25, -$h / 2, 245.0], [$w * .25, -$h / 2, -65.0]];
-		// Both neighbours put a leaf into the gap between them, each up to 1.15 × $size long.
-		$gap = $width / 2 ** $g - $w;
-		if ($gap >= $size * 2.3 && $x - $w / 2 - $size >= 0 && $x + $w / 2 + $size <= $width) {
-			array_push($spots, [-$w / 2, 0.0, 200.0], [$w / 2, 0.0, -20.0]);
-		}
+		$limbs = [];
+		foreach ([2 * $node->i, 2 * $node->i + 1] as $k => $i) {
+			$parent = $nodes[$node->g + 1][$i] ?? null;
+			if ($parent === null) {
+				continue;
+			}
 
-		$out = '';
-		foreach ($spots as $k => [$dx, $dy, $angle]) {
-			$jitter = (($g * 31 + $i * 17 + $k * 7) % 11) / 10 - .5;
-			$out .= $this->leaf(
-				$x + $dx,
-				$y + $dy,
-				$size * (1 + $jitter * .3),
-				$angle + $jitter * 40,
-				$style->tint(self::Leaves[($i + $k) % count(self::Leaves)]),
-				$style->tint(self::BarkLine),
+			$limbs[] = $this->limbs->branch(
+				$node,
+				$parent,
+				min($parent->girth * 1.15, $node->w * .4),
+				$parent->girth * .8,
+				$random->fork('branch' . $k),
 			);
 		}
 
-		return $out;
+		return $limbs;
 	}
 
-	/** One leaf with its midrib, its stalk at x, y, pointing at $angle degrees (0 = right, clockwise). */
-	private function leaf(float $x, float $y, float $size, float $angle, string $color, string $rib): string
+	/**
+	 * Trunk and roots.
+	 *
+	 * @return list<array{float, string}> thickness and drawing
+	 */
+	private function trunk(?PaintedNode $root, float $width, float $height, float $trunk, PosterStyle $style, PosterRandom $random): array
 	{
-		return sprintf(
-			'<g transform="translate(%.1f,%.1f) rotate(%.1f)"><path d="M0,0 Q%.1f,%.1f %.1f,0 Q%.1f,%.1f 0,0 Z" fill="%s"/>'
-			. '<path d="M0,0 L%.1f,0" stroke="%s" stroke-width="%.2f" stroke-opacity=".5"/></g>',
-			$x,
-			$y,
-			$angle,
-			$size * .5,
-			-$size * .32,
-			$size,
-			$size * .5,
-			$size * .32,
-			$color,
-			$size * .9,
-			$rib,
-			$size * .03,
-		);
+		if ($root === null) {
+			return [];
+		}
+
+		$foot = $height * (1 - PaintedLayout::GroundHeight * .5);
+		$grain = $trunk * .2;
+		$wood = [];
+		foreach ([-1, 1, -1, 1, $random->side()] as $k => $side) {
+			$limb = $this->limbs->root(
+				$width / 2,
+				$foot,
+				$side,
+				$trunk,
+				$height * PaintedLayout::GroundHeight * .3,
+				$random->fork('root' . $k),
+			);
+			$wood[] = [$limb->thickness(), $this->wood->limb($limb, $style, $random->fork('rootwood' . $k), $grain)];
+		}
+		$limb = $this->limbs->trunk($width / 2, $foot, $root->y, $trunk, $random->fork('trunk'));
+		$wood[] = [$limb->thickness() * 10, $this->wood->limb($limb, $style, $random->fork('trunkwood'), $grain)];
+
+		return $wood;
+	}
+
+	/**
+	 * Up to three twigs with leaves growing from a branch.
+	 *
+	 * @return array{list<array{float, string}>, string} wood (thickness and drawing) and leaves
+	 */
+	private function twigs(PaintedLimb $limb, float $leaf, PaintedSpace $space, PosterStyle $style, PosterRandom $random): array
+	{
+		$wood = [];
+		$leaves = '';
+		$count = $random->int(1, 3);
+		for ($k = 0; $k < $count; $k++) {
+			$t = $random->float(.3, .78);
+			$angle = $limb->angleAt($t) + $random->side() * $random->float(30, 65);
+			$twig = $this->limbs->twig(
+				$limb->at($t),
+				$angle,
+				$leaf * $random->float(.9, 1.6),
+				min($limb->widthAt($t) * .4, $leaf * .12),
+				$random,
+			);
+			[$x, $y] = $twig->at(1);
+			if (!$space->free($x, $y)) {
+				continue;
+			}
+
+			$wood[] = [$twig->thickness(), $this->wood->limb($twig, $style, $random, $leaf)];
+			$leaves .= $this->foliage->spray($x, $y, $twig->angleAt(1), $leaf, $space, $style, $random);
+		}
+
+		return [$wood, $leaves];
+	}
+
+	/**
+	 * Twigs with leaves above the plaque of an ancestor whose parents are not known: a tip of the tree.
+	 *
+	 * @return array{list<array{float, string}>, string} wood (thickness and drawing) and leaves
+	 */
+	private function crown(PaintedNode $node, float $leaf, PaintedSpace $space, PosterStyle $style, PosterRandom $random): array
+	{
+		$wood = [];
+		$leaves = '';
+		$count = $random->int(2, 3);
+		for ($k = 0; $k < $count; $k++) {
+			$angle = -90 + ($k - ($count - 1) / 2) * 55 + $random->float(-12, 12);
+			$start = [$node->x + cos(deg2rad($angle)) * $node->w * .3, $node->y];
+			$reach = hypot(cos(deg2rad($angle)) * $node->w * .2, sin(deg2rad($angle)) * $node->h * .5);
+			$twig = $this->limbs->twig(
+				$start,
+				$angle,
+				$reach + $leaf * $random->float(.5, .9),
+				min($node->girth * .6, $leaf * .12),
+				$random,
+			);
+			[$x, $y] = $twig->at(1);
+			if (!$space->free($x, $y)) {
+				continue;
+			}
+
+			$wood[] = [$twig->thickness(), $this->wood->limb($twig, $style, $random, $leaf)];
+			$leaves .= $this->foliage->spray($x, $y, $angle, $leaf, $space, $style, $random);
+		}
+
+		return [$wood, $leaves];
+	}
+
+	private function plaque(PaintedNode $node, PosterStyle $style, PosterRandom $random): string
+	{
+		if ($node->g === 0) {
+			return $node->ribbon
+				? $this->plaque->ribbon($node, $style->accent(), 1, $style->accent(), $style, $random)
+				: $this->plaque->root($node, $style, $random);
+		}
+
+		$color = $this->people->isUnknown($node->person)
+			? $style->empty()
+			: $this->view->e($style->tint($this->people->color($node->person, $node->g, $node->i)));
+		$wash = $this->people->isUncertain($node->person) ? .1 : .19;
+
+		return $node->ribbon
+			? $this->plaque->ribbon($node, $color, $wash, null, $style, $random)
+			: $this->plaque->draw($node, $color, $wash, $style, $random);
 	}
 }
