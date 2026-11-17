@@ -189,6 +189,35 @@ final class KernelTest extends TestCase
 		self::assertSame(302, $this->get('/predci/antonin-novak-2024/plakat')->getStatusCode());
 	}
 
+	public function testDownloadsThePosterAsSvg(): void
+	{
+		$page = (string) $this->get('/predci/antonin-novak-2024/plakat?styl=historicky&format=a2', loggedIn: true)->getBody();
+		self::assertStringContainsString('<option value="historicky" selected>', $page);
+		self::assertStringContainsString(
+			'href="/predci/antonin-novak-2024/plakat.svg?rozvrzeni=vejir&amp;format=a2&amp;orientace=na-sirku&amp;styl=historicky" download',
+			$page,
+			'the same poster, with the readable number of generations',
+		);
+
+		$response = $this->get(
+			'/predci/antonin-novak-2024/plakat.svg?rozvrzeni=strom&format=a2&generace=1&styl=historicky',
+			loggedIn: true,
+		);
+		$body = (string) $response->getBody();
+		self::assertSame(200, $response->getStatusCode(), $body);
+		self::assertSame('image/svg+xml; charset=utf-8', $response->getHeaderLine('Content-Type'));
+		self::assertSame('attachment; filename="plakat-antonin-novak-2024.svg"', $response->getHeaderLine('Content-Disposition'));
+		self::assertStringStartsWith('<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<svg ', $body);
+		self::assertNotFalse(simplexml_load_string($body));
+		self::assertStringContainsString('width="594mm" height="420mm"', $body);
+		self::assertStringContainsString('>Jan Novák', $body);
+		self::assertStringNotContainsString('Josef Novák', $body, 'one generation');
+		self::assertStringNotContainsString('/assets/vendor/', $body, 'fonts inside, if built, never linked');
+
+		self::assertSame(404, $this->get('/predci/nikdo/plakat.svg', loggedIn: true)->getStatusCode());
+		self::assertSame(302, $this->get('/predci/antonin-novak-2024/plakat.svg')->getStatusCode());
+	}
+
 	public function testServesWebpThumbnails(): void
 	{
 		Images::jpeg($this->dir . '/img/krest.jpg', 1200, 800);

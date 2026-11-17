@@ -55,6 +55,23 @@ final readonly class PosterOptions
 		return new self($this->layout, $this->format, $this->orientation, $depth, $this->style, $this->title);
 	}
 
+	/**
+	 * The choices as a query string, e.g. for the download of the same poster.
+	 *
+	 * @param bool $depth with the number of generations (otherwise the poster picks a readable one)
+	 */
+	public function query(bool $depth): string
+	{
+		return http_build_query(array_filter([
+			'rozvrzeni' => $this->layout->value,
+			'format' => $this->format->value,
+			'orientace' => $this->orientation->value,
+			'generace' => $depth ? (string) $this->depth : '',
+			'styl' => $this->style->value,
+			'nadpis' => $this->title,
+		], static fn (string $value): bool => $value !== ''));
+	}
+
 	/** Width of the sheet in millimetres. */
 	public function width(): int
 	{

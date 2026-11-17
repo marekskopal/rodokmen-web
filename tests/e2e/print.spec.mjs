@@ -62,6 +62,8 @@ test('the person page prints with its transcriptions open', async ({ page }) => 
 test('Chromium saves the list as a PDF', async ({ page }) => {
 	await page.goto('/predci');
 	await page.getByRole('link', { name: 'Vytisknout vývod' }).click();
+	// Wait for the list: printing right after the click could catch the page before it is drawn.
+	await expect(page.locator('#c-1')).toBeVisible();
 	const pdf = await page.pdf({ format: 'A4' });
 
 	expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');

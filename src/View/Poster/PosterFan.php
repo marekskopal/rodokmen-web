@@ -113,7 +113,7 @@ final readonly class PosterFan
 
 		$opacity = max(.22, .66 - .04 * $g) * ($this->people->isUncertain($person) ? .6 : 1);
 
-		return $this->path($sector, $this->people->color($person, $g, $i), $opacity, $style->paper(), $stroke);
+		return $this->path($sector, $style->tint($this->people->color($person, $g, $i)), $opacity, $style->paper(), $stroke);
 	}
 
 	/** @param list<string> $defs */

@@ -20,7 +20,9 @@ use Rodokmen\Site\View\Poster\Orientation;
 use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
 use Rodokmen\Site\View\Poster\PosterBoxText;
+use Rodokmen\Site\View\Poster\PosterDecor;
 use Rodokmen\Site\View\Poster\PosterFan;
+use Rodokmen\Site\View\Poster\PosterFonts;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\Poster\PosterPeople;
@@ -189,6 +191,46 @@ final class PosterTest extends TestCase
 		self::assertSame($jan[1], $marie[1]);
 	}
 
+	/** @return iterable<string, array{PosterLayout}> */
+	public static function layouts(): iterable
+	{
+		foreach (PosterLayout::cases() as $layout) {
+			yield $layout->value => [$layout];
+		}
+	}
+
+	#[DataProvider('layouts')]
+	public function testHistoricalStyleIsDecorated(PosterLayout $layout): void
+	{
+		$options = new PosterOptions($layout, PaperFormat::A2, Orientation::Landscape, 2, PosterStyle::Historical, '');
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		self::assertNotFalse(simplexml_load_string($svg), 'well-formed SVG');
+		self::assertStringContainsString('fill="url(#pst-paper)"', $svg, 'parchment');
+		self::assertStringContainsString('font-family="&quot;EB Garamond&quot;', $svg);
+		self::assertStringContainsString('@font-face{font-family:"EB Garamond"', $svg);
+		self::assertStringContainsString('/assets/vendor/@fontsource/eb-garamond/', $svg, 'the page links the font files');
+		self::assertSame(9, substr_count($svg, 'fill="#6e2417"'), 'eight diamonds of the frame and the person');
+		self::assertStringContainsString('#4d687d', $svg, 'the line colour mixed with sepia');
+		self::assertStringContainsString('Josef Novák', $svg);
+		if (!$layout->isFan()) {
+			// Only the two panels of the cartouche and the legend swatch are rounded; the seven boxes are labels.
+			self::assertSame(3, substr_count($svg, ' rx="'));
+		}
+
+		$standalone = $this->poster->render($this->root(), $options, standalone: true)->svg;
+		self::assertStringNotContainsString('/assets/vendor/', $standalone, 'the downloaded file does not link the website');
+	}
+
+	public function testSimpleStyleHasNoDecoration(): void
+	{
+		$svg = $this->poster->render($this->root(), $this->options(PosterLayout::Tree))->svg;
+
+		self::assertStringNotContainsString('pst-paper', $svg);
+		self::assertStringNotContainsString('@font-face', $svg);
+		self::assertStringContainsString('fill="#336699"', $svg, 'the line colour as it is');
+	}
+
 	public function testReportsTheSmallestLetters(): void
 	{
 		$large = $this->poster->render($this->root(), $this->options(PosterLayout::Fan))->smallestPoints();
@@ -303,7 +345,7 @@ final class PosterTest extends TestCase
 		$fan = new PosterFan($repository, $people, $view, $geometry, $labels, new FanYears());
 		$tree = new PosterTree($people, $view, new PosterBoxText($view, $geometry, $labels, new FanYears()));
 
-		return [$repository, new Poster($repository, $view, $fan, $tree, $geometry)];
+		return [$repository, new Poster($repository, $view, $fan, $tree, new PosterDecor(), new PosterFonts($config), $geometry)];
 	}
 
 	private function options(PosterLayout $layout, int $depth = 2): PosterOptions

@@ -12,6 +12,12 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Ancestor poster: historical style and SVG download.** "Styl: Historický" draws the poster on parchment with a
+  double frame and ornaments, the title in a cartouche, the names in EB Garamond (self-hosted, SIL Open Font
+  License), the family lines in muted colours and, in the trees, labels with cut corners. "Stáhnout SVG"
+  (`/predci/{slug}/plakat.svg`) downloads the same poster as an SVG file with the fonts inside, for a print shop or
+  further editing.
+
 - **Ancestor poster: tree layouts.** Besides the fans, the poster draws the ancestors as a tree growing upward
   (the person at the bottom) or from left to right, with lines between children and parents and dashed boxes for
   ancestors not found yet. All boxes of a generation have the same size of letters; narrow boxes write the names
