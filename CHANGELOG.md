@@ -10,52 +10,39 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-17
+
+Ancestor poster: fans, trees and a painted tree on one sheet for printing, in a simple or a historical style.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d`. Apache: `composer install --no-dev` and
+`pnpm install --frozen-lockfile --prod && pnpm build` as after every update – the build now also copies the EB
+Garamond font of the historical style. Installed `rodokmen-sync` 1.2.0 keeps working.
+
 ### Website
 
-- **Painted tree: men in blue, women in old rose.** Men and women were not told apart, which made the tree hard
-  to read. The plaques and ribbons of men are now shades of blue and those of women shades of old rose; the
-  family line turns the shade a little, so neighbouring lines stay apart. The colours explain themselves, so the
-  painted tree no longer lists the family lines in its corner.
+- **Ancestor poster** (`/predci/{slug}/plakat`, "Plakát předků" in the explorer, the fan chart and the vývod): a
+  person's ancestors on one large sheet, A4 to A0, portrait or landscape, as a 360° fan or a 180° half fan, with the
+  family lines in a legend and a heading of the person's family ("Rodokmen Rybkových" for Miloslav Rybka, also from
+  Rybková) or your own. The letters are sized for the paper; the page says how small the smallest ones will be and
+  recommends the most generations that stay readable. "Tisk / PDF" prints just the sheet at its paper size and
+  without margins (Chrome, Edge and Firefox set the size of "Save as PDF" by themselves). Every choice redraws the
+  preview at once, and printing and the download always follow it; without JavaScript a "Zobrazit" button applies
+  the choices.
 
-- **Ancestor poster: the choices apply at once.** Printing and "Stáhnout SVG" used the last shown settings until
-  "Zobrazit" was pressed. Now every choice redraws the preview straight away (the title after a short pause in
-  typing), the paper size and the smallest font are shown next to the print and download buttons, and printing
-  waits for a choice that is still loading. The fields stand in a grid with their labels above them. The numbered
-  list of ancestors works the same way. Without JavaScript the "Zobrazit" button still does the job.
-
-- **Select boxes look like the text inputs** (same border, corners, background and font, with a drawn arrow).
-
-- **Generations: one table to read.** The columns of the generations now stand under each other (every table
-  used to size its columns by its own content), and from the 6th generation on the relation is just "předek v
-  6. generaci" without the chain of "pra" in brackets, which made the column far too wide.
-
-- **Painted tree: the width goes to the ancestors who are known.** The tree kept a place for everybody who could
-  exist, so a line known far back was squeezed into a strip a few millimetres wide under an empty sheet. Now the
-  trees of the father's and the mother's ancestors are pushed together and stretched over the width: a deep line
-  reaches over its shorter neighbours, a lone known parent stands just a little to their side, and the plaques of
-  the old generations are large enough to read (the demo family's seven generations fit an A1 at 6.5 pt). The
-  trunk may stand a little off the middle of the sheet.
-
-- **Painted tree: flatter ovals.** In the first generations too narrow for ribbons, where the names are still
-  written across, the ovals were almost circles. They are now clearly wider than high (a little over half as
-  high as wide, never lower than a ribbon), which leaves more room for the branches and leaves; only ovals with
-  the name written along them stay tall.
-
-- **Painted tree: forks continue the wood below.** Branches to the parents were as thick as the trunk they grew
-  from and left the name ribbon sideways, so their cut ends showed above it. They now start behind the ribbon
-  inside the wood that arrives there, never thicker than it, rise straight up and only then part.
-
-- **Ancestor poster: the heading follows the person.** The poster of anybody but the website's own person is headed
-  by their family ("Rodokmen Rybkových" for Miloslav Rybka, also from Rybková), not by the title of the website;
-  a heading of your own still replaces it.
+- **Ancestor poster: tree layouts.** Besides the fans, the poster draws the ancestors as a tree growing upward
+  (the person at the bottom) or from left to right, with lines between children and parents and dashed boxes for
+  ancestors not found yet. All boxes of a generation have the same size of letters; narrow boxes write the names
+  along themselves.
 
 - **Ancestor poster: painted tree** ("Malovaný strom"): the person on a trunk growing from a grassy mound, a
-  branch to every known ancestor and the names on ribbons in the colours of the family lines – like old painted
-  family trees, especially with the historical style. The tree is grown, not stamped: every branch bends its own
-  way and is as thick as the number of ancestors it carries, twigs end in sprays of leaves with an apple here and
-  there, the ribbons sag and lean, and all outlines are drawn with an unsteady hand in ink over uneven washes.
-  The same tree is drawn every time. Vector only (no filters), sharp up to A0. Notes on the historical models
-  are in `docs/research/painted-trees.md`.
+  branch to every known ancestor and the names on ribbons and ovals – like old painted family trees, especially
+  with the historical style. Men are in shades of blue and women in shades of old rose, turned a little by the
+  family line. The tree is grown, not stamped: every branch bends its own way and is as thick as the number of
+  ancestors it carries, forks rise out of the wood below, twigs end in sprays of leaves with an apple here and
+  there, the ribbons sag and lean, and all outlines are drawn with an unsteady hand in ink over uneven washes. The
+  width goes to the ancestors who are known, so a line known far back reaches over its shorter neighbours (the demo
+  family's seven generations fit an A1 at 6.5 pt). The same tree is drawn every time. Vector only (no filters),
+  sharp up to A0. Notes on the historical models are in `docs/research/painted-trees.md`.
 
 - **Ancestor poster: historical style and SVG download.** "Styl: Historický" draws the poster on parchment with a
   double frame and ornaments, the title in a cartouche, the names in EB Garamond (self-hosted, SIL Open Font
@@ -63,16 +50,21 @@ number changes only when old clients or servers could not read it – see *Bundl
   (`/predci/{slug}/plakat.svg`) downloads the same poster as an SVG file with the fonts inside, for a print shop or
   further editing.
 
-- **Ancestor poster: tree layouts.** Besides the fans, the poster draws the ancestors as a tree growing upward
-  (the person at the bottom) or from left to right, with lines between children and parents and dashed boxes for
-  ancestors not found yet. All boxes of a generation have the same size of letters; narrow boxes write the names
-  along themselves.
+- **Numbered list of ancestors**: the choice of generations and transcriptions applies at once, like on the poster.
 
-- **Ancestor poster** (`/predci/{slug}/plakat`, "Plakát předků" in the explorer, the fan chart and the vývod): a
-  person's ancestors on one large sheet, A4 to A0, portrait or landscape, as a 360° fan or a 180° half fan, with the
-  family lines in a legend and an own heading. The letters are sized for the paper; the page says how small the
-  smallest ones will be and recommends the most generations that stay readable. "Tisk / PDF" prints just the sheet
-  at its paper size and without margins (Chrome, Edge and Firefox set the size of "Save as PDF" by themselves).
+- **Generations: one table to read.** The columns of the generations stand under each other (every table used to
+  size its columns by its own content), and from the 6th generation on the relation is just "předek v 6. generaci"
+  without the chain of "pra" in brackets, which made the column far too wide.
+
+- **Select boxes look like the text inputs** (same border, corners, background and font, with a drawn arrow).
+
+### rodokmen-sync
+
+- Unchanged: 1.2.0.
+
+### Bundle format
+
+- Unchanged: format 1.
 
 ## [1.1.0] - 2026-11-15
 
@@ -162,6 +154,7 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
-[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.0
 [1.1.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.1.0
 [1.0.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.0.0
