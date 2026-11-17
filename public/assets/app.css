@@ -283,7 +283,12 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .gen-title { display: flex; align-items: center; gap: 12px; font-size: 1.2rem; }
 .gen-num { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); font: 600 .9rem var(--sans); }
 .table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); }
-.people { width: 100%; border-collapse: collapse; font-size: .93rem; }
+.people { width: 100%; border-collapse: collapse; font-size: .93rem; table-layout: fixed; min-width: 760px; }
+/* Fixed shares, so that the columns of all the generations stand under each other. */
+.people .col-years { width: 13%; }
+.people .col-rel { width: 20%; }
+.people .col-places { width: 25%; }
+.people .col-status { width: 132px; }
 .people th { text-align: left; font-weight: 600; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--rule); }
 .people td { padding: 9px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
 .people tr:last-child td { border-bottom: 0; }
@@ -357,6 +362,9 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .people .plink { display: inline-flex; align-items: baseline; }
 @media (max-width: 640px) {
     .people th:nth-child(3), .people td:nth-child(3), .people th:nth-child(4), .people td:nth-child(4) { display: none; }
+    .people { min-width: 0; }
+    .people .col-years { width: 104px; }
+    .people .col-status { width: 122px; }
     .people td, .people th { padding: 8px 10px; }
 }
 

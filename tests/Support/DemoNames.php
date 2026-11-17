@@ -33,15 +33,18 @@ final class DemoNames
 		return $born !== null ? $born . ' – ' . ($died ?? '?') : '';
 	}
 
+	/** The relation word as the skill's exporter writes it (`relation()` in `tools/export_web.py`). */
 	public static function relation(int $k, string $sex): string
 	{
 		$gen = self::generation($k);
-		$names = [0 => ['výchozí osoba', 'výchozí osoba'], 1 => ['otec', 'matka'], 2 => ['dědeček', 'babička'], 3 => ['pradědeček', 'prababička']];
-		if (isset($names[$gen])) {
-			return $names[$gen][$sex === 'F' ? 1 : 0];
+		$female = $sex === 'F';
+		if ($gen < 2) {
+			return $gen === 0 ? 'výchozí osoba rodokmenu' : ($female ? 'matka' : 'otec');
 		}
 
-		return ($gen - 2) . '× pra' . ($sex === 'F' ? 'babička' : 'dědeček');
+		$word = str_repeat('pra', $gen - 2) . ($female ? 'babička' : 'dědeček');
+
+		return $gen <= 5 ? $word : ($female ? 'předkyně' : 'předek') . ' v ' . $gen . '. generaci (' . $word . ')';
 	}
 
 	public static function statusText(string $status): string

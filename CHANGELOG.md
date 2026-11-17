@@ -12,6 +12,10 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ### Website
 
+- **Generations: one table to read.** The columns of the generations now stand under each other (every table
+  used to size its columns by its own content), and from the 6th generation on the relation is just "předek v
+  6. generaci" without the chain of "pra" in brackets, which made the column far too wide.
+
 - **Painted tree: the width goes to the ancestors who are known.** The tree kept a place for everybody who could
   exist, so a line known far back was squeezed into a strip a few millimetres wide under an empty sheet. Now the
   trees of the father's and the mother's ancestors are pushed together and stretched over the width: a deep line

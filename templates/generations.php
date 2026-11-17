@@ -32,7 +32,7 @@ $genNames = [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Pr
         </h2>
         <div class="table-wrap">
             <table class="people">
-                <thead><tr><th>Jméno</th><th>Roky</th><th>Vztah</th><th>Místa</th><th>Údaj</th></tr></thead>
+                <thead><tr><th class="col-name">Jméno</th><th class="col-years">Roky</th><th class="col-rel">Vztah</th><th class="col-places">Místa</th><th class="col-status">Údaj</th></tr></thead>
                 <tbody>
                 <?php foreach ($people as $p):
                     $placeNames = $repo->placeNamesOf($p->slug); ?>
@@ -40,7 +40,7 @@ $genNames = [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Pr
                         data-text="<?= $v->e(mb_strtolower($p->name . ' ' . implode(' ', $placeNames) . ' ' . implode(' ', $p->facts))) ?>">
                         <td><?= $v->personLink($p->slug) ?></td>
                         <td class="nowrap"><?= $v->e($v->years($p)) ?></td>
-                        <td class="muted"><?= $v->e($p->rel) ?></td>
+                        <td class="muted"><?= $v->e($p->shortRel()) ?></td>
                         <td class="muted"><?= $v->e(implode(', ', array_slice($placeNames, 0, 3))) ?></td>
                         <td><?= $v->status($p) ?></td>
                     </tr>

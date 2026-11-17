@@ -91,6 +91,15 @@ final readonly class Person
 		return $this->sex === 'F';
 	}
 
+	/**
+	 * Relation without the chain of "pra" the exporter adds in brackets from the 6th generation on
+	 * ("předek v 7. generaci (prapraprapradědeček)" → "předek v 7. generaci"), for tables with a narrow column.
+	 */
+	public function shortRel(): string
+	{
+		return preg_replace('/\s*\((?:pra){2,}[^()]*\)$/u', '', $this->rel) ?? $this->rel;
+	}
+
 	/** First four-digit year of the lifespan (birth), or null. */
 	public function birthYear(): ?int
 	{

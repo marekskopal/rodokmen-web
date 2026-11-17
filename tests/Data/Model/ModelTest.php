@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\Tests\Data\Model;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\ArrayReader;
 use Rodokmen\Site\Data\InvalidDataException;
@@ -55,6 +56,24 @@ final class ModelTest extends TestCase
 		self::assertTrue($this->person('marie-mala-1992')->isFemale());
 		self::assertSame(1990, $jan->birthYear());
 		self::assertNull($this->person('antonin-novak-2024')->line);
+	}
+
+	#[DataProvider('shortRelations')]
+	public function testShortRelDropsTheChainOfPra(string $rel, string $expected): void
+	{
+		$person = Person::fromReader(ArrayReader::of(['k' => 64, 'slug' => 'jan-novak-1790', 'name' => 'Jan Novák', 'rel' => $rel]));
+
+		self::assertSame($expected, $person->shortRel());
+	}
+
+	/** @return iterable<string, array{string, string}> */
+	public static function shortRelations(): iterable
+	{
+		yield 'ancestor of the 6th generation' => ['předek v 6. generaci (prapraprapradědeček)', 'předek v 6. generaci'];
+		yield 'ancestress' => ['předkyně v 8. generaci (praprapraprapraprababička)', 'předkyně v 8. generaci'];
+		yield 'near generations stay' => ['prapraprababička', 'prapraprababička'];
+		yield 'other brackets stay' => ['otec (nevlastní)', 'otec (nevlastní)'];
+		yield 'empty' => ['', ''];
 	}
 
 	public function testPersonSplitsSiblingsFromOtherRelatives(): void
