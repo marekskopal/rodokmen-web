@@ -79,7 +79,7 @@ jobs:
                   node-version: '24'
 
             - name: Install pnpm
-              run: npm install --global --no-fund --no-audit pnpm@12.17.0
+              run: npm install --global --no-fund --no-audit pnpm@12.22.0
 
             - name: Install and build
               run: |
@@ -130,7 +130,7 @@ jobs:
                   node-version: '24'
 
             - name: Install pnpm
-              run: npm install --global --no-fund --no-audit pnpm@12.17.0
+              run: npm install --global --no-fund --no-audit pnpm@12.22.0
 
             - name: Install and build the front-end libraries
               run: |
