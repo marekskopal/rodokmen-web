@@ -137,11 +137,45 @@ final class ViewTest extends TestCase
 		self::assertSame(['type' => $type, 'label' => $label, 'text' => $text], $this->view->fact($fact));
 	}
 
-	public function testFactYear(): void
+	public function testFactDate(): void
 	{
-		self::assertSame(1746, $this->view->factYear('* 23. 4. 1746 Lomnice'));
-		self::assertSame(2012, $this->view->factYear('† 2012'));
-		self::assertNull($this->view->factYear('čp. 1234 a 12345'));
+		self::assertSame([1746, 423], $this->view->factDate('* 23. 4. 1746 Lomnice'));
+		self::assertSame([1867, 300], $this->view->factDate('pokřtěn 3/1867'));
+		self::assertSame([2012, 0], $this->view->factDate('† 2012'));
+		self::assertSame([1890, 0], $this->view->factDate('rolník, 1890–1920 v Holicích'));
+		self::assertNull($this->view->factDate('čp. 1234 a 12345'));
+		self::assertNull($this->view->factDate('* Holice čp. 1850'));
+	}
+
+	public function testTimelineRunsFromBirthToDeath(): void
+	{
+		$facts = [
+			'† 3. 1. 1950 Holice',
+			'rolník v Holicích',
+			'× 1919 Holice, Josefa Pokorná',
+			'pokřtěn 15. 2. 1890',
+			'* 14. 2. 1890 Holice čp. 112',
+			'1914–1918 na frontě',
+		];
+
+		self::assertSame(
+			['14. 2. 1890 Holice čp. 112', 'pokřtěn 15. 2. 1890', '1914–1918 na frontě', '1919 Holice, Josefa Pokorná', 'rolník v Holicích', '3. 1. 1950 Holice'],
+			array_column($this->view->timeline($facts), 'text'),
+		);
+		self::assertSame(
+			['narozen v Holicích', 'kovář', 'zemřel v Praze'],
+			array_column($this->view->timeline(['† zemřel v Praze', 'kovář', '* narozen v Holicích']), 'text'),
+		);
+	}
+
+	public function testTimelineKeepsBaptismAfterBirthAndBurialAfterDeath(): void
+	{
+		$facts = ['rolník', 'pohřben 5. 1. 1950 Holice', '† 3. 1. 1950 Holice', 'pokřtěn v Holicích', '* 14. 2. 1890 Holice'];
+
+		self::assertSame(
+			['14. 2. 1890 Holice', 'pokřtěn v Holicích', 'rolník', '3. 1. 1950 Holice', 'pohřben 5. 1. 1950 Holice'],
+			array_column($this->view->timeline($facts), 'text'),
+		);
 	}
 
 	public function testKindLabel(): void
