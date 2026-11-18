@@ -10,6 +10,32 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-19
+
+The person page tells a life in order, and the dependencies are up to date.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d`. Apache: `composer install --no-dev` and
+`pnpm install --frozen-lockfile --prod && pnpm build` as after every update. Installed `rodokmen-sync` 1.2.0 keeps
+working.
+
+### Website
+
+- **Person page: the life from birth to death.** The facts were listed in the order of the data, not of the life.
+  They are now sorted by the date they mention: within a year births and baptisms come first and deaths and
+  burials last; a birth without a date opens the list, a death without a date closes it, and an undated fact
+  such as a trade stays after the fact it follows, but before the death.
+
+- **Dependencies:** PHP libraries within their versions; the Docker image builds its front-end libraries with
+  Node.js 26 LTS (was 24) and the current pnpm. The PHP 8.5 base image is unchanged.
+
+### rodokmen-sync
+
+- Unchanged: 1.2.0.
+
+### Bundle format
+
+- Unchanged: format 1.
+
 ## [1.2.0] - 2026-11-17
 
 Ancestor poster: fans, trees and a painted tree on one sheet for printing, in a simple or a historical style.
@@ -154,7 +180,8 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
-[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.1
 [1.2.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.0
 [1.1.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.1.0
 [1.0.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.0.0
