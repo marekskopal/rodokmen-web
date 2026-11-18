@@ -17,7 +17,7 @@ use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Model\Side;
 
 $spouse = $repo->person($person->spouse);
-$facts = array_map(fn (string $f) => $v->fact($f), $person->facts);
+$facts = $v->timeline($person->facts);
 $sideFolks = array_merge($siblings, $relatives);
 $yearOf = static fn (string $y): int => preg_match('/\d{4}/', $y, $m) === 1 ? (int) $m[0] : 9999;
 $siblingsByYear = $siblings;

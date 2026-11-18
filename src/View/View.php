@@ -19,6 +19,8 @@ use const EXTR_SKIP;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 
 /**
  * Renders plain PHP templates inside the common layout and offers small HTML helpers.
@@ -206,10 +208,69 @@ final class View
 		return ['type' => 'info', 'label' => '', 'text' => $fact];
 	}
 
-	/** Year mentioned in a fact (for ordering the timeline), or null. */
-	public function factYear(string $fact): ?int
+	/**
+	 * The facts of a person for the timeline, from birth to death: dated facts by their date (in one year births
+	 * first, then other facts, deaths and burials last), undated births and baptisms with the first dated birth (or
+	 * at the start), undated deaths at the end and other undated facts (a trade) right after the fact they follow in
+	 * the data (or after the birth), but before a death.
+	 *
+	 * @param list<string> $facts
+	 * @return list<array{type: string, label: string, text: string}>
+	 */
+	public function timeline(array $facts): array
 	{
-		return preg_match('/\b(1[5-9]\d\d|20\d\d)\b/', $fact, $m) === 1 ? (int) $m[1] : null;
+		$ranks = ['birth' => 0, 'marriage' => 1, 'info' => 1, 'death' => 2];
+		$parsed = [];
+		$birth = null;
+		foreach ($facts as $text) {
+			$fact = $this->fact($text);
+			$date = $this->factDate($text);
+			if ($fact['type'] === 'birth' && $date !== null && ($birth === null || $date < $birth)) {
+				$birth = $date;
+			}
+
+			$parsed[] = [$fact, $date];
+		}
+
+		[$year, $day] = $birth ?? [PHP_INT_MIN, 0];
+		$entries = [];
+		foreach ($parsed as $i => [$fact, $date]) {
+			// A burial follows the death even when it is not a death fact itself.
+			$rank = preg_match('/^pohřb/iu', $fact['text']) === 1 ? 3 : ($ranks[$fact['type']] ?? 1);
+			$key = match (true) {
+				$date !== null => [$date[0], $rank, $date[1]],
+				$fact['type'] === 'birth' => [$birth[0] ?? PHP_INT_MIN, 0, $birth[1] ?? 0],
+				$fact['type'] === 'death' => [PHP_INT_MAX, 2, 0],
+				// Never after a death in the same year: the person was alive for it.
+				default => [$year, 1, $day],
+			};
+			[$year, , $day] = $key;
+			// An undated fact comes after the dated one it shares its place with.
+			$entries[] = ['key' => [...$key, $date === null ? 1 : 0, $i], 'fact' => $fact];
+		}
+
+		usort($entries, static fn (array $a, array $b): int => $a['key'] <=> $b['key']);
+
+		return array_column($entries, 'fact');
+	}
+
+	/**
+	 * The first date mentioned in a fact ("23. 4. 1746", "3/1867", "1746") as [year, month * 100 + day], with 0 for
+	 * an unknown month or day, or null. House numbers ("čp. 1850") are not years.
+	 *
+	 * @return array{int, int}|null
+	 */
+	public function factDate(string $fact): ?array
+	{
+		$fact = (string) preg_replace('/\bčp\.?\s*\d+/u', '', $fact);
+		$pattern = '/\b(?:(\d{1,2})\.\s*(\d{1,2})\.\s*|(\d{1,2})\/)?(1[5-9]\d\d|20\d\d)\b/u';
+		if (preg_match($pattern, $fact, $m) !== 1) {
+			return null;
+		}
+
+		$month = (int) ($m[2] !== '' ? $m[2] : $m[3]);
+
+		return [(int) $m[4], $month * 100 + (int) $m[1]];
 	}
 
 	public function kindLabel(string $kind): string
