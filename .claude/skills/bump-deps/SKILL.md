@@ -101,6 +101,14 @@ pnpm build
 pnpm audit --prod      # the CI audit step
 gh api 'repos/marekskopal/rodokmen-web/dependabot/alerts?state=open' --jq '.[].security_advisory.summary'
 ```
+**Minimum release age.** pnpm refuses versions younger than its `minimumReleaseAge` (a supply-chain
+policy). `pnpm view` ignores it, `pnpm outdated` respects it — so when the two differ, take the
+version `pnpm outdated` offers. If `pnpm install` creates a `pnpm-workspace.yaml` with a
+`minimumReleaseAgeExclude` list, never commit it: delete it, step the too-fresh package back to the
+newest allowed version, then `pnpm clean --lockfile && pnpm install` and confirm
+`pnpm install --frozen-lockfile` passes (CI uses it and would reject the lock otherwise). The
+too-fresh version goes into the next bump.
+
 When a vulnerable transitive is held back by an exact upstream pin, add a patch-level entry under
 `pnpm.overrides` (or `overrides:` in a `pnpm-workspace.yaml` if one exists by then), and drop it
 again once upstream catches up.
