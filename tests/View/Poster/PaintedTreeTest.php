@@ -204,7 +204,7 @@ final class PaintedTreeTest extends TestCase
 		$nodes = new PaintedLayout(new PaintedSpread())->nodes($this->demoPlaces(), 800, 500, new PosterRandom('forks'));
 		$limbs = new PaintedLimbs(new PosterBrush());
 
-		$forks = 0;
+		$forks = [];
 		foreach ($nodes as $g => $row) {
 			foreach ($row as $i => $node) {
 				$starts = [];
@@ -235,12 +235,12 @@ final class PaintedTreeTest extends TestCase
 					continue;
 				}
 
-				$forks++;
+				$forks[$g . '.' . $i] = true;
 				self::assertLessThanOrEqual($node->x, $starts[0], 'the father\'s branch on the left');
 				self::assertGreaterThanOrEqual($node->x, $starts[1]);
 			}
 		}
-		self::assertGreaterThan(10, $forks);
+		self::assertGreaterThan(10, count($forks));
 	}
 
 	/** @return array<int, array<int, ?Person>> places of six generations of the demo family */
