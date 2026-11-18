@@ -7,7 +7,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
 
 # Front-end libraries (Leaflet, the EB Garamond font) from package.json / pnpm-lock.yaml → public/assets/vendor (without the test tools).
-FROM node:24.22.3-alpine AS assets
+FROM node:26.13.1-alpine AS assets
 WORKDIR /app
 RUN npm install --global --no-fund --no-audit pnpm@12.22.0
 COPY package.json pnpm-lock.yaml ./

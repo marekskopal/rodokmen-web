@@ -101,6 +101,14 @@ pnpm build
 pnpm audit --prod      # the CI audit step
 gh api 'repos/marekskopal/rodokmen-web/dependabot/alerts?state=open' --jq '.[].security_advisory.summary'
 ```
+**Minimum release age.** pnpm refuses versions younger than its `minimumReleaseAge` (a supply-chain
+policy). `pnpm view` ignores it, `pnpm outdated` respects it — so when the two differ, take the
+version `pnpm outdated` offers. If `pnpm install` creates a `pnpm-workspace.yaml` with a
+`minimumReleaseAgeExclude` list, never commit it: delete it, step the too-fresh package back to the
+newest allowed version, then `pnpm clean --lockfile && pnpm install` and confirm
+`pnpm install --frozen-lockfile` passes (CI uses it and would reject the lock otherwise). The
+too-fresh version goes into the next bump.
+
 When a vulnerable transitive is held back by an exact upstream pin, add a patch-level entry under
 `pnpm.overrides` (or `overrides:` in a `pnpm-workspace.yaml` if one exists by then), and drop it
 again once upstream catches up.
@@ -128,7 +136,7 @@ never switch to a floating tag like `8.5-apache`):
 | Image | Tag shape | Note |
 |---|---|---|
 | `composer` | `2.X.Y` | |
-| `node` | `24.X.Y-alpine` | stay on the major CI uses (`node-version: '24'` in `ci.yml`) |
+| `node` | `26.X.Y-alpine` | stay on the major CI uses (`node-version: '26'` in `ci.yml`) |
 | `mlocati/php-extension-installer` | `2.X.Y` | |
 | `php` | `8.5.Z-apache` | stay on 8.5 (`composer.json` platform, CI `php-version: '8.5'`); a new PHP minor is a deliberate decision → report in Step 5 |
 
@@ -137,7 +145,7 @@ Query Docker Hub for published tags (official images live under `library/`):
 tags() { curl -s "https://hub.docker.com/v2/repositories/$1/tags?page_size=100&name=$2" \
   | python3 -c "import json,sys; print('\n'.join(t['name'] for t in json.load(sys.stdin)['results']))"; }
 tags library/php 8.5. | grep -E '^8\.5\.[0-9]+-apache$' | sort -V | tail -1
-tags library/node 24. | grep -E '^24\.[0-9]+\.[0-9]+-alpine$' | sort -V | tail -1
+tags library/node 26. | grep -E '^26\.[0-9]+\.[0-9]+-alpine$' | sort -V | tail -1
 tags library/composer 2. | grep -E '^2\.[0-9]+\.[0-9]+$' | sort -V | tail -1
 tags mlocati/php-extension-installer 2. | grep -E '^2\.[0-9]+\.[0-9]+$' | sort -V | tail -1
 ```
@@ -187,7 +195,7 @@ Surface everything that could NOT be updated so the user can decide on majors:
 composer outdated --direct
 pnpm outdated
 ```
-plus Docker images with a newer major/minor than allowed (`php` 8.6/9, `node` 26, `composer` 3, …)
+plus Docker images with a newer major/minor than allowed (`php` 8.6/9, `node` 28, `composer` 3, …)
 and GitHub Actions in `.github/workflows/*.yml` with a newer major (`actions/checkout@v7`, …; they
 are pinned to majors, so only majors can be behind). Report a concise summary: dependency, current
 vs latest, and whether it is a **major** (manual decision) or held by something else. Do **not**
