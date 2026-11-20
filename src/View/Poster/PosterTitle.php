@@ -44,18 +44,10 @@ final readonly class PosterTitle
 		PosterRandom $random,
 	): string
 	{
-		$initial = $style->isOrnate() ? $this->initial($heading) : '';
-		$rest = mb_substr($heading, mb_strlen($initial));
-		// The initial is as tall as both lines; the text starts beside it.
-		$indent = $initial === '' ? 0.0 : self::box($size, $size * self::Sub) * (1 + self::Gap);
-		$subSize = $this->geometry->fit($subtitle, $available - $indent, $size * self::Sub);
-		$size = $this->geometry->fit($rest, $available - $indent, $size);
-		$side = self::box($size, $subSize);
+		[$initial, $rest, $size, $subSize, $side, $width] = $this->measure($style, $heading, $subtitle, $size, $available);
 		$x = $initial === '' ? $left : $left + $side * (1 + self::Gap);
-		// The glyph width is an average; wide capitals get a little room to spare.
-		$textWidth = max(mb_strlen($rest) * $size, mb_strlen($subtitle) * $subSize) * FanGeometry::GlyphWidth * 1.1;
 
-		$out = $this->decor->cartouche($style, $left, $top, min($available, $x - $left + $textWidth), $side, $pad, $random->fork('scroll'));
+		$out = $this->decor->cartouche($style, $left, $top, $width, $side, $pad, $random->fork('scroll'));
 		$first = '';
 		if ($initial !== '') {
 			$letter = $side * .8;
@@ -91,6 +83,46 @@ final readonly class PosterTitle
 				$subSize,
 				$this->view->e($subtitle),
 			);
+	}
+
+	/**
+	 * Width and height of what draw() puts below and right of its top left corner: the text, and in the historical
+	 * style the scroll around it.
+	 *
+	 * @return array{float, float}
+	 */
+	public function extent(PosterStyle $style, string $heading, string $subtitle, float $size, float $available, float $pad): array
+	{
+		[, , , $subSize, $side, $width] = $this->measure($style, $heading, $subtitle, $size, $available);
+		$height = $side + $subSize * .2;
+		if (!$style->isOrnate()) {
+			return [$width, $height];
+		}
+
+		// The scroll reaches $pad beyond the text, its rolls a little more (PosterDecor::cartouche()).
+		return [$width + $pad * 1.5, $height + $pad * 1.3];
+	}
+
+	/**
+	 * The heading split into its illuminated initial and the rest, fitted to $available.
+	 *
+	 * @return array{string, string, float, float, float, float} initial, rest of the heading, size of the heading and
+	 *     of the subtitle, side of the initial's square (the height of both lines) and the width of the text
+	 */
+	private function measure(PosterStyle $style, string $heading, string $subtitle, float $size, float $available): array
+	{
+		$initial = $style->isOrnate() ? $this->initial($heading) : '';
+		$rest = mb_substr($heading, mb_strlen($initial));
+		// The initial is as tall as both lines; the text starts beside it.
+		$indent = $initial === '' ? 0.0 : self::box($size, $size * self::Sub) * (1 + self::Gap);
+		$subSize = $this->geometry->fit($subtitle, $available - $indent, $size * self::Sub);
+		$size = $this->geometry->fit($rest, $available - $indent, $size);
+		$side = self::box($size, $subSize);
+		$offset = $initial === '' ? 0.0 : $side * (1 + self::Gap);
+		// The glyph width is an average; wide capitals get a little room to spare.
+		$textWidth = max(mb_strlen($rest) * $size, mb_strlen($subtitle) * $subSize) * FanGeometry::GlyphWidth * 1.1;
+
+		return [$initial, $rest, $size, $subSize, $side, min($available, $offset + $textWidth)];
 	}
 
 	/** Height of the heading and the subtitle without its descenders: the side of the initial's square. */
