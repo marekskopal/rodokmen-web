@@ -158,7 +158,7 @@ final readonly class Poster
 			$this->fan->render($generations, $options->style, $radius, $half, $defs),
 		);
 
-		$rows = $this->footerRows($generations, $options->style);
+		$rows = $this->footerRows($generations, $options->style, $this->heading($root, $options));
 		$footerSize = max(self::MinFooterFont, $radius * .022);
 		$footer = $this->footer($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
 
@@ -212,7 +212,7 @@ final readonly class Poster
 		);
 
 		// The painted tree colours men and women, not the family lines: it lists no lines.
-		$rows = $this->footerRows($generations, $options->style, !$painted);
+		$rows = $this->footerRows($generations, $options->style, $this->heading($root, $options), !$painted);
 		[$cornerWidth, $cornerHeight] = $painted
 			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight)
 			: $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
@@ -260,13 +260,14 @@ final readonly class Poster
 	}
 
 	/**
-	 * Family lines with their colours, a note on uncertain ancestors, the website and the date.
+	 * Family lines with their colours, a note on uncertain ancestors, the heading of the poster and the date.
 	 *
 	 * @param non-empty-list<list<?string>> $generations the drawn ancestors
+	 * @param string $heading the poster's heading, repeated beside the date
 	 * @param bool $lines whether to list the family lines
 	 * @return non-empty-list<array{string, string, ?string}> [text, CSS class, colour]
 	 */
-	private function footerRows(array $generations, PosterStyle $style, bool $lines = true): array
+	private function footerRows(array $generations, PosterStyle $style, string $heading, bool $lines = true): array
 	{
 		// The person is drawn in the accent colour, not in the colour of a family line.
 		$drawn = [];
@@ -284,7 +285,7 @@ final readonly class Poster
 			}
 		}
 		$rows[] = ['kurzívou pravděpodobní nebo nejistí předci', 'pst-t pst-prob pst-muted', null];
-		$rows[] = [$this->repository->title() . ' · ' . $style->date(new DateTimeImmutable()), 'pst-t pst-muted', null];
+		$rows[] = [$heading . ' · ' . $style->date(new DateTimeImmutable()), 'pst-t pst-muted', null];
 
 		return $rows;
 	}

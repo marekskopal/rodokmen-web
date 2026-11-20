@@ -107,6 +107,7 @@ final class PosterTest extends TestCase
 		$svg = $this->poster->render($this->root(), $options)->svg;
 
 		self::assertStringContainsString('>Rod &lt;Nováků&gt; &amp; spol.</text>', $svg);
+		self::assertStringContainsString('>Rod &lt;Nováků&gt; &amp; spol. · ', $svg, 'the footer names the poster as its heading');
 		self::assertStringContainsString('viewBox="0 0 297 420"', $svg);
 	}
 
