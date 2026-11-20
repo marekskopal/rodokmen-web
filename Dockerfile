@@ -1,10 +1,13 @@
 # rodokmen-web – private family tree website, PHP 8.5 + Apache.
 # The data are not part of the image: they live in the var/ volume and are uploaded with bin/rodokmen-sync.
 # Base images are pinned to exact versions, so that a rebuild gives the same image; raise them deliberately.
+# The composer image only fetches the libraries: its PHP extensions change with its rebuilds (2.11.2 lost mbstring),
+# so they are checked against the PHP image that runs the site instead (check-platform-reqs below).
 FROM composer:2.11.2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
+RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts \
+    --ignore-platform-req='ext-*'
 
 # Front-end libraries (Leaflet, the EB Garamond font) from package.json / pnpm-lock.yaml → public/assets/vendor (without the test tools).
 FROM node:26.13.1-alpine AS assets
@@ -52,6 +55,11 @@ RUN a2enmod rewrite headers \
 
 WORKDIR /var/www/site
 COPY --from=vendor /app/vendor ./vendor
+# The PHP extensions the libraries need are in this image; Composer and its files are only mounted for the check.
+RUN --mount=type=bind,from=vendor,source=/usr/bin/composer,target=/usr/local/bin/composer \
+    --mount=type=bind,from=vendor,source=/app/composer.json,target=/var/www/site/composer.json \
+    --mount=type=bind,from=vendor,source=/app/composer.lock,target=/var/www/site/composer.lock \
+    composer check-platform-reqs --no-dev --no-interaction
 COPY public ./public
 COPY --from=assets /app/public/assets/vendor ./public/assets/vendor
 COPY src ./src

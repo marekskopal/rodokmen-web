@@ -44,6 +44,9 @@ working.
 
 - **README:** a screenshot of the historical painted tree.
 
+- **Docker image** builds again after the `composer` base image dropped the mbstring extension: the PHP extensions
+  the libraries need are checked in the image that runs the site.
+
 - **Historical poster: an illuminated border.** The double rule with diamonds in the corners gave way to a border
   like the margin of a medieval manuscript: a vermilion band between ink and gold rules, a gold vine with leaves,
   tendrils, berries and flowers winding along it, and a gold quatrefoil on lapis in every corner. Drawn by an
