@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
-use const M_PI;
-
 /**
  * Paints the wood of the tree the way a pen-and-wash drawing does: a brown wash, a darker shade along one side,
  * a lighter streak along the other, ink outlines that do not quite follow the wash, and a few lines of bark.
@@ -20,7 +18,10 @@ final readonly class PaintedWood
 
 	private const Grass = '#6f8a3c';
 
-	private const GrassInk = '#44602a';
+	public const GrassInk = '#44602a';
+
+	/** Limbs at least this many times thicker than their grain are hatched along their shaded side. */
+	private const Hatched = 3.0;
 
 	public function __construct(private PosterBrush $brush)
 	{
@@ -30,7 +31,7 @@ final readonly class PaintedWood
 	public function limb(PaintedLimb $limb, PosterStyle $style, PosterRandom $random, float $grain): string
 	{
 		$ink = $style->tint(self::Ink);
-		$line = max(.1, min(.45, $limb->thickness() * .05));
+		$line = max(.12, min(.55, $limb->thickness() * .06));
 		$out = sprintf('<path d="%s" fill="%s"/>', $this->brush->stroke($limb->spine, $limb->widths), $style->tint(self::Bark))
 			. $this->streak($limb, .5, .5, $ink, .22)
 			. $this->streak($limb, -.55, .3, $style->tint(self::Light), .3);
@@ -47,8 +48,11 @@ final readonly class PaintedWood
 		for ($k = 0; $k < min(4, (int) ($limb->thickness() / max($grain, .01))); $k++) {
 			$lines .= $this->barkLine($limb, $random, $line * .7);
 		}
+		if ($limb->thickness() >= $grain * self::Hatched) {
+			$lines .= $this->hatching($limb, $line * .55, $random);
+		}
 
-		return $out . sprintf('<g fill="none" stroke="%s" stroke-opacity=".8" stroke-linecap="round">%s</g>', $ink, $lines);
+		return $out . sprintf('<g fill="none" stroke="%s" stroke-opacity=".88" stroke-linecap="round">%s</g>', $ink, $lines);
 	}
 
 	/** Grassy mound at the bottom edge: an uneven wash with an inked ridge and tufts of grass. */
@@ -58,7 +62,7 @@ final readonly class PaintedWood
 		$ridge = [[$cx - $half, $bottom]];
 		for ($k = 1; $k <= $steps; $k++) {
 			$t = $k / $steps;
-			$hill = sin(M_PI * $t) ** 1.4;
+			$hill = PaintedMeadow::hill($t);
 			$ridge[] = [$cx - $half + 2 * $half * $t, $bottom - $rise * $hill * (1 + $random->float(-.1, .1) * $hill)];
 		}
 
@@ -101,6 +105,39 @@ final readonly class PaintedWood
 			$color,
 			$opacity,
 		);
+	}
+
+	/**
+	 * Short slanting strokes of the pen from the shaded edge of the limb inwards, as engravers and illuminators
+	 * shade, about as far apart as a seventh of the limb's width.
+	 */
+	private function hatching(PaintedLimb $limb, float $width, PosterRandom $random): string
+	{
+		$edge = $this->brush->offset($limb->spine, $limb->widths, .92);
+		$inner = $this->brush->offset($limb->spine, $limb->widths, .3);
+		$d = '';
+		$last = count($edge) - 1;
+		for ($i = 0; $i < $last; $i++) {
+			$gap = max(.2, ($limb->widths[$i] ?? $limb->widths[0]) * .14);
+			$steps = max(1, (int) round(hypot($edge[$i + 1][0] - $edge[$i][0], $edge[$i + 1][1] - $edge[$i][1]) / $gap));
+			for ($s = 0; $s < $steps; $s++) {
+				$t = $s / $steps;
+				// The stroke slants forward along the limb and reaches in a little more or less.
+				$reach = $random->float(.6, 1);
+				$u = min(1, $t + .6 / $steps);
+				$from = [$edge[$i][0] + ($edge[$i + 1][0] - $edge[$i][0]) * $t, $edge[$i][1] + ($edge[$i + 1][1] - $edge[$i][1]) * $t];
+				$to = [$inner[$i][0] + ($inner[$i + 1][0] - $inner[$i][0]) * $u, $inner[$i][1] + ($inner[$i + 1][1] - $inner[$i][1]) * $u];
+				$d .= sprintf(
+					'M%.2f,%.2f L%.2f,%.2f',
+					$from[0],
+					$from[1],
+					$from[0] + ($to[0] - $from[0]) * $reach,
+					$from[1] + ($to[1] - $from[1]) * $reach,
+				);
+			}
+		}
+
+		return $d === '' ? '' : sprintf('<path class="pst-hatch" d="%s" stroke-width="%.2f" stroke-opacity=".6"/>', $d, $width);
 	}
 
 	/** A line of bark running along a part of the limb. */

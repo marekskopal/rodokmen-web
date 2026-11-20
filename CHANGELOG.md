@@ -24,6 +24,11 @@ number changes only when old clients or servers could not read it – see *Bundl
   gold square with white pen work) as tall as both lines, the subtitle is written in red, and the footer is dated
   "dne 20. 11. léta Páně MMXXVI". The simple style is unchanged.
 
+- **Painted tree: a flowering meadow and pen-hatched wood.** The mound under the tree is strewn with little
+  flowers in white, vermilion and lapis with golden hearts, tufts of grass and wild strawberries, like the
+  millefleurs grounds of old illuminations, as dense on A0 as on A3. The trunk and the thick branches are shaded
+  with short strokes of the pen along their shaded side, and their ink outline is a little stronger.
+
 ## [1.2.1] - 2026-11-19
 
 The person page tells a life in order, and the dependencies are up to date.

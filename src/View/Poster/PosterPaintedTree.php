@@ -35,6 +35,7 @@ final readonly class PosterPaintedTree
 		private PaintedLayout $layout,
 		private PaintedLimbs $limbs,
 		private PaintedWood $wood,
+		private PaintedMeadow $meadow,
 		private PaintedFoliage $foliage,
 		private PaintedPlaque $plaque,
 	) {
@@ -49,7 +50,8 @@ final readonly class PosterPaintedTree
 		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
 		$space = new PaintedSpace($nodes, $width, $height, $unit, $this->layout->top($height, $unit), $cornerWidth, $cornerHeight);
 
-		$wood = $this->trunk($nodes[0][0] ?? null, $height, $this->layout->trunk($width, $unit), $style, $random);
+		$trunk = $this->layout->trunk($width, $unit);
+		$wood = $this->trunk($nodes[0][0] ?? null, $height, $trunk, $style, $random);
 		$leaves = '';
 		$plaques = '';
 		foreach ($nodes as $g => $row) {
@@ -82,14 +84,21 @@ final readonly class PosterPaintedTree
 		usort($wood, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
 		// The mound lies under the trunk, as far as it fits on the sheet beside the corner of the legend.
 		$half = $width * PaintedLayout::GroundWidth;
-		$ground = $this->wood->ground(
-			max($half, min($width - $cornerWidth - $half, $nodes[0][0]->x ?? $width / 2)),
-			$height,
-			$half,
-			$height * PaintedLayout::GroundHeight * 1.1,
-			$style,
-			$random->fork('ground'),
-		);
+		$cx = max($half, min($width - $cornerWidth - $half, $nodes[0][0]->x ?? $width / 2));
+		$rise = $height * PaintedLayout::GroundHeight * 1.1;
+		$ground = $this->wood->ground($cx, $height, $half, $rise, $style, $random->fork('ground'))
+			// Clear of the trunk; the roots are drawn over the flowers, as if they grew between them.
+			. $this->meadow->draw(
+				$cx,
+				$height,
+				$half,
+				$rise,
+				$nodes[0][0]->x ?? $cx,
+				$trunk * 1.1,
+				$space,
+				$style,
+				$random->fork('meadow'),
+			);
 
 		return $ground . implode('', array_column($wood, 1)) . $leaves . $plaques;
 	}
