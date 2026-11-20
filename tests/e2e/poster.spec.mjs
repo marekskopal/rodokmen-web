@@ -60,6 +60,8 @@ test.describe('without JavaScript', () => {
 
 test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 	await openPoster(page);
+	// Rounded boxes of the simple style (the historical one cuts their corners).
+	await page.getByLabel('Styl').selectOption('jednoduchy');
 	for (const layout of ['strom', 'strom-vpravo']) {
 		await page.getByLabel('Rozvržení').selectOption(layout);
 		await expect(page).toHaveURL(new RegExp(`rozvrzeni=${layout}`));
@@ -71,8 +73,8 @@ test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 
 test('the painted tree grows a trunk, branches, leaves and name ribbons', async ({ page }) => {
 	await openPoster(page);
-	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
-	await expect(page).toHaveURL(/rozvrzeni=maleny-strom/);
+	// The painted tree is the default layout.
+	await expect(page.getByLabel('Rozvržení')).toHaveValue('maleny-strom');
 	// Every leaf is a small turned group; wood and ribbons are paths.
 	expect(await page.locator('.poster-sheet svg g[transform*="rotate"]').count()).toBeGreaterThan(50);
 	expect(await page.locator('.poster-sheet svg path').count()).toBeGreaterThan(300);
@@ -84,8 +86,8 @@ test('the painted tree grows a trunk, branches, leaves and name ribbons', async 
 
 test('the historical style decorates the poster and the SVG can be downloaded', async ({ page }) => {
 	await openPoster(page);
-	await page.getByLabel('Styl').selectOption('historicky');
-	await expect(page).toHaveURL(/styl=historicky/);
+	// The historical style is the default.
+	await expect(page.getByLabel('Styl')).toHaveValue('historicky');
 	await expect(page.locator('.poster-sheet svg rect[fill="url(#pst-paper)"]')).toHaveCount(1);
 	// The font of the historical style is self-hosted and loads under the Content-Security-Policy.
 	await page.evaluate(() => document.fonts.ready);

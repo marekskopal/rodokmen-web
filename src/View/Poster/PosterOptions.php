@@ -30,12 +30,12 @@ final readonly class PosterOptions
 		$title = trim((string) preg_replace('/\s+/u', ' ', self::string($query, 'nadpis')));
 
 		return new self(
-			PosterLayout::tryFrom(self::string($query, 'rozvrzeni')) ?? PosterLayout::Fan,
+			PosterLayout::tryFrom(self::string($query, 'rozvrzeni')) ?? PosterLayout::PaintedTree,
 			PaperFormat::tryFrom(self::string($query, 'format')) ?? PaperFormat::A1,
 			Orientation::tryFrom(self::string($query, 'orientace')) ?? Orientation::Landscape,
 			// At least one generation when there is any
 			max(min(1, $available), min($available, $depth)),
-			PosterStyle::tryFrom(self::string($query, 'styl')) ?? PosterStyle::Simple,
+			PosterStyle::tryFrom(self::string($query, 'styl')) ?? PosterStyle::Historical,
 			mb_substr($title, 0, self::MaxTitleLength),
 		);
 	}

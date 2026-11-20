@@ -13,14 +13,15 @@ use Rodokmen\Site\View\Poster\PosterStyle;
 
 final class PosterOptionsTest extends TestCase
 {
-	public function testDefaultsToALandscapeA1FanOfAllGenerations(): void
+	public function testDefaultsToALandscapeA1HistoricalPaintedTreeOfAllGenerations(): void
 	{
 		$options = PosterOptions::fromQuery([], 7);
 
-		self::assertSame(PosterLayout::Fan, $options->layout);
+		self::assertSame(PosterLayout::PaintedTree, $options->layout);
 		self::assertSame(PaperFormat::A1, $options->format);
 		self::assertSame(Orientation::Landscape, $options->orientation);
 		self::assertSame(7, $options->depth);
+		self::assertSame(PosterStyle::Historical, $options->style);
 		self::assertSame('', $options->title);
 		self::assertSame([841, 594], [$options->width(), $options->height()]);
 		self::assertSame('poster-a1-landscape', $options->pageName());
@@ -58,7 +59,7 @@ final class PosterOptionsTest extends TestCase
 			7,
 		);
 
-		self::assertSame(PosterLayout::Fan, $options->layout);
+		self::assertSame(PosterLayout::PaintedTree, $options->layout);
 		self::assertSame(PaperFormat::A1, $options->format);
 		self::assertSame(Orientation::Landscape, $options->orientation);
 		self::assertSame(7, $options->depth);
