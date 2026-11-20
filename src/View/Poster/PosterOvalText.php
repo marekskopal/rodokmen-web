@@ -14,15 +14,16 @@ use Rodokmen\Site\View\View;
  * Names and years on the oval plaques of the painted tree, as large as the oval allows. The middle of an oval is
  * wider than its ends, so a long name may run nearly from end to end as long as its lines are thin – or take a line
  * for the given names and one for the surname, over the years. The corners of every line keep within a share of
- * the rim. All ovals of a generation write the same way, so the one that needs the most room decides.
+ * the rim, given for each axis. All ovals of a generation write the same way, so the one that needs the most room
+ * decides.
  */
 final readonly class PosterOvalText
 {
 	/** More lines only for letters at least this much larger. */
 	private const MoreLines = 1.05;
 
-	/** Lines are this many letter sizes apart; letters stand this much of their size above the baseline. */
-	private const Leading = 1.05;
+	/** Lines are as many letter sizes apart as their letters reach: one line's descenders touch the next one's accents. */
+	private const Leading = PosterBoxText::Ascent + PosterBoxText::Descent;
 
 	/** One line, the name over the years, and the given names over the surname over the years. */
 	private const Layouts = [[false, false], [true, false], [true, true]];
@@ -31,15 +32,21 @@ final readonly class PosterOvalText
 	{
 	}
 
-	/** @param list<Person> $people the ancestors of one generation, in ovals of $width × $height */
-	public function fit(array $people, float $width, float $height, float $maxFont, float $inside): BoxText
+	/**
+	 * @param list<Person> $people the ancestors of one generation, in ovals of $width × $height
+	 * @param float $insideWidth share of the oval's width that the text keeps within
+	 * @param float $insideHeight share of the oval's height that the text keeps within
+	 */
+	public function fit(array $people, float $width, float $height, float $maxFont, float $insideWidth, float $insideHeight): BoxText
 	{
+		// The half-axes of the ellipse the text keeps within.
+		[$rx, $ry] = [$width * $insideWidth / 2, $height * $insideHeight / 2];
 		$extents = array_map(
 			fn (array $layout): array => $this->extents($people, new BoxText(1.0, $layout[0], false, $layout[1])),
 			self::Layouts,
 		);
-		$across = $this->best($extents, $width / 2, $height / 2, false, $maxFont, $inside);
-		$along = $this->best($extents, $height / 2, $width / 2, true, $maxFont, $inside);
+		$across = $this->best($extents, $rx, $ry, false, $maxFont);
+		$along = $this->best($extents, $ry, $rx, true, $maxFont);
 
 		return $along->size > $across->size * PosterBoxText::AlongBonus ? $along : $across;
 	}
@@ -74,7 +81,7 @@ final readonly class PosterOvalText
 	 *
 	 * @param list<list<array{float, float}>> $extents everybody's lines in each of the Layouts, from extents()
 	 */
-	private function best(array $extents, float $along, float $across, bool $turned, float $maxFont, float $inside): BoxText
+	private function best(array $extents, float $along, float $across, bool $turned, float $maxFont): BoxText
 	{
 		$best = new BoxText(0.0, false, $turned);
 		foreach (self::Layouts as $i => [$twoLines, $split]) {
@@ -83,7 +90,7 @@ final readonly class PosterOvalText
 			foreach ($extents[$i] ?? [] as [$length, $reach]) {
 				$farthest = max($farthest, ($length / 2 / $along) ** 2 + ($reach / $across) ** 2);
 			}
-			$size = min($maxFont, $inside / sqrt(max(1e-9, $farthest)));
+			$size = min($maxFont, 1 / sqrt(max(1e-9, $farthest)));
 			if ($size > $best->size * self::MoreLines) {
 				$best = new BoxText($size, $twoLines, $turned, $split);
 			}

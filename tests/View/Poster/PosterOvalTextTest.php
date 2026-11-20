@@ -54,17 +54,17 @@ final class PosterOvalTextTest extends TestCase
 		$people = [$this->person('antonin-novak-2024'), $this->person('jan-novak-1990')];
 
 		// A tall narrow oval: the given names over the surname, over the years.
-		$tall = $this->text->fit($people, 27, 43, 20, .78);
+		$tall = $this->text->fit($people, 27, 43, 20, .84, .78);
 		self::assertTrue($tall->split);
 		self::assertGreaterThan(
 			$this->box->fit($people, 27 * .76, 43 * .66, 20)->size * 1.3,
 			$tall->size,
 			'much larger than in the box inside the oval',
 		);
-		self::assertSame(20.0, $this->text->fit($people, 270, 430, 20, .78)->size, 'never above the largest size');
+		self::assertSame(20.0, $this->text->fit($people, 270, 430, 20, .84, .78)->size, 'never above the largest size');
 
 		// A long low oval writes across it, on fewer lines.
-		$wide = $this->text->fit($people, 120, 30, 20, .78);
+		$wide = $this->text->fit($people, 120, 30, 20, .84, .78);
 		self::assertFalse($wide->turned);
 		self::assertFalse($wide->split);
 	}
@@ -72,15 +72,16 @@ final class PosterOvalTextTest extends TestCase
 	public function testSplitNameStaysOneTextInsideTheOval(): void
 	{
 		$person = $this->person('antonin-novak-2024');
-		$text = $this->text->fit([$person], 27, 43, 20, .78);
+		$text = $this->text->fit([$person], 27, 43, 20, .84, .78);
 		$svg = $this->text->write($person, '', 0, 0, $text);
 
 		self::assertSame(1, substr_count($svg, '<text class="pst-t pst-name"'), 'the name is one text');
 		self::assertStringContainsString('>Antonín</tspan> <tspan', $svg, 'read with a space between its lines');
 		self::assertStringContainsString('>Novák</tspan>', $svg);
 
-		// Every line's corners inside the oval; a capital is about .75 of the size.
-		[$along, $across] = $text->turned ? [21.5, 13.5] : [13.5, 21.5];
+		// Every line's corners inside the plaque's inner ring (.88 of its width, .82 of its height); a capital
+		// with its accent stands about .78 of the size above the baseline.
+		[$along, $across] = $text->turned ? [21.5 * .82, 13.5 * .88] : [13.5 * .88, 21.5 * .82];
 		preg_match_all(
 			'/<(?:tspan x="0"|text class="pst-t") y="(-?[\d.]+)"(?: text-anchor="middle" font-size="([\d.]+)")?>([^<]+)</',
 			$svg,
@@ -91,7 +92,7 @@ final class PosterOvalTextTest extends TestCase
 		foreach ($lines as [, $y, $size, $line]) {
 			$letters = $size === '' ? $text->size : (float) $size;
 			$half = mb_strlen($line) * $letters * FanGeometry::GlyphWidth / 2;
-			foreach ([(float) $y - $letters * .75, (float) $y + $letters * .2] as $edge) {
+			foreach ([(float) $y - $letters * .78, (float) $y + $letters * .2] as $edge) {
 				self::assertLessThanOrEqual(1.0, ($half / $along) ** 2 + ($edge / $across) ** 2, $line . ' inside the rim');
 			}
 		}

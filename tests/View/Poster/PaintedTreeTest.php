@@ -117,8 +117,8 @@ final class PaintedTreeTest extends TestCase
 		// Rows 100 high. With 200 to the nearest neighbour a plaque is a ribbon (width at most 4.6 × its height).
 		self::assertEqualsWithDelta([165.6, 36.0, true], $layout->plaqueSize(200, 800, 100), 1e-9);
 		self::assertEqualsWithDelta([94.0, 36.0, true], $layout->plaqueSize(100, 800, 100), 1e-9);
-		// Too narrow for a ribbon, wide enough for the name across: an oval a little over half as high as wide …
-		self::assertEqualsWithDelta([81.0, 44.55, false], $layout->plaqueSize(90, 720, 100), 1e-9);
+		// Too narrow for a ribbon, wide enough for the name across: an oval about two thirds as high as wide …
+		self::assertEqualsWithDelta([81.0, 53.46, false], $layout->plaqueSize(90, 720, 100), 1e-9);
 		// … but never lower than a ribbon,
 		self::assertEqualsWithDelta([54.0, 36.0, false], $layout->plaqueSize(60, 480, 100), 1e-9);
 		self::assertEqualsWithDelta([45.0, 36.0, false], $layout->plaqueSize(50, 800, 100), 1e-9);
