@@ -26,6 +26,7 @@ use Rodokmen\Site\View\Poster\PaintedSpread;
 use Rodokmen\Site\View\Poster\PaintedWood;
 use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
+use Rodokmen\Site\View\Poster\PosterBorder;
 use Rodokmen\Site\View\Poster\PosterBoxText;
 use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterDecor;
@@ -36,6 +37,7 @@ use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\Poster\PosterPaintedTree;
 use Rodokmen\Site\View\Poster\PosterPeople;
+use Rodokmen\Site\View\Poster\PosterPigments;
 use Rodokmen\Site\View\Poster\PosterStyle;
 use Rodokmen\Site\View\Poster\PosterTree;
 use Rodokmen\Site\View\View;
@@ -220,8 +222,9 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('font-family="&quot;EB Garamond&quot;', $svg);
 		self::assertStringContainsString('@font-face{font-family:"EB Garamond"', $svg);
 		self::assertStringContainsString('/assets/vendor/@fontsource/eb-garamond/', $svg, 'the page links the font files');
-		// Eight diamonds of the frame and the person (whose ribbon in the painted tree has tails and folds too)
-		self::assertSame($layout === PosterLayout::PaintedTree ? 13 : 9, substr_count($svg, 'fill="#6e2417"'));
+		self::assertSame(4, preg_match_all('/<rect [^>]*fill="' . PosterPigments::Lapis . '"/', $svg), 'four corner medallions');
+		// The person (whose ribbon in the painted tree has tails and folds too)
+		self::assertSame($layout === PosterLayout::PaintedTree ? 5 : 1, substr_count($svg, 'fill="#6e2417"'));
 		self::assertStringContainsString('Josef Novák', $svg);
 		if ($layout === PosterLayout::PaintedTree) {
 			// The painted tree colours Jan Novák (generation 1, the father) in the men's blue, mixed with sepia.
@@ -247,6 +250,7 @@ final class PosterTest extends TestCase
 		$svg = $this->poster->render($this->root(), $this->options(PosterLayout::Tree))->svg;
 
 		self::assertStringNotContainsString('pst-paper', $svg);
+		self::assertStringNotContainsString(PosterPigments::Vermilion, $svg, 'no border');
 		self::assertStringNotContainsString('@font-face', $svg);
 		self::assertStringContainsString('fill="#336699"', $svg, 'the line colour as it is');
 	}
@@ -488,6 +492,7 @@ final class PosterTest extends TestCase
 			$tree,
 			$painted,
 			new PosterDecor(),
+			new PosterBorder($brush),
 			new PosterFonts($config),
 			new PosterHeading($repository, new HomePerson($repository, $config)),
 			$geometry,
