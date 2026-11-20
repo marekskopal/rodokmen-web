@@ -19,10 +19,22 @@ use const INF;
 final readonly class PosterBoxText
 {
 	/** Boxes write their text along themselves only when that gives letters this much larger. */
-	private const AlongBonus = 1.15;
+	public const AlongBonus = 1.15;
 
 	/** Size of the years relative to the name when they have a line of their own. */
-	private const YearsSize = .8;
+	public const YearsSize = .8;
+
+	/** How far letters reach above and below their baseline, relative to their size. */
+	public const Ascent = .78;
+
+	private const Descent = .2;
+
+	/** Baselines of the name and of the years on two lines, and of a single line, relative to the name's size. */
+	private const NameBaseline = -.2;
+
+	private const YearsBaseline = .77;
+
+	private const LineBaseline = .35;
 
 	public function __construct(private View $view, private FanGeometry $geometry, private FanLabels $labels, private FanYears $years,)
 	{
@@ -47,19 +59,40 @@ final readonly class PosterBoxText
 		$out = sprintf('<g transform="translate(%.1f,%.1f)%s">', $cx, $cy, $text->turned ? ' rotate(-90)' : '');
 		if ($text->twoLines && $years !== '') {
 			return $out
-				. $this->labels->text('pst-t pst-name' . $class, -$size * .2, $size, $person->name)
-				. $this->labels->text('pst-t' . $class, $size * .77, $size * self::YearsSize, $years)
+				. $this->labels->text('pst-t pst-name' . $class, $size * self::NameBaseline, $size, $person->name)
+				. $this->labels->text('pst-t' . $class, $size * self::YearsBaseline, $size * self::YearsSize, $years)
 				. '</g>';
 		}
 
 		return $out . sprintf(
 			'<text class="pst-t pst-name%s" y="%.1f" text-anchor="middle" font-size="%.1f">%s%s</text></g>',
 			$class,
-			$size * .35,
+			$size * self::LineBaseline,
 			$size,
 			$this->view->e($person->name),
 			$years !== '' ? ' <tspan class="pst-years">' . $this->view->e($years) . '</tspan>' : '',
 		);
+	}
+
+	/**
+	 * The lines write() draws for the person at letters 1 high: their length and how far their letters reach from
+	 * the middle across them (the name's tops above, the years' tails below, or both of a single line).
+	 *
+	 * @return list<array{float, float}>
+	 */
+	public function extents(Person $person, bool $twoLines): array
+	{
+		$years = $this->years->format($person->y);
+		if ($twoLines && $years !== '') {
+			return [
+				[FanGeometry::GlyphWidth * mb_strlen($person->name), self::Ascent - self::NameBaseline],
+				[FanGeometry::GlyphWidth * mb_strlen($years) * self::YearsSize, self::YearsBaseline + self::Descent * self::YearsSize],
+			];
+		}
+
+		$length = FanGeometry::GlyphWidth * mb_strlen(trim($person->name . ' ' . $years));
+
+		return [[$length, max(self::LineBaseline + self::Descent, self::Ascent - self::LineBaseline)]];
 	}
 
 	/**

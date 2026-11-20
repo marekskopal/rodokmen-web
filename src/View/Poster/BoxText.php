@@ -14,6 +14,8 @@ final readonly class BoxText
 		public bool $twoLines,
 		/** Turned by 90° to run along a tall box. */
 		public bool $turned,
+		/** The name on two lines too: the given names over the surname (oval plaques of the painted tree). */
+		public bool $split = false,
 	) {
 	}
 }

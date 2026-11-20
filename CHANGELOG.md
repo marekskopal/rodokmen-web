@@ -34,6 +34,12 @@ number changes only when old clients or servers could not read it – see *Bundl
   gather towards the edges. Different for every person, the same every time, all vector, and the ink keeps its
   contrast (WCAG AA) on the darkest spot.
 
+- **Painted tree: larger names in the ovals.** The names on the oval plaques are fitted to the oval itself rather
+  than to a box inside it, and may take a line for the given names and one for the surname (a birth surname
+  after "roz." and a note in brackets stay with it). On a crowded A1 the letters are almost twice as large. When
+  the number of generations is left to the poster, the room gained may go to one more generation instead. The
+  ribbons are unchanged.
+
 ## [1.2.1] - 2026-11-19
 
 The person page tells a life in order, and the dependencies are up to date.
