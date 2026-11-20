@@ -49,6 +49,8 @@ invented.
 | ![Person page](docs/screenshots/person.webp) | ![Map of places](docs/screenshots/map.webp) |
 | Person: life, family, register entries, places | Map of the places, coloured by line |
 
+![Ancestor poster: the painted tree in the historical style](docs/screenshots/painted-tree.webp)
+
 ![Ancestor explorer in dark mode](docs/screenshots/explorer-dark.webp)
 
 ## How the data get to the website
