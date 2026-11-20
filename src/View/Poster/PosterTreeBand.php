@@ -27,12 +27,13 @@ final readonly class PosterTreeBand
 	 * @param array{float, float} $area width and height of the area inside the margins
 	 * @param array{float, float} $title width and height of the title in the area's top left corner (PosterTitle::extent())
 	 * @param float $size the heading's size
+	 * @param bool $subtitle whether the title has a subtitle
 	 * @return float how far below the top of the area the tree starts
 	 */
-	public function of(PosterLayout $layout, array $generations, array $area, array $title, float $size): float
+	public function of(PosterLayout $layout, array $generations, array $area, array $title, float $size, bool $subtitle): float
 	{
 		[$width, $height] = $area;
-		$band = $this->title->height($size) + $size * .8;
+		$band = $this->title->height($size, $subtitle) + $size * .8;
 		for ($step = 0; $step < self::Steps; $step++) {
 			$shift = $band * $step / self::Steps;
 			if ($this->clear($this->boxes($layout, $generations, $width, $height - $shift), $shift, $title, $size * self::Clearance)) {

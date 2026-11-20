@@ -153,7 +153,7 @@ final class KernelTest extends TestCase
 
 	public function testDrawsTheAncestorPoster(): void
 	{
-		$response = $this->get('/predci/antonin-novak-2024/plakat', loggedIn: true);
+		$response = $this->get('/predci/antonin-novak-2024/plakat?styl=jednoduchy', loggedIn: true);
 		$body = (string) $response->getBody();
 
 		self::assertSame(200, $response->getStatusCode(), $body);
@@ -164,7 +164,7 @@ final class KernelTest extends TestCase
 		self::assertStringContainsString('Josef Novák', $body);
 		self::assertStringContainsString('data-print', $body);
 
-		$query = '?rozvrzeni=pulvejir&format=a3&orientace=na-vysku&generace=1&nadpis=Rod+Nov%C3%A1k%C5%AF';
+		$query = '?rozvrzeni=pulvejir&format=a3&orientace=na-vysku&generace=1&styl=jednoduchy&nadpis=Rod+Nov%C3%A1k%C5%AF';
 		$chosen = (string) $this->get('/predci/antonin-novak-2024/plakat' . $query, loggedIn: true)->getBody();
 		self::assertStringContainsString('class="poster-sheet poster-a3-portrait"', $chosen);
 		self::assertStringContainsString('<option value="pulvejir" selected>', $chosen);
@@ -173,20 +173,32 @@ final class KernelTest extends TestCase
 		self::assertStringContainsString('>Rod Nováků</text>', $chosen);
 		self::assertStringNotContainsString('Josef Novák', $chosen);
 
-		// The site's title heads the poster of its own person; anybody else gets their family.
+		// The site's title heads the poster of its own person; anybody else gets their family. (In the simple style,
+		// whose heading has no illuminated initial.)
 		self::assertStringContainsString('>Rodokmen Testových</text>', $body);
 		self::assertStringContainsString('placeholder="Rodokmen Testových"', $body);
-		$mother = (string) $this->get('/predci/marie-mala-1992/plakat', loggedIn: true)->getBody();
+		$mother = (string) $this->get('/predci/marie-mala-1992/plakat?styl=jednoduchy', loggedIn: true)->getBody();
 		self::assertStringContainsString('class="pst-t pst-title"', $mother);
 		self::assertMatchesRegularExpression('/class="pst-t pst-title"[^>]*>Rodokmen Malých<\/text>/', $mother);
 		self::assertStringContainsString('placeholder="Rodokmen Malých"', $mother);
 		self::assertStringContainsString(
 			'>Rodokmen Malých</text>',
-			(string) $this->get('/predci/marie-mala-1992/plakat.svg', loggedIn: true)->getBody(),
+			(string) $this->get('/predci/marie-mala-1992/plakat.svg?styl=jednoduchy', loggedIn: true)->getBody(),
 		);
 		self::assertStringContainsString(
 			'>Vlastní</text>',
-			(string) $this->get('/predci/marie-mala-1992/plakat?nadpis=Vlastn%C3%AD', loggedIn: true)->getBody(),
+			(string) $this->get('/predci/marie-mala-1992/plakat?styl=jednoduchy&nadpis=Vlastn%C3%AD', loggedIn: true)->getBody(),
+		);
+
+		// Every part is ticked by default; a part left out of the form's query is turned off and stays unticked.
+		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1" checked>', $body);
+		$parts = (string) $this->get('/predci/antonin-novak-2024/plakat?casti=1&nadpis-zobrazit=1', loggedIn: true)->getBody();
+		self::assertStringContainsString('<input type="checkbox" name="nadpis-zobrazit" value="1" checked>', $parts);
+		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1">', $parts);
+		self::assertStringNotContainsString('Předci osoby Antonín Novák ·', $parts);
+		self::assertStringContainsString(
+			'plakat.svg?rozvrzeni=maleny-strom&amp;format=a1&amp;orientace=na-sirku&amp;styl=historicky&amp;casti=1&amp;nadpis-zobrazit=1"',
+			$parts,
 		);
 
 		$tree = (string) $this->get('/predci/antonin-novak-2024/plakat?rozvrzeni=strom-vpravo', loggedIn: true)->getBody();
@@ -210,7 +222,7 @@ final class KernelTest extends TestCase
 		$page = (string) $this->get('/predci/antonin-novak-2024/plakat?styl=historicky&format=a2', loggedIn: true)->getBody();
 		self::assertStringContainsString('<option value="historicky" selected>', $page);
 		self::assertStringContainsString(
-			'href="/predci/antonin-novak-2024/plakat.svg?rozvrzeni=vejir&amp;format=a2&amp;orientace=na-sirku&amp;styl=historicky" download',
+			'href="/predci/antonin-novak-2024/plakat.svg?rozvrzeni=maleny-strom&amp;format=a2&amp;orientace=na-sirku&amp;styl=historicky" download',
 			$page,
 			'the same poster, with the readable number of generations',
 		);

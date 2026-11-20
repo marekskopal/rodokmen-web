@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\Tests\View\Poster;
 
+use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\HomePerson;
@@ -33,11 +34,13 @@ use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterDecor;
 use Rodokmen\Site\View\Poster\PosterFan;
 use Rodokmen\Site\View\Poster\PosterFonts;
+use Rodokmen\Site\View\Poster\PosterFooter;
 use Rodokmen\Site\View\Poster\PosterHeading;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\Poster\PosterOvalText;
 use Rodokmen\Site\View\Poster\PosterPaintedTree;
+use Rodokmen\Site\View\Poster\PosterParts;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterPigments;
 use Rodokmen\Site\View\Poster\PosterStyle;
@@ -94,6 +97,60 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('fill="#336699"', $svg);
 	}
 
+	public function testLeavesOutThePartsTheVisitorTurnedOff(): void
+	{
+		$sheet = fn (array $query, PosterLayout $layout = PosterLayout::Tree): string => $this->poster->render(
+			$this->root(),
+			new PosterOptions($layout, PaperFormat::A1, Orientation::Landscape, 2, PosterStyle::Simple, '', PosterParts::fromQuery($query)),
+		)->svg;
+		$date = PosterStyle::Simple->date(new DateTimeImmutable());
+
+		$all = $sheet([]);
+		self::assertStringContainsString('>Předci osoby Antonín Novák · 2 generace</text>', $all);
+		self::assertStringContainsString('>Rodokmen Testových · ' . $date . '</text>', $all);
+		self::assertStringContainsString('>rod Novákovi</text>', $all);
+
+		// Without the person, the date and the legend.
+		$some = $sheet(['casti' => '1', 'nadpis-zobrazit' => '1', 'nadpis-generace' => '1', 'paticka-zobrazit' => '1', 'paticka-nazev' => '1']);
+		self::assertStringContainsString('>2 generace</text>', $some);
+		self::assertStringNotContainsString('>Předci osoby', $some);
+		self::assertStringContainsString('>Rodokmen Testových</text><', $some, 'the name alone in the footer');
+		self::assertStringNotContainsString($date, $some);
+		self::assertStringNotContainsString('rod Novákovi', $some);
+		self::assertStringNotContainsString('kurzívou', $some);
+
+		// A heading without a subtitle; no footer, whatever its parts say.
+		$bare = $sheet(['casti' => '1', 'nadpis-zobrazit' => '1', 'paticka-nazev' => '1', 'paticka-datum' => '1', 'paticka-legenda' => '1']);
+		self::assertStringContainsString('class="pst-t pst-title"', $bare);
+		self::assertStringNotContainsString('class="pst-t pst-sub', $bare);
+		self::assertStringNotContainsString($date, $bare);
+		self::assertStringNotContainsString('kurzívou', $bare);
+
+		// Nothing but the chart, which then starts at the top margin.
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $sheet(['casti' => '1']), $origin));
+		self::assertSame($origin[1], $origin[2]);
+	}
+
+	#[DataProvider('layouts')]
+	public function testDrawsNothingButTheChartWithoutHeadingAndFooter(PosterLayout $layout): void
+	{
+		$options = new PosterOptions(
+			$layout,
+			PaperFormat::A1,
+			Orientation::Landscape,
+			2,
+			PosterStyle::Historical,
+			'',
+			PosterParts::fromQuery(['casti' => '1']),
+		);
+		$svg = $this->poster->render($this->root(), $options)->svg;
+
+		self::assertStringNotContainsString('class="pst-t pst-title"', $svg);
+		self::assertStringNotContainsString('class="pst-t pst-muted"', $svg);
+		self::assertStringNotContainsString('kurzívou', $svg);
+		self::assertStringContainsString('Josef Novák', $svg);
+	}
+
 	public function testTitleIsEscaped(): void
 	{
 		$options = new PosterOptions(
@@ -107,6 +164,7 @@ final class PosterTest extends TestCase
 		$svg = $this->poster->render($this->root(), $options)->svg;
 
 		self::assertStringContainsString('>Rod &lt;Nováků&gt; &amp; spol.</text>', $svg);
+		self::assertStringContainsString('>Rod &lt;Nováků&gt; &amp; spol. · ', $svg, 'the footer names the poster as its heading');
 		self::assertStringContainsString('viewBox="0 0 297 420"', $svg);
 	}
 
@@ -551,6 +609,7 @@ final class PosterTest extends TestCase
 			new PosterHeading($repository, new HomePerson($repository, $config)),
 			$title,
 			new PosterTreeBand($tree, $painted, $title),
+			new PosterFooter($repository, $view),
 		);
 
 		return [$repository, $poster];

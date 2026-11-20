@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
-use DateTimeImmutable;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
-use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\View;
 use const INF;
 
@@ -43,6 +41,7 @@ final readonly class Poster
 		private PosterHeading $heading,
 		private PosterTitle $title,
 		private PosterTreeBand $band,
+		private PosterFooter $footer,
 	)
 	{
 	}
@@ -158,15 +157,15 @@ final readonly class Poster
 			$this->fan->render($generations, $options->style, $radius, $half, $defs),
 		);
 
-		$rows = $this->footerRows($generations, $options->style);
+		$rows = $this->footer->rows($generations, $options, $this->heading($root, $options));
 		$footerSize = max(self::MinFooterFont, $radius * .022);
-		$footer = $this->footer($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
+		$footer = $this->footer->draw($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
 
 		// Free room for the title: a band above the chart (beside the legend of the half fan), or the corner beside it.
 		$size = $radius * .075;
 		$band = $cy - $radius - $margin;
-		$reserved = $half ? $this->footerWidth($rows, $footerSize) + 2 * $footerSize : 0.0;
-		$available = $band >= $this->title->height($size)
+		$reserved = $half && $rows !== [] ? $this->footer->width($rows, $footerSize) + 2 * $footerSize : 0.0;
+		$available = $band >= $this->title->height($size, $this->subtitle($root, $options) !== '')
 			? $areaWidth - $reserved
 			: ($areaWidth - 2 * $radius) / 2 + $radius * .5;
 
@@ -186,7 +185,7 @@ final readonly class Poster
 		$upward = $options->layout !== PosterLayout::TreeRight;
 		$painted = $options->layout === PosterLayout::PaintedTree;
 		$size = min($areaWidth, $areaHeight) * .0375;
-		$band = $this->band->of(
+		$band = !$options->parts->heading() ? 0.0 : $this->band->of(
 			$options->layout,
 			$generations,
 			[$areaWidth, $areaHeight],
@@ -199,6 +198,7 @@ final readonly class Poster
 				$this->titlePad($size, $margin),
 			),
 			$size,
+			$this->subtitle($root, $options) !== '',
 		);
 		$treeHeight = $areaHeight - $band;
 
@@ -212,17 +212,20 @@ final readonly class Poster
 		);
 
 		// The painted tree colours men and women, not the family lines: it lists no lines.
-		$rows = $this->footerRows($generations, $options->style, !$painted);
+		$rows = $this->footer->rows($generations, $options, $this->heading($root, $options), !$painted);
 		[$cornerWidth, $cornerHeight] = $painted
 			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight)
 			: $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
-		$footerSize = min(
-			max(self::MinFooterFont, min($areaWidth, $areaHeight) * .011),
-			$cornerWidth / $this->footerWidth($rows, 1.0),
-			$cornerHeight * .9 / (count($rows) * 1.6),
-		);
-		$right = $upward ? $margin + $areaWidth : $margin + $cornerWidth;
-		$footer = $this->footer($rows, $footerSize, $right, $margin + $areaHeight, false);
+		$footer = '';
+		if ($rows !== []) {
+			$footerSize = min(
+				max(self::MinFooterFont, min($areaWidth, $areaHeight) * .011),
+				$cornerWidth / $this->footer->width($rows, 1.0),
+				$cornerHeight * .9 / (count($rows) * 1.6),
+			);
+			$right = $upward ? $margin + $areaWidth : $margin + $cornerWidth;
+			$footer = $this->footer->draw($rows, $footerSize, $right, $margin + $areaHeight, false);
+		}
 
 		return [$chart, $this->title($root, $options, $margin, $size, $areaWidth), $footer];
 	}
@@ -230,6 +233,10 @@ final readonly class Poster
 	/** Heading (the visitor's, or the family of the person) and the subtitle in the top left corner, fitted to $available. */
 	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available): string
 	{
+		if (!$options->parts->heading()) {
+			return '';
+		}
+
 		return $this->title->draw(
 			$options->style,
 			$this->heading($root, $options),
@@ -248,98 +255,19 @@ final readonly class Poster
 		return $options->title !== '' ? $options->title : $this->heading->of($root);
 	}
 
+	/** The person and the number of generations, as far as the visitor wants them; empty without either. */
 	private function subtitle(Person $root, PosterOptions $options): string
 	{
-		return 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
+		return implode(' · ', array_filter([
+			$options->parts->person() ? 'Předci osoby ' . $root->name : '',
+			$options->parts->generations() ? $this->view->plural($options->depth, 'generace', 'generace', 'generací') : '',
+		], static fn (string $part): bool => $part !== ''));
 	}
 
 	/** The scroll's rolls reach 1.3 × the padding into the margin, clear of the corner medallion (PosterBorder::Corner). */
 	private function titlePad(float $size, float $margin): float
 	{
 		return min($size * .4, $margin * .22);
-	}
-
-	/**
-	 * Family lines with their colours, a note on uncertain ancestors, the website and the date.
-	 *
-	 * @param non-empty-list<list<?string>> $generations the drawn ancestors
-	 * @param bool $lines whether to list the family lines
-	 * @return non-empty-list<array{string, string, ?string}> [text, CSS class, colour]
-	 */
-	private function footerRows(array $generations, PosterStyle $style, bool $lines = true): array
-	{
-		// The person is drawn in the accent colour, not in the colour of a family line.
-		$drawn = [];
-		foreach (array_merge(...array_slice($generations, 1)) as $slug) {
-			$line = $this->repository->person($slug)?->line;
-			if ($line !== null) {
-				$drawn[$line] = true;
-			}
-		}
-
-		$rows = [];
-		foreach ($this->repository->lines() as $line) {
-			if ($lines && isset($drawn[$line->k])) {
-				$rows[] = ['rod ' . $line->name, 'pst-t', $style->tint($line->color)];
-			}
-		}
-		$rows[] = ['kurzívou pravděpodobní nebo nejistí předci', 'pst-t pst-prob pst-muted', null];
-		$rows[] = [$this->repository->title() . ' · ' . $style->date(new DateTimeImmutable()), 'pst-t pst-muted', null];
-
-		return $rows;
-	}
-
-	/**
-	 * Estimated width of the widest footer row, colour swatch included.
-	 *
-	 * @param non-empty-list<array{string, string, ?string}> $rows
-	 */
-	private function footerWidth(array $rows, float $size): float
-	{
-		$width = 0.0;
-		foreach ($rows as [$text, , $color]) {
-			$width = max($width, mb_strlen($text) * FanGeometry::GlyphWidth * $size + ($color !== null ? $size * 1.5 : 0.0));
-		}
-
-		return $width;
-	}
-
-	/**
-	 * Footer rows right-aligned in the top or bottom corner.
-	 *
-	 * @param non-empty-list<array{string, string, ?string}> $rows
-	 */
-	private function footer(array $rows, float $size, float $right, float $edge, bool $top): string
-	{
-		$step = $size * 1.6;
-		$y = $top ? $edge + $size : $edge - ($step * (count($rows) - 1));
-		$out = '';
-		foreach ($rows as [$text, $class, $color]) {
-			$x = $right;
-			if ($color !== null) {
-				$out .= sprintf(
-					'<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" fill="%s" fill-opacity=".66"/>',
-					$right - $size,
-					$y - $size * .8,
-					$size,
-					$size,
-					$size * .2,
-					$this->view->e($color),
-				);
-				$x -= $size * 1.5;
-			}
-			$out .= sprintf(
-				'<text class="%s" x="%.1f" y="%.1f" font-size="%.1f" text-anchor="end">%s</text>',
-				$class,
-				$x,
-				$y,
-				$size,
-				$this->view->e($text),
-			);
-			$y += $step;
-		}
-
-		return $out;
 	}
 
 	private function css(PosterStyle $style): string

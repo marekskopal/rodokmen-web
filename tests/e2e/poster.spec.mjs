@@ -25,7 +25,7 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	await page.getByLabel('Rozvržení').selectOption('pulvejir');
 	await page.getByLabel('Papír').selectOption('a3');
 	await page.getByLabel('Orientace').selectOption('na-vysku');
-	await page.getByLabel('Nadpis').fill('Rod Skopalů');
+	await page.getByLabel('Nadpis', { exact: true }).fill('Rod Skopalů');
 
 	await expect(page).toHaveURL(/rozvrzeni=pulvejir.*format=a3.*orientace=na-vysku.*nadpis=Rod/);
 	await expect(page.locator('.poster-sheet')).toHaveClass(/poster-a3-portrait/);
@@ -36,13 +36,36 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[842, 1191]]);
 });
 
+test('the heading and the footer can be left out, with their parts', async ({ page }) => {
+	await openPoster(page);
+	const sheet = page.locator('.poster-sheet svg');
+	await expect(sheet.locator('.pst-sub')).toContainText('Předci osoby');
+
+	await page.getByRole('checkbox', { name: 'výchozí osoba' }).uncheck();
+	await expect(page).toHaveURL(/casti=1/);
+	await expect(sheet.locator('.pst-sub')).not.toContainText('Předci osoby');
+	await expect(sheet.locator('.pst-sub')).toContainText('generac');
+
+	const heading = page.getByRole('group', { name: 'Části nadpisu' }).getByRole('checkbox', { name: 'zobrazit' });
+	await heading.uncheck();
+	await expect(sheet.locator('.pst-title')).toHaveCount(0);
+	// The parts of a hidden heading wait, still ticked, for it to come back.
+	await expect(page.getByRole('checkbox', { name: 'počet generací' })).toBeChecked();
+	await heading.check();
+	await expect(sheet.locator('.pst-title')).toHaveCount(1);
+
+	await page.getByRole('group', { name: 'Části patičky' }).getByRole('checkbox', { name: 'zobrazit' }).uncheck();
+	await expect(sheet.locator('.pst-muted')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=1&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
+});
+
 test('the select boxes look like the text input', async ({ page }) => {
 	await openPoster(page);
 	const look = (locator) => locator.evaluate((el) => {
 		const css = getComputedStyle(el);
 		return [css.borderTopColor, css.borderTopLeftRadius, css.backgroundColor, css.fontFamily];
 	});
-	expect(await look(page.getByLabel('Papír'))).toEqual(await look(page.getByLabel('Nadpis')));
+	expect(await look(page.getByLabel('Papír'))).toEqual(await look(page.getByLabel('Nadpis', { exact: true })));
 	expect(await page.getByLabel('Papír').evaluate((el) => getComputedStyle(el).appearance)).toBe('none');
 });
 
@@ -60,6 +83,8 @@ test.describe('without JavaScript', () => {
 
 test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 	await openPoster(page);
+	// Rounded boxes of the simple style (the historical one cuts their corners).
+	await page.getByLabel('Styl').selectOption('jednoduchy');
 	for (const layout of ['strom', 'strom-vpravo']) {
 		await page.getByLabel('Rozvržení').selectOption(layout);
 		await expect(page).toHaveURL(new RegExp(`rozvrzeni=${layout}`));
@@ -71,8 +96,8 @@ test('the tree layouts draw boxes for the ancestors', async ({ page }) => {
 
 test('the painted tree grows a trunk, branches, leaves and name ribbons', async ({ page }) => {
 	await openPoster(page);
-	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
-	await expect(page).toHaveURL(/rozvrzeni=maleny-strom/);
+	// The painted tree is the default layout.
+	await expect(page.getByLabel('Rozvržení')).toHaveValue('maleny-strom');
 	// Every leaf is a small turned group; wood and ribbons are paths.
 	expect(await page.locator('.poster-sheet svg g[transform*="rotate"]').count()).toBeGreaterThan(50);
 	expect(await page.locator('.poster-sheet svg path').count()).toBeGreaterThan(300);
@@ -84,8 +109,8 @@ test('the painted tree grows a trunk, branches, leaves and name ribbons', async 
 
 test('the historical style decorates the poster and the SVG can be downloaded', async ({ page }) => {
 	await openPoster(page);
-	await page.getByLabel('Styl').selectOption('historicky');
-	await expect(page).toHaveURL(/styl=historicky/);
+	// The historical style is the default.
+	await expect(page.getByLabel('Styl')).toHaveValue('historicky');
 	await expect(page.locator('.poster-sheet svg rect[fill="url(#pst-paper)"]')).toHaveCount(1);
 	// The font of the historical style is self-hosted and loads under the Content-Security-Policy.
 	await page.evaluate(() => document.fonts.ready);

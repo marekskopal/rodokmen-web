@@ -24,11 +24,17 @@ final readonly class PosterTitle
 	{
 	}
 
-	/** Height of the heading and the subtitle written with the given heading size. */
-	public function height(float $size): float
+	/**
+	 * Height of the heading and the subtitle written with the given heading size.
+	 *
+	 * @param bool $subtitle whether there is a subtitle below the heading
+	 */
+	public function height(float $size, bool $subtitle = true): float
 	{
+		$subSize = $subtitle ? $size * self::Sub : 0.0;
+
 		// Below the box (box()) the subtitle's descenders.
-		return self::box($size, $size * self::Sub) + $size * self::Sub * .2;
+		return self::box($size, $subSize) + $subSize * .2;
 	}
 
 	/** The heading and the subtitle with their top left corner at $left, $top, fitted to the width $available. */
@@ -66,15 +72,19 @@ final readonly class PosterTitle
 			$rest = $this->view->e($rest);
 		}
 
+		$out .= sprintf(
+			'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s%s</text>',
+			$x,
+			$top + $size * .9,
+			$size,
+			$first,
+			$rest,
+		);
+		if ($subtitle === '') {
+			return $out;
+		}
+
 		return $out
-			. sprintf(
-				'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s%s</text>',
-				$x,
-				$top + $size * .9,
-				$size,
-				$first,
-				$rest,
-			)
 			. sprintf(
 				'<text class="pst-t pst-sub%s" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
 				$style->isOrnate() ? ' pst-rubric' : '',
@@ -113,9 +123,10 @@ final readonly class PosterTitle
 	{
 		$initial = $style->isOrnate() ? $this->initial($heading) : '';
 		$rest = mb_substr($heading, mb_strlen($initial));
-		// The initial is as tall as both lines; the text starts beside it.
-		$indent = $initial === '' ? 0.0 : self::box($size, $size * self::Sub) * (1 + self::Gap);
-		$subSize = $this->geometry->fit($subtitle, $available - $indent, $size * self::Sub);
+		// The initial is as tall as both lines (as the heading alone without a subtitle); the text starts beside it.
+		$subSize = $subtitle === '' ? 0.0 : $size * self::Sub;
+		$indent = $initial === '' ? 0.0 : self::box($size, $subSize) * (1 + self::Gap);
+		$subSize = $subtitle === '' ? 0.0 : $this->geometry->fit($subtitle, $available - $indent, $subSize);
 		$size = $this->geometry->fit($rest, $available - $indent, $size);
 		$side = self::box($size, $subSize);
 		$offset = $initial === '' ? 0.0 : $side * (1 + self::Gap);

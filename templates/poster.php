@@ -13,9 +13,22 @@ use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
+use Rodokmen\Site\View\Poster\PosterParts;
 use Rodokmen\Site\View\Poster\PosterStyle;
 
 $points = $sheet->smallestPoints();
+// The switch of the heading or the footer with those of its parts, which count only with it.
+$partSwitches = static function (string $main, string $label, array $parts) use ($v, $options): string {
+    $box = static fn (string $name, string $text): string => sprintf(
+        '<label class="filter-check"><input type="checkbox" name="%s" value="1"%s> %s</label>',
+        $name,
+        $options->parts->ticked($name) ? ' checked' : '',
+        $v->e($text),
+    );
+
+    return '<div class="poster-parts" role="group" aria-label="' . $v->e($label) . '">' . $box($main, 'zobrazit')
+        . '<span class="poster-parts-sub">' . implode('', array_map($box, array_keys($parts), $parts)) . '</span></div>';
+};
 ?>
 <header class="page-head poster-head">
     <p class="eyebrow"><a href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Prohlížeč předků</a></p>
@@ -63,9 +76,17 @@ $points = $sheet->smallestPoints();
                 </select>
             </label>
         <?php endif ?>
-        <label class="field poster-title-field"><span class="field-label">Nadpis</span>
-            <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($heading) ?>">
-        </label>
+        <div class="poster-title-field">
+            <label class="field"><span class="field-label">Nadpis</span>
+                <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($heading) ?>">
+            </label>
+            <?= $partSwitches('nadpis-zobrazit', 'Části nadpisu', ['nadpis-osoba' => 'výchozí osoba', 'nadpis-generace' => 'počet generací']) ?>
+        </div>
+        <input type="hidden" name="<?= PosterParts::Marker ?>" value="1">
+        <fieldset class="poster-footer-field">
+            <legend class="field-label">Patička</legend>
+            <?= $partSwitches('paticka-zobrazit', 'Části patičky', ['paticka-nazev' => 'název rodokmenu', 'paticka-datum' => 'datum', 'paticka-legenda' => 'legenda']) ?>
+        </fieldset>
     </div>
     <div class="poster-actions">
         <p class="poster-summary" data-live="summary" aria-live="polite">
