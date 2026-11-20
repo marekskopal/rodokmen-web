@@ -41,6 +41,7 @@ use Rodokmen\Site\View\Poster\PosterPaintedTree;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterPigments;
 use Rodokmen\Site\View\Poster\PosterStyle;
+use Rodokmen\Site\View\Poster\PosterTextWidth;
 use Rodokmen\Site\View\Poster\PosterTitle;
 use Rodokmen\Site\View\Poster\PosterTree;
 use Rodokmen\Site\View\View;
@@ -487,7 +488,7 @@ final class PosterTest extends TestCase
 			$people,
 			$view,
 			$text,
-			new PosterOvalText($view, $labels, new FanYears(), $text),
+			new PosterOvalText($view, $labels, new FanYears(), $text, new PosterTextWidth(), $people),
 			new PaintedLayout(new PaintedSpread()),
 			new PaintedLimbs($brush),
 			new PaintedWood($brush),

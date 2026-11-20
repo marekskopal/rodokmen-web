@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Rodokmen\Site\View\Poster;
 
 use Rodokmen\Site\Data\Model\Person;
-use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\FanLabels;
 use Rodokmen\Site\View\FanYears;
 use Rodokmen\Site\View\View;
@@ -28,7 +27,14 @@ final readonly class PosterOvalText
 	/** One line, the name over the years, and the given names over the surname over the years. */
 	private const Layouts = [[false, false], [true, false], [true, true]];
 
-	public function __construct(private View $view, private FanLabels $labels, private FanYears $years, private PosterBoxText $box)
+	public function __construct(
+		private View $view,
+		private FanLabels $labels,
+		private FanYears $years,
+		private PosterBoxText $box,
+		private PosterTextWidth $widths,
+		private PosterPeople $people,
+	)
 	{
 	}
 
@@ -37,12 +43,20 @@ final readonly class PosterOvalText
 	 * @param float $insideWidth share of the oval's width that the text keeps within
 	 * @param float $insideHeight share of the oval's height that the text keeps within
 	 */
-	public function fit(array $people, float $width, float $height, float $maxFont, float $insideWidth, float $insideHeight): BoxText
+	public function fit(
+		array $people,
+		PosterStyle $style,
+		float $width,
+		float $height,
+		float $maxFont,
+		float $insideWidth,
+		float $insideHeight,
+	): BoxText
 	{
 		// The half-axes of the ellipse the text keeps within.
 		[$rx, $ry] = [$width * $insideWidth / 2, $height * $insideHeight / 2];
 		$extents = array_map(
-			fn (array $layout): array => $this->extents($people, new BoxText(1.0, $layout[0], false, $layout[1])),
+			fn (array $layout): array => $this->extents($people, new BoxText(1.0, $layout[0], false, $layout[1]), $style),
 			self::Layouts,
 		);
 		$across = $this->best($extents, $rx, $ry, false, $maxFont);
@@ -106,14 +120,19 @@ final readonly class PosterOvalText
 	 * @param list<Person> $people
 	 * @return list<array{float, float}>
 	 */
-	private function extents(array $people, BoxText $text): array
+	private function extents(array $people, BoxText $text, PosterStyle $style): array
 	{
 		$extents = [];
 		foreach ($people as $person) {
-			$lines = $this->lines($person, $text);
-			array_push($extents, ...($lines === null
+			$split = $this->lines($person, $text);
+			$lines = $split === null
 				? $this->box->extents($person, $text->twoLines)
-				: array_map(static fn (array $line): array => [$line[4], $line[5]], $lines)));
+				: array_map(static fn (array $line): array => [$line[0], $line[2], $line[4]], $split);
+			// Uncertain and unknown ancestors are written in italics (PosterPeople::textClass()).
+			$italic = $this->people->textClass($person) !== '';
+			foreach ($lines as [$line, $share, $reach]) {
+				$extents[] = [$this->widths->of($line, $style, $italic) * $share, $reach];
+			}
 		}
 
 		return $extents;
@@ -121,35 +140,32 @@ final readonly class PosterOvalText
 
 	/**
 	 * The lines of a name split over two lines, at letters 1 high: their text, whether it is a part of the name,
-	 * their size, baseline, length, and how far their letters reach from the middle across them. Null when the
+	 * their size, baseline, and how far their letters reach from the middle across them. Null when the
 	 * name is not split (PosterBoxText writes it): not asked to, or nowhere to break it.
 	 *
-	 * @return ?non-empty-list<array{string, bool, float, float, float, float}>
+	 * @return ?non-empty-list<array{string, bool, float, float, float}>
 	 */
 	private function lines(Person $person, BoxText $text): ?array
 	{
-		// Before the birth surname ("Marie Nováková / roz. Malá"), else before the last word with the notes in
-		// parentheses after it ("Jan / Novák (?)").
-		if (!$text->split || preg_match('/^(.+?)\s+(roz\.\s+.+|[^\s(]\S*(?:\s+\([^)]*\))*)$/u', trim($person->name), $m) !== 1) {
+		// Notes in parentheses after the name ("(?)") go to the line of the years, where they take less room.
+		preg_match('/^(.*?)((?:\s*\([^)]*\))*)$/u', trim($person->name), $note);
+		[$name, $notes] = [trim($note[1] ?? ''), trim($note[2] ?? '')];
+		// Before the birth surname ("Marie Nováková / roz. Malá"), else before the last word ("Jan / Novák").
+		if (!$text->split || preg_match('/^(.+?)\s+(roz\.\s+.+|\S+)$/u', $name, $m) !== 1) {
 			return null;
 		}
 
-		$years = $this->years->format($person->y);
+		$small = trim($this->years->format($person->y) . ' ' . $notes);
 		$parts = [[$m[1], true, 1.0], [$m[2], true, 1.0]];
-		if ($years !== '') {
-			$parts[] = [$years, false, PosterBoxText::YearsSize];
+		if ($small !== '') {
+			$parts[] = [$small, false, PosterBoxText::YearsSize];
 		}
 		// The block of lines centred on the middle.
 		$top = -array_sum(array_map(static fn (array $part): float => $part[2] * self::Leading, $parts)) / 2;
 		$lines = [];
 		foreach ($parts as [$line, $isName, $share]) {
 			$bottom = $top + $share * self::Leading;
-			$lines[] = [
-				$line,
-				$isName,
-				$share,
-				$top + $share * PosterBoxText::Ascent,
-				FanGeometry::GlyphWidth * mb_strlen($line) * $share, max(-$top, $bottom)];
+			$lines[] = [$line, $isName, $share, $top + $share * PosterBoxText::Ascent, max(-$top, $bottom)];
 			$top = $bottom;
 		}
 
