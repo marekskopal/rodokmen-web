@@ -38,7 +38,9 @@ number changes only when old clients or servers could not read it – see *Bundl
   than to a box inside it, and may take a line for the given names and one for the surname (a birth surname
   after "roz." and a note in brackets stay with it). On a crowded A1 the letters are almost twice as large. When
   the number of generations is left to the poster, the room gained may go to one more generation instead. The
-  ribbons are unchanged.
+  flat ovals are a little taller (two thirds of their width), the lines of a split name closer together, and the
+  text may reach a little further along an oval than across it, as its inner ring does – so the names on the flat
+  ovals are about a sixth larger still. The ribbons are unchanged.
 
 ## [1.2.1] - 2026-11-19
 

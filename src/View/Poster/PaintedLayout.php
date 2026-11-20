@@ -41,7 +41,7 @@ final readonly class PaintedLayout
 	 */
 	private const FlatOvalWidth = .43;
 
-	private const FlatOvalHeight = .55;
+	private const FlatOvalHeight = .66;
 
 	/** Largest plaque width relative to the whole width. */
 	private const MaxShare = .3;

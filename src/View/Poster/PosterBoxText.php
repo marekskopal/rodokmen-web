@@ -27,7 +27,7 @@ final readonly class PosterBoxText
 	/** How far letters reach above and below their baseline, relative to their size. */
 	public const Ascent = .78;
 
-	private const Descent = .2;
+	public const Descent = .2;
 
 	/** Baselines of the name and of the years on two lines, and of a single line, relative to the name's size. */
 	private const NameBaseline = -.2;

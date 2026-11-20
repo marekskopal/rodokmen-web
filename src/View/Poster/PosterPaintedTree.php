@@ -24,8 +24,13 @@ final readonly class PosterPaintedTree
 	/** Share of a ribbon's width and height that the text may take. */
 	private const TextWidth = .76;
 
-	/** Share of an oval's half-axes within which the text has to stay: inside its inner ring (.82 × .88 of them). */
-	private const OvalText = .78;
+	/**
+	 * Shares of an oval's width and height within which the text has to stay: inside its inner ring, which takes
+	 * .88 of the width and .82 of the height (PaintedPlaque).
+	 */
+	private const OvalTextWidth = .84;
+
+	private const OvalTextHeight = .78;
 
 	private const RibbonTextHeight = .84;
 
@@ -66,7 +71,7 @@ final readonly class PosterPaintedTree
 			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
 			$text = $ribbon
 				? $this->text->fit($people, $w * self::TextWidth, $h * self::RibbonTextHeight, $maxFont)
-				: $this->ovalText->fit($people, $w, $h, $maxFont, self::OvalText);
+				: $this->ovalText->fit($people, $w, $h, $maxFont, self::OvalTextWidth, self::OvalTextHeight);
 			$leaf = min($unit * .2, $w * .5);
 			foreach ($row as $node) {
 				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
