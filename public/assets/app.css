@@ -462,6 +462,12 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .field select { width: 100%; }
 .poster-title-field { grid-column: 1 / -1; }
 .poster-title-field .filter-text { padding: 8px 12px; }
+.poster-parts-row { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px 40px; }
+.poster-parts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.poster-parts legend { float: left; width: 100%; margin-bottom: 2px; padding: 0; }
+.poster-parts-sub { display: flex; flex-wrap: wrap; gap: 6px 18px; transition: opacity .15s; }
+/* The parts of a hidden heading or footer keep their ticks for when it comes back, but do not count. */
+.poster-parts:has(> .filter-check input:not(:checked)) .poster-parts-sub { opacity: .45; pointer-events: none; }
 .poster-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--rule); }
 .poster-summary { flex: 1 1 260px; margin: 0; font-size: .92rem; }
 .poster-hint { margin: -8px 0 16px; font-size: .88rem; }

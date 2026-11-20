@@ -36,6 +36,29 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[842, 1191]]);
 });
 
+test('the heading and the footer can be left out, with their parts', async ({ page }) => {
+	await openPoster(page);
+	const sheet = page.locator('.poster-sheet svg');
+	await expect(sheet.locator('.pst-sub')).toContainText('Předci osoby');
+
+	await page.getByRole('checkbox', { name: 'výchozí osoba' }).uncheck();
+	await expect(page).toHaveURL(/casti=1/);
+	await expect(sheet.locator('.pst-sub')).not.toContainText('Předci osoby');
+	await expect(sheet.locator('.pst-sub')).toContainText('generac');
+
+	const heading = page.locator('fieldset.poster-parts').filter({ hasText: 'Nadpis' }).getByRole('checkbox', { name: 'zobrazit' });
+	await heading.uncheck();
+	await expect(sheet.locator('.pst-title')).toHaveCount(0);
+	// The parts of a hidden heading wait, still ticked, for it to come back.
+	await expect(page.getByRole('checkbox', { name: 'počet generací' })).toBeChecked();
+	await heading.check();
+	await expect(sheet.locator('.pst-title')).toHaveCount(1);
+
+	await page.locator('fieldset.poster-parts').filter({ hasText: 'Patička' }).getByRole('checkbox', { name: 'zobrazit' }).uncheck();
+	await expect(sheet.locator('.pst-muted')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=1&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
+});
+
 test('the select boxes look like the text input', async ({ page }) => {
 	await openPoster(page);
 	const look = (locator) => locator.evaluate((el) => {

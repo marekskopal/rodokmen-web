@@ -27,7 +27,7 @@ final readonly class PosterController
 
 	/**
 	 * ?rozvrzeni=vejir|pulvejir|strom|strom-vpravo|maleny-strom, ?format=a4…a0, ?orientace=na-sirku|na-vysku, ?generace=N,
-	 * ?styl=jednoduchy|historicky, ?nadpis=…
+	 * ?styl=jednoduchy|historicky, ?nadpis=…, ?casti=1 with the ticked parts (PosterParts::Names)
 	 *
 	 * @param array<string, string> $args
 	 */

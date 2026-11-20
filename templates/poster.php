@@ -13,9 +13,15 @@ use Rodokmen\Site\View\Poster\PaperFormat;
 use Rodokmen\Site\View\Poster\Poster;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
+use Rodokmen\Site\View\Poster\PosterParts;
 use Rodokmen\Site\View\Poster\PosterStyle;
 
 $points = $sheet->smallestPoints();
+// The heading and the footer with their parts, which count only with them.
+$partGroups = [
+    ['nadpis-zobrazit', 'Nadpis', ['nadpis-osoba' => 'výchozí osoba', 'nadpis-generace' => 'počet generací']],
+    ['paticka-zobrazit', 'Patička', ['paticka-nazev' => 'název rodokmenu', 'paticka-datum' => 'datum', 'paticka-legenda' => 'legenda']],
+];
 ?>
 <header class="page-head poster-head">
     <p class="eyebrow"><a href="<?= $v->e($v->explorerUrl($person->slug)) ?>">Prohlížeč předků</a></p>
@@ -66,6 +72,20 @@ $points = $sheet->smallestPoints();
         <label class="field poster-title-field"><span class="field-label">Nadpis</span>
             <input type="text" class="filter-text" name="nadpis" value="<?= $v->e($options->title) ?>" maxlength="<?= PosterOptions::MaxTitleLength ?>" placeholder="<?= $v->e($heading) ?>">
         </label>
+        <input type="hidden" name="<?= PosterParts::Marker ?>" value="1">
+        <div class="poster-parts-row">
+        <?php foreach ($partGroups as [$main, $mainLabel, $parts]): ?>
+            <fieldset class="poster-parts">
+                <legend class="field-label"><?= $v->e($mainLabel) ?></legend>
+                <label class="filter-check"><input type="checkbox" name="<?= $main ?>" value="1" <?= $options->parts->ticked($main) ? 'checked' : '' ?>> zobrazit</label>
+                <span class="poster-parts-sub">
+                    <?php foreach ($parts as $name => $label): ?>
+                        <label class="filter-check"><input type="checkbox" name="<?= $name ?>" value="1" <?= $options->parts->ticked($name) ? 'checked' : '' ?>> <?= $v->e($label) ?></label>
+                    <?php endforeach ?>
+                </span>
+            </fieldset>
+        <?php endforeach ?>
+        </div>
     </div>
     <div class="poster-actions">
         <p class="poster-summary" data-live="summary" aria-live="polite">

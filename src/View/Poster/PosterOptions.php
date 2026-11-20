@@ -16,6 +16,7 @@ final readonly class PosterOptions
 		public int $depth,
 		public PosterStyle $style,
 		public string $title,
+		public PosterParts $parts = new PosterParts(),
 	) {
 	}
 
@@ -37,6 +38,7 @@ final readonly class PosterOptions
 			max(min(1, $available), min($available, $depth)),
 			PosterStyle::tryFrom(self::string($query, 'styl')) ?? PosterStyle::Historical,
 			mb_substr($title, 0, self::MaxTitleLength),
+			PosterParts::fromQuery($query),
 		);
 	}
 
@@ -52,7 +54,7 @@ final readonly class PosterOptions
 
 	public function withDepth(int $depth): self
 	{
-		return new self($this->layout, $this->format, $this->orientation, $depth, $this->style, $this->title);
+		return new self($this->layout, $this->format, $this->orientation, $depth, $this->style, $this->title, $this->parts);
 	}
 
 	/**
@@ -69,7 +71,7 @@ final readonly class PosterOptions
 			'generace' => $depth ? (string) $this->depth : '',
 			'styl' => $this->style->value,
 			'nadpis' => $this->title,
-		], static fn (string $value): bool => $value !== ''));
+		] + $this->parts->query(), static fn (string $value): bool => $value !== ''));
 	}
 
 	/** Width of the sheet in millimetres. */
