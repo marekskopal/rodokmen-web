@@ -11,13 +11,17 @@ use Rodokmen\Site\Data\SiteDataLoader;
 use Rodokmen\Site\Tests\Support\DemoFamily;
 use Rodokmen\Site\Tests\Support\Fixture;
 use Rodokmen\Site\View\Poster\PaintedLayout;
+use Rodokmen\Site\View\Poster\PaintedLimb;
 use Rodokmen\Site\View\Poster\PaintedLimbs;
+use Rodokmen\Site\View\Poster\PaintedMeadow;
 use Rodokmen\Site\View\Poster\PaintedNode;
 use Rodokmen\Site\View\Poster\PaintedSpace;
 use Rodokmen\Site\View\Poster\PaintedSpread;
+use Rodokmen\Site\View\Poster\PaintedWood;
 use Rodokmen\Site\View\Poster\PosterBrush;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterRandom;
+use Rodokmen\Site\View\Poster\PosterStyle;
 use const PREG_SET_ORDER;
 
 /** Building blocks of the painted tree: repeatable chance, hand-drawn shapes, places of the ancestors. */
@@ -241,6 +245,81 @@ final class PaintedTreeTest extends TestCase
 			}
 		}
 		self::assertGreaterThan(10, count($forks));
+	}
+
+	public function testMeadowFlowersOnTheMoundOffTheTrunkAndTheLegend(): void
+	{
+		// The mound of A0 portrait: its middle at 400, 280 to each side, 78 high; the trunk at 380, the legend's
+		// corner from 600 to the right and 120 up, so that it cuts into the mound's right foot.
+		[$cx, $bottom, $half, $rise, $trunk, $clear] = [400.0, 1100.0, 280.0, 78.0, 380.0, 40.0];
+		$space = new PaintedSpace([], 841, 1100, 100, 900, 841 - 600, 120);
+		$meadow = new PaintedMeadow(new PosterBrush());
+		$draw = static fn (PosterRandom $random): string => $meadow->draw(
+			$cx,
+			$bottom,
+			$half,
+			$rise,
+			$trunk,
+			$clear,
+			$space,
+			PosterStyle::Historical,
+			$random,
+		);
+		$svg = $draw(new PosterRandom('meadow'));
+
+		self::assertSame($svg, $draw(new PosterRandom('meadow')));
+		self::assertNotSame($svg, $draw(new PosterRandom('another meadow')));
+		self::assertLessThan(120000, strlen($svg), 'it does not swell the file');
+		self::assertNotFalse(simplexml_load_string('<svg xmlns="http://www.w3.org/2000/svg">' . $svg . '</svg>'));
+
+		preg_match_all('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $svg, $places, PREG_SET_ORDER);
+		self::assertGreaterThan(80, count($places));
+		$size = $rise * .085;
+		foreach ($places as [, $x, $y]) {
+			[$x, $y] = [(float) $x, (float) $y];
+			// The ridge is never lower than .9 of the mound's height (PaintedWood::ground).
+			$ridge = $bottom - $rise * .9 * PaintedMeadow::hill(($x - $cx + $half) / (2 * $half));
+			self::assertGreaterThanOrEqual($ridge, $y - $size * 1.3 + .01, 'tufts of grass under the ridge');
+			self::assertLessThanOrEqual($bottom, $y + $size * .65 - .01, 'the petals above the bottom edge');
+			self::assertGreaterThanOrEqual($clear, abs($x - $trunk), 'off the trunk');
+			self::assertFalse($x > 600 && $y > 1100 - 120, 'off the corner of the legend');
+		}
+		foreach (['#', 'circle', 'stroke-linecap'] as $part) {
+			self::assertStringContainsString($part, $svg, 'flowers, their hearts and tufts of grass');
+		}
+
+		self::assertSame(0.0, PaintedMeadow::hill(0));
+		self::assertSame(1.0, PaintedMeadow::hill(.5));
+		self::assertSame(0.0, PaintedMeadow::hill(1.2));
+	}
+
+	public function testOnlyThickWoodIsHatched(): void
+	{
+		$wood = new PaintedWood(new PosterBrush());
+		$spine = [[100.0, 200.0]];
+		for ($k = 1; $k <= 10; $k++) {
+			$spine[] = [100.0, 200.0 - $k * 10];
+		}
+		$limb = new PaintedLimb($spine, array_fill(0, 11, 12.0));
+
+		$thick = $wood->limb($limb, PosterStyle::Historical, new PosterRandom('wood'), 3);
+		self::assertSame(1, substr_count($thick, 'class="pst-hatch"'));
+		preg_match('/class="pst-hatch" d="([^"]+)"/', $thick, $hatch);
+		preg_match_all('/M([\d.]+),[\d.]+ L([\d.]+),[\d.]+/', $hatch[1] ?? '', $strokes, PREG_SET_ORDER);
+		self::assertGreaterThan(40, count($strokes), 'strokes about a fifth of the width apart along the limb');
+		foreach ($strokes as [, $from, $to]) {
+			// Going up, the shaded side is on the right: from its edge inwards, never across the middle.
+			self::assertGreaterThan(104, (float) $from);
+			self::assertLessThanOrEqual(106, (float) $from);
+			self::assertLessThan((float) $from, (float) $to);
+			self::assertGreaterThan(101, (float) $to);
+		}
+
+		self::assertStringNotContainsString(
+			'pst-hatch',
+			$wood->limb($limb, PosterStyle::Historical, new PosterRandom('wood'), 5),
+			'thin wood',
+		);
 	}
 
 	/** @return array<int, array<int, ?Person>> places of six generations of the demo family */

@@ -21,6 +21,7 @@ use Rodokmen\Site\View\Poster\Orientation;
 use Rodokmen\Site\View\Poster\PaintedFoliage;
 use Rodokmen\Site\View\Poster\PaintedLayout;
 use Rodokmen\Site\View\Poster\PaintedLimbs;
+use Rodokmen\Site\View\Poster\PaintedMeadow;
 use Rodokmen\Site\View\Poster\PaintedPlaque;
 use Rodokmen\Site\View\Poster\PaintedSpread;
 use Rodokmen\Site\View\Poster\PaintedWood;
@@ -270,6 +271,8 @@ final class PosterTest extends TestCase
 		// Trunk, five roots, branches to Jan, to Marie and from Jan to Josef, and at least one twig
 		self::assertGreaterThan(9, substr_count($svg, 'fill="' . PaintedWood::Bark . '"'));
 		self::assertGreaterThan(5, substr_count($svg, 'rotate('), 'leaves');
+		self::assertStringContainsString('class="pst-hatch"', $svg, 'the trunk is shaded with the pen');
+		self::assertGreaterThan(20, substr_count($svg, '<circle r="'), 'hearts of the flowers on the mound');
 		self::assertSame(4, preg_match_all('/<text class="pst-t pst-name/', $svg));
 		foreach (['Antonín Novák', 'Jan Novák', 'Marie Malá', 'Josef Novák'] as $text) {
 			self::assertStringContainsString($text, $svg);
@@ -486,6 +489,7 @@ final class PosterTest extends TestCase
 			new PaintedLayout(new PaintedSpread()),
 			new PaintedLimbs($brush),
 			new PaintedWood($brush),
+			new PaintedMeadow($brush),
 			new PaintedFoliage($brush),
 			new PaintedPlaque($brush),
 		);
