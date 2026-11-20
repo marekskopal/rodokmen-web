@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
+use DateTimeInterface;
+
 /**
  * Look of the poster: paper, ink, typeface and decoration. The colours are written into the SVG itself, so the
  * poster looks the same on screen (also in dark mode), on paper and outside the website.
@@ -20,6 +22,22 @@ enum PosterStyle: string
 	private const Sepia = [139, 107, 61];
 
 	private const SepiaShare = .3;
+
+	private const Numerals = [
+		'M' => 1000,
+		'CM' => 900,
+		'D' => 500,
+		'CD' => 400,
+		'C' => 100,
+		'XC' => 90,
+		'L' => 50,
+		'XL' => 40,
+		'X' => 10,
+		'IX' => 9,
+		'V' => 5,
+		'IV' => 4,
+		'I' => 1,
+	];
 
 	public function label(): string
 	{
@@ -100,6 +118,15 @@ enum PosterStyle: string
 		};
 	}
 
+	/** Date on the poster: "20. 11. 2026", or in the historical style "dne 20. 11. léta Páně MMXXVI". */
+	public function date(DateTimeInterface $date): string
+	{
+		return match ($this) {
+			self::Simple => $date->format('j. n. Y'),
+			self::Historical => 'dne ' . $date->format('j. n.') . ' léta Páně ' . self::roman((int) $date->format('Y')),
+		};
+	}
+
 	/** Colour of a family line on the poster: as it is, or mixed with sepia in the historical style. */
 	public function tint(string $color): string
 	{
@@ -115,5 +142,17 @@ enum PosterStyle: string
 		}
 
 		return $mixed;
+	}
+
+	/** A positive number in Roman numerals: 2026 → MMXXVI. */
+	private static function roman(int $number): string
+	{
+		$roman = '';
+		foreach (self::Numerals as $numeral => $value) {
+			$roman .= str_repeat($numeral, intdiv($number, $value));
+			$number %= $value;
+		}
+
+		return $roman;
 	}
 }

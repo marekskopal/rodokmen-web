@@ -1,0 +1,158 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Rodokmen\Site\View\Poster;
+
+use Rodokmen\Site\View\FanGeometry;
+use Rodokmen\Site\View\View;
+
+/**
+ * Heading and subtitle of the poster in its top left corner. In the historical style they are written like the
+ * opening of a medieval manuscript: on a scroll, the first letter as an illuminated initial (a gold letter on lapis
+ * in a gold square, with white pen work) as tall as both lines, and the subtitle in red (a rubric).
+ */
+final readonly class PosterTitle
+{
+	/** Size of the subtitle relative to the heading's. */
+	private const Sub = .45;
+
+	/** Room between the initial and the text relative to the initial's side. */
+	private const Gap = .15;
+
+	public function __construct(private View $view, private FanGeometry $geometry, private PosterDecor $decor, private PosterBrush $brush,)
+	{
+	}
+
+	/** Height of the heading and the subtitle written with the given heading size. */
+	public function height(float $size): float
+	{
+		// Below the box (box()) the subtitle's descenders.
+		return self::box($size, $size * self::Sub) + $size * self::Sub * .2;
+	}
+
+	/** The heading and the subtitle with their top left corner at $left, $top, fitted to the width $available. */
+	public function draw(
+		PosterStyle $style,
+		string $heading,
+		string $subtitle,
+		float $left,
+		float $top,
+		float $size,
+		float $available,
+		float $pad,
+		PosterRandom $random,
+	): string
+	{
+		$initial = $style->isOrnate() ? $this->initial($heading) : '';
+		$rest = mb_substr($heading, mb_strlen($initial));
+		// The initial is as tall as both lines; the text starts beside it.
+		$indent = $initial === '' ? 0.0 : self::box($size, $size * self::Sub) * (1 + self::Gap);
+		$subSize = $this->geometry->fit($subtitle, $available - $indent, $size * self::Sub);
+		$size = $this->geometry->fit($rest, $available - $indent, $size);
+		$side = self::box($size, $subSize);
+		$x = $initial === '' ? $left : $left + $side * (1 + self::Gap);
+		// The glyph width is an average; wide capitals get a little room to spare.
+		$textWidth = max(mb_strlen($rest) * $size, mb_strlen($subtitle) * $subSize) * FanGeometry::GlyphWidth * 1.1;
+
+		$out = $this->decor->cartouche($style, $left, $top, min($available, $x - $left + $textWidth), $side, $pad, $random->fork('scroll'));
+		$first = '';
+		if ($initial !== '') {
+			$letter = $side * .8;
+			$out .= $this->square($left, $top, $side, $style, $random->fork('initial'));
+			// Centred on the square: the capitals stand about .68 of the size above the baseline.
+			$first = sprintf(
+				'<tspan class="pst-initial" x="%.1f" y="%.1f" font-size="%.1f" text-anchor="middle" stroke-width="%.2f">%s</tspan>',
+				$left + $side / 2,
+				$top + $side / 2 + $letter * .34,
+				$letter,
+				$letter * .015,
+				$this->view->e($initial),
+			);
+			$rest = $rest === '' ? '' : sprintf('<tspan x="%.1f" y="%.1f">%s</tspan>', $x, $top + $size * .9, $this->view->e($rest));
+		} else {
+			$rest = $this->view->e($rest);
+		}
+
+		return $out
+			. sprintf(
+				'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s%s</text>',
+				$x,
+				$top + $size * .9,
+				$size,
+				$first,
+				$rest,
+			)
+			. sprintf(
+				'<text class="pst-t pst-sub%s" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
+				$style->isOrnate() ? ' pst-rubric' : '',
+				$x,
+				$top + $size * 1.2 + $subSize * 1.1,
+				$subSize,
+				$this->view->e($subtitle),
+			);
+	}
+
+	/** Height of the heading and the subtitle without its descenders: the side of the initial's square. */
+	private static function box(float $size, float $subSize): float
+	{
+		return $size * 1.2 + $subSize * 1.4;
+	}
+
+	/**
+	 * The letter to illuminate: the first one with its accents (also when written as combining marks), if the heading
+	 * starts with a capital letter followed by more letters – the square is centred on the height of a capital.
+	 */
+	private function initial(string $heading): string
+	{
+		return preg_match('/^([\p{Lu}\p{Lt}]\p{M}*)\p{L}/u', $heading, $match) === 1 ? $match[1] : '';
+	}
+
+	/** Gold square with a lapis ground and white pen work curling from its corners. */
+	private function square(float $left, float $top, float $side, PosterStyle $style, PosterRandom $random): string
+	{
+		$inset = $side * .08;
+		$out = sprintf(
+			'<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" fill="%s" stroke="%s" stroke-width="%.2f"/>',
+			$left,
+			$top,
+			$side,
+			$side,
+			PosterPigments::Gold,
+			$style->ink(),
+			$side * .015,
+		)
+			. sprintf(
+				'<rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" fill="%s" stroke="%s" stroke-width="%.2f"/>',
+				$left + $inset,
+				$top + $inset,
+				$side - 2 * $inset,
+				$side - 2 * $inset,
+				PosterPigments::Lapis,
+				PosterPigments::GoldShade,
+				$side * .008,
+			);
+
+		// From every corner a curl towards the middle, with a dot at its start.
+		$near = $inset * 1.6;
+		$far = $side - $near;
+		foreach ([[$near, $near, 45], [$far, $near, 135], [$far, $far, 225], [$near, $far, 315]] as $k => [$cornerX, $cornerY, $angle]) {
+			$x = $left + $cornerX;
+			$y = $top + $cornerY;
+			$sign = $k % 2 === 0 ? 1 : -1;
+			$out .= sprintf(
+				'<path d="%s" fill="none" stroke="%s" stroke-opacity=".85" stroke-width="%.2f" stroke-linecap="round"/>'
+				. '<circle cx="%.2f" cy="%.2f" r="%.2f" fill="%s"/>',
+				$this->brush->open($this->brush->spiral($x, $y, $angle - $sign * 40, $side * .2, $sign, $random->float(1, 1.4))),
+				PosterPigments::White,
+				$side * .012,
+				$x,
+				$y,
+				$side * .018,
+				PosterPigments::White,
+			);
+		}
+
+		return $out;
+	}
+}
