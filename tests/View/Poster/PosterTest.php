@@ -44,6 +44,7 @@ use Rodokmen\Site\View\Poster\PosterStyle;
 use Rodokmen\Site\View\Poster\PosterTextWidth;
 use Rodokmen\Site\View\Poster\PosterTitle;
 use Rodokmen\Site\View\Poster\PosterTree;
+use Rodokmen\Site\View\Poster\PosterTreeBand;
 use Rodokmen\Site\View\View;
 use const PREG_SET_ORDER;
 
@@ -194,6 +195,46 @@ final class PosterTest extends TestCase
 		}
 		self::assertStringContainsString('>Josef Novák', $svg);
 		self::assertStringContainsString('>rod Novákovi</text>', $svg);
+	}
+
+	public function testTreeRisesBesideTheTitleWhereItsBoxesLeaveRoom(): void
+	{
+		// From left to right the person stands in the middle of the left edge: the corner above is free.
+		$right = $this->poster->render($this->root(), $this->options(PosterLayout::TreeRight))->svg;
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">/', $right, $origin));
+		self::assertSame($origin[1], $origin[2], 'the tree starts at the top margin');
+
+		// Upward, the oldest generation stands in a row across the top: the tree rises only until it reaches the title
+		// (the chart comes before the title).
+		$up = $this->poster->render($this->root(), $this->options(PosterLayout::Tree))->svg;
+		self::assertSame(1, preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">(.*?)<text class="pst-t pst-title"/s', $up, $chart));
+		self::assertSame(1, preg_match('/<text class="pst-t pst-sub" x="[\d.]+" y="([\d.]+)"/', $up, $subtitle));
+		preg_match_all('/<rect x="[\d.]+" y="([\d.]+)"/', $chart[3], $tops);
+		self::assertCount(7, $tops[1]);
+		foreach ($tops[1] as $top) {
+			self::assertGreaterThan((float) $subtitle[1], (float) $chart[2] + (float) $top, 'the boxes stay below the title');
+		}
+		self::assertGreaterThan((float) $chart[1], (float) $chart[2], 'a part of the title\'s band is kept');
+	}
+
+	public function testPaintedTreeKeepsItsNamesBelowTheTitle(): void
+	{
+		$svg = $this->poster->render($this->root(), $this->options(PosterLayout::PaintedTree))->svg;
+		self::assertSame(
+			1,
+			preg_match('/<g transform="translate\(([\d.]+),([\d.]+)\)">(.*?)<text class="pst-t pst-title"/s', $svg, $chart),
+		);
+		self::assertSame(1, preg_match('/<text class="pst-t pst-sub" x="[\d.]+" y="([\d.]+)"/', $svg, $subtitle));
+		preg_match_all(
+			'/<g transform="translate\(([\d.]+),([\d.]+)\)[^"]*"><text class="pst-t pst-name/',
+			$chart[3],
+			$names,
+			PREG_SET_ORDER,
+		);
+		self::assertGreaterThan(0, count($names));
+		foreach ($names as [, $x, $y]) {
+			self::assertGreaterThan((float) $subtitle[1], (float) $chart[2] + (float) $y, 'the name at ' . $x . ' stays below the title');
+		}
 	}
 
 	public function testTreeGenerationHasOneTextSize(): void
@@ -497,6 +538,7 @@ final class PosterTest extends TestCase
 			new PaintedPlaque($brush),
 		);
 
+		$title = new PosterTitle($view, $geometry, new PosterDecor($brush), $brush);
 		$poster = new Poster(
 			$repository,
 			$view,
@@ -507,7 +549,8 @@ final class PosterTest extends TestCase
 			new PosterBorder($brush),
 			new PosterFonts($config),
 			new PosterHeading($repository, new HomePerson($repository, $config)),
-			new PosterTitle($view, $geometry, new PosterDecor($brush), $brush),
+			$title,
+			new PosterTreeBand($tree, $painted, $title),
 		);
 
 		return [$repository, $poster];

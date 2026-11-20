@@ -53,8 +53,8 @@ final readonly class PosterTree
 			[$w, $h] = $upward ? [$boxBreadth, $boxDepth] : [$boxDepth, $boxBreadth];
 			$text = $this->text->fit($people, $w, $h, $maxFont);
 			foreach ($row as $i => $person) {
-				$box = [$g * $depthSize, ($i + .5) * $slot - $boxBreadth / 2, $boxDepth, $boxBreadth];
-				$boxes .= $this->box($person, $g, $i, $style, $this->rect($box, $height, $upward), $stroke, $text);
+				$rect = $this->place($g, $i, $depthSize, $slot, $boxBreadth, $height, $upward);
+				$boxes .= $this->box($person, $g, $i, $style, $rect, $stroke, $text);
 				if ($person !== null && isset($generations[$g + 1])) {
 					$connectors .= $this->connector($g, $i, $depthSize, $breadth, $height, $upward);
 				}
@@ -62,6 +62,28 @@ final readonly class PosterTree
 		}
 
 		return sprintf('<g fill="none" stroke="%s" stroke-width="%.2f">%s</g>', $style->muted(), $stroke, $connectors) . $boxes;
+	}
+
+	/**
+	 * Where render() puts the boxes, the dashed places of the ancestors not found yet included.
+	 *
+	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
+	 * @return list<array{float, float, float, float}> x, y, width and height of every box
+	 */
+	public function boxes(array $generations, float $width, float $height, bool $upward): array
+	{
+		$depthSize = ($upward ? $height : $width) / count($generations);
+		$breadth = $upward ? $width : $height;
+		$rects = [];
+		foreach ($this->people->places($generations) as $g => $row) {
+			$slot = $breadth / 2 ** $g;
+			$boxBreadth = $this->boxBreadth($slot, $breadth, $depthSize * self::BoxDepth, $upward);
+			foreach (array_keys($row) as $i) {
+				$rects[] = $this->place($g, $i, $depthSize, $slot, $boxBreadth, $height, $upward);
+			}
+		}
+
+		return $rects;
 	}
 
 	/**
@@ -183,15 +205,19 @@ final readonly class PosterTree
 	}
 
 	/**
-	 * @param array{float, float, float, float} $box depth from the person, breadth, size along depth, size along breadth
+	 * The box of the i-th ancestor of generation g.
+	 *
+	 * @param float $slot the generation's share of the breadth for one ancestor
 	 * @return array{float, float, float, float} x, y, width, height
 	 */
-	private function rect(array $box, float $height, bool $upward): array
+	private function place(int $g, int $i, float $depthSize, float $slot, float $boxBreadth, float $height, bool $upward): array
 	{
-		[$depth, $across, $depthSize, $breadthSize] = $box;
+		$depth = $g * $depthSize;
+		$across = ($i + .5) * $slot - $boxBreadth / 2;
+		$boxDepth = $depthSize * self::BoxDepth;
 
 		return $upward
-			? [$across, $height - $depth - $depthSize, $breadthSize, $depthSize]
-			: [$depth, $across, $depthSize, $breadthSize];
+			? [$across, $height - $depth - $boxDepth, $boxBreadth, $boxDepth]
+			: [$depth, $across, $boxDepth, $boxBreadth];
 	}
 }

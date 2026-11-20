@@ -51,7 +51,7 @@ final readonly class PosterPaintedTree
 	/** @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first */
 	public function render(array $generations, PosterStyle $style, float $width, float $height, float $maxFont): string
 	{
-		$random = new PosterRandom('painted-tree|' . ($generations[0][0] ?? ''));
+		$random = self::random($generations);
 		$unit = $this->layout->unit(count($generations), $height);
 		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, $random);
 		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
@@ -110,6 +110,26 @@ final readonly class PosterPaintedTree
 			);
 
 		return $ground . implode('', array_column($wood, 1)) . $leaves . $plaques;
+	}
+
+	/**
+	 * Where render() puts the name plaques.
+	 *
+	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
+	 * @return list<array{float, float, float, float}> x, y, width and height around every plaque
+	 */
+	public function plaques(array $generations, float $width, float $height): array
+	{
+		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, self::random($generations));
+		$rects = [];
+		foreach ($nodes as $row) {
+			foreach ($row as $node) {
+				// The tails of a ribbon hang a little below its body (PaintedNode::covers()).
+				$rects[] = [$node->x - $node->w / 2, $node->y - $node->h / 2, $node->w, $node->h * ($node->ribbon ? 1.2 : 1.0)];
+			}
+		}
+
+		return $rects;
 	}
 
 	/**
@@ -283,6 +303,16 @@ final readonly class PosterPaintedTree
 		}
 
 		return [$wood, $leaves];
+	}
+
+	/**
+	 * The chance behind the tree, seeded by its person.
+	 *
+	 * @param non-empty-list<list<?string>> $generations
+	 */
+	private static function random(array $generations): PosterRandom
+	{
+		return new PosterRandom('painted-tree|' . ($generations[0][0] ?? ''));
 	}
 
 	private function plaque(PaintedNode $node, PosterStyle $style, PosterRandom $random): string

@@ -42,6 +42,7 @@ final readonly class Poster
 		private PosterFonts $fonts,
 		private PosterHeading $heading,
 		private PosterTitle $title,
+		private PosterTreeBand $band,
 	)
 	{
 	}
@@ -185,7 +186,20 @@ final readonly class Poster
 		$upward = $options->layout !== PosterLayout::TreeRight;
 		$painted = $options->layout === PosterLayout::PaintedTree;
 		$size = min($areaWidth, $areaHeight) * .0375;
-		$band = $this->title->height($size) + $size * .8;
+		$band = $this->band->of(
+			$options->layout,
+			$generations,
+			[$areaWidth, $areaHeight],
+			$this->title->extent(
+				$options->style,
+				$this->heading($root, $options),
+				$this->subtitle($root, $options),
+				$size,
+				$areaWidth,
+				$this->titlePad($size, $margin),
+			),
+			$size,
+		);
 		$treeHeight = $areaHeight - $band;
 
 		$chart = sprintf(
@@ -218,16 +232,31 @@ final readonly class Poster
 	{
 		return $this->title->draw(
 			$options->style,
-			$options->title !== '' ? $options->title : $this->heading->of($root),
-			'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací'),
+			$this->heading($root, $options),
+			$this->subtitle($root, $options),
 			$margin,
 			$margin,
 			$size,
 			$available,
-			// The scroll's rolls reach 1.3 × the padding into the margin, clear of the corner medallion (PosterBorder::Corner).
-			min($size * .4, $margin * .22),
+			$this->titlePad($size, $margin),
 			new PosterRandom('title|' . $root->slug),
 		);
+	}
+
+	private function heading(Person $root, PosterOptions $options): string
+	{
+		return $options->title !== '' ? $options->title : $this->heading->of($root);
+	}
+
+	private function subtitle(Person $root, PosterOptions $options): string
+	{
+		return 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
+	}
+
+	/** The scroll's rolls reach 1.3 × the padding into the margin, clear of the corner medallion (PosterBorder::Corner). */
+	private function titlePad(float $size, float $margin): float
+	{
+		return min($size * .4, $margin * .22);
 	}
 
 	/**
