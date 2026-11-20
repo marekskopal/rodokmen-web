@@ -29,6 +29,11 @@ number changes only when old clients or servers could not read it – see *Bundl
   millefleurs grounds of old illuminations, as dense on A0 as on A3. The trunk and the thick branches are shaded
   with short strokes of the pen along their shaded side, and their ink outline is a little stronger.
 
+- **Historical poster: aged parchment.** The paper is no longer one even gradient: its corners are yellowed more
+  than the middles of the sides, a few large faint stains with tide lines lie on it, and rusty spots of foxing
+  gather towards the edges. Different for every person, the same every time, all vector, and the ink keeps its
+  contrast (WCAG AA) on the darkest spot.
+
 ## [1.2.1] - 2026-11-19
 
 The person page tells a life in order, and the dependencies are up to date.
