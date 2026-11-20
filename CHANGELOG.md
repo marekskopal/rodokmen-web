@@ -10,7 +10,39 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-20
+
+The historical painted tree is the default poster, drawn like an illuminated manuscript, and the heading and the
+footer of the poster can be left out.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d`. Apache: `composer install --no-dev` and
+`pnpm install --frozen-lockfile --prod && pnpm build` as after every update. Installed `rodokmen-sync` 1.2.0 keeps
+working.
+
 ### Website
+
+- **Ancestor poster: the historical painted tree by default.** A poster opened without choices is the painted
+  tree in the historical style (it was the fan in the simple style); A1 landscape and the readable number of
+  generations as before.
+
+- **Ancestor poster: heading and footer to choose.** Checkboxes under the heading's text leave out the heading, or
+  the person or the number of generations in its subtitle; those on their own row leave out the footer, or its
+  name, date or legend (the family lines and the note on uncertain ancestors). Everything is shown by default, and
+  the parts of a hidden heading or footer keep their ticks, greyed out, for when it comes back. Without a heading
+  the tree starts at the top margin. The download keeps the choice.
+
+- **Ancestor poster: the footer says the poster's heading.** Beside the date it wrote the website's title, even
+  when the heading was another person's family or the visitor's own.
+
+- **Ancestor poster: trees rise beside the title.** A tree used to start below the band of the title, which left an
+  empty strip across the top when it is shallow on the left – often the painted tree, whose lines grow higher on
+  one side, or the tree from left to right. It now reaches as high as its names keep clear of the title; branches
+  and leaves may grow behind it. The taller tree may fit one more readable generation.
+
+- **Checkboxes look like the other fields:** a rounded square, filled with the accent colour and ticked when on
+  (on the poster, the generations and the numbered list of ancestors).
+
+- **README:** a screenshot of the historical painted tree.
 
 - **Historical poster: an illuminated border.** The double rule with diamonds in the corners gave way to a border
   like the margin of a medieval manuscript: a vermilion band between ink and gold rules, a gold vine with leaves,
@@ -43,6 +75,14 @@ number changes only when old clients or servers could not read it – see *Bundl
   flat ovals are a little taller (two thirds of their width), the lines of a split name closer together, and the
   text may reach a little further along an oval than across it, as its inner ring does – so the names on the flat
   ovals are about a sixth larger still. The ribbons are unchanged.
+
+### rodokmen-sync
+
+- Unchanged: 1.2.0.
+
+### Bundle format
+
+- Unchanged: format 1.
 
 ## [1.2.1] - 2026-11-19
 
@@ -214,7 +254,8 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
-[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.3.0
 [1.2.1]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.1
 [1.2.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.0
 [1.1.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.1.0
