@@ -1,0 +1,127 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Rodokmen\Site\Tests\View\Poster;
+
+use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use Rodokmen\Site\Data\Model\Person;
+use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Image\Thumbnails;
+use Rodokmen\Site\Image\WebpResizer;
+use Rodokmen\Site\Tests\Support\Fixture;
+use Rodokmen\Site\View\FanGeometry;
+use Rodokmen\Site\View\FanLabels;
+use Rodokmen\Site\View\FanYears;
+use Rodokmen\Site\View\Poster\BoxText;
+use Rodokmen\Site\View\Poster\PosterBoxText;
+use Rodokmen\Site\View\Poster\PosterOvalText;
+use Rodokmen\Site\View\View;
+use const PREG_SET_ORDER;
+
+/** Names in the oval plaques of the painted tree: as large as the oval allows, never over its rim. */
+final class PosterOvalTextTest extends TestCase
+{
+	private string $dir;
+
+	private Repository $repository;
+
+	private PosterBoxText $box;
+
+	private PosterOvalText $text;
+
+	protected function setUp(): void
+	{
+		$this->dir = Fixture::dataDir();
+		$config = Fixture::config($this->dir);
+		$this->repository = new Repository($config, new SiteDataLoader($config));
+		$view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer()));
+		$geometry = new FanGeometry();
+		$labels = new FanLabels($view, $geometry);
+		$this->box = new PosterBoxText($view, $geometry, $labels, new FanYears());
+		$this->text = new PosterOvalText($view, $labels, new FanYears(), $this->box);
+	}
+
+	protected function tearDown(): void
+	{
+		Fixture::removeDir($this->dir);
+	}
+
+	public function testTallOvalsSplitTheNameForLargerLetters(): void
+	{
+		$people = [$this->person('antonin-novak-2024'), $this->person('jan-novak-1990')];
+
+		// A tall narrow oval: the given names over the surname, over the years.
+		$tall = $this->text->fit($people, 27, 43, 20, .78);
+		self::assertTrue($tall->split);
+		self::assertGreaterThan(
+			$this->box->fit($people, 27 * .76, 43 * .66, 20)->size * 1.3,
+			$tall->size,
+			'much larger than in the box inside the oval',
+		);
+		self::assertSame(20.0, $this->text->fit($people, 270, 430, 20, .78)->size, 'never above the largest size');
+
+		// A long low oval writes across it, on fewer lines.
+		$wide = $this->text->fit($people, 120, 30, 20, .78);
+		self::assertFalse($wide->turned);
+		self::assertFalse($wide->split);
+	}
+
+	public function testSplitNameStaysOneTextInsideTheOval(): void
+	{
+		$person = $this->person('antonin-novak-2024');
+		$text = $this->text->fit([$person], 27, 43, 20, .78);
+		$svg = $this->text->write($person, '', 0, 0, $text);
+
+		self::assertSame(1, substr_count($svg, '<text class="pst-t pst-name"'), 'the name is one text');
+		self::assertStringContainsString('>Antonín</tspan> <tspan', $svg, 'read with a space between its lines');
+		self::assertStringContainsString('>Novák</tspan>', $svg);
+
+		// Every line's corners inside the oval; a capital is about .75 of the size.
+		[$along, $across] = $text->turned ? [21.5, 13.5] : [13.5, 21.5];
+		preg_match_all(
+			'/<(?:tspan x="0"|text class="pst-t") y="(-?[\d.]+)"(?: text-anchor="middle" font-size="([\d.]+)")?>([^<]+)</',
+			$svg,
+			$lines,
+			PREG_SET_ORDER,
+		);
+		self::assertCount(3, $lines);
+		foreach ($lines as [, $y, $size, $line]) {
+			$letters = $size === '' ? $text->size : (float) $size;
+			$half = mb_strlen($line) * $letters * FanGeometry::GlyphWidth / 2;
+			foreach ([(float) $y - $letters * .75, (float) $y + $letters * .2] as $edge) {
+				self::assertLessThanOrEqual(1.0, ($half / $along) ** 2 + ($edge / $across) ** 2, $line . ' inside the rim');
+			}
+		}
+	}
+
+	public function testSplitKeepsTheBirthSurnameAndNotesTogether(): void
+	{
+		$text = new BoxText(10.0, true, false, true);
+		$lines = static fn (string $svg): array => preg_match_all('/<tspan x="0" y="[^"]+">([^<]+)</', $svg, $m) > 0 ? $m[1] : [];
+		$base = $this->person('antonin-novak-2024');
+
+		$svg = $this->text->write($this->renamed($base, 'Marie Nováková roz. Malá'), '', 0, 0, $text);
+		self::assertSame(['Marie Nováková', 'roz. Malá'], $lines($svg));
+		$svg = $this->text->write($this->renamed($base, 'Jan Josef Novák (?)'), '', 0, 0, $text);
+		self::assertSame(['Jan Josef', 'Novák (?)'], $lines($svg));
+		$svg = $this->text->write($this->renamed($base, 'Novák (?)'), '', 0, 0, $text);
+		self::assertSame([], $lines($svg), 'nowhere to break: written whole');
+		self::assertStringContainsString('>Novák (?)</text>', $svg);
+	}
+
+	private function renamed(Person $person, string $name): Person
+	{
+		return new ReflectionClass(Person::class)->newInstanceArgs(['name' => $name] + get_object_vars($person));
+	}
+
+	private function person(string $slug): Person
+	{
+		$person = $this->repository->person($slug);
+		self::assertNotNull($person);
+
+		return $person;
+	}
+}

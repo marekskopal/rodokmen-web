@@ -21,10 +21,11 @@ use Rodokmen\Site\View\View;
  */
 final readonly class PosterPaintedTree
 {
-	/** Share of a plaque's width and height that the text may take. */
+	/** Share of a ribbon's width and height that the text may take. */
 	private const TextWidth = .76;
 
-	private const TextHeight = .66;
+	/** Share of an oval's half-axes within which the text has to stay: inside its inner ring (.82 × .88 of them). */
+	private const OvalText = .78;
 
 	private const RibbonTextHeight = .84;
 
@@ -32,6 +33,7 @@ final readonly class PosterPaintedTree
 		private PosterPeople $people,
 		private View $view,
 		private PosterBoxText $text,
+		private PosterOvalText $ovalText,
 		private PaintedLayout $layout,
 		private PaintedLimbs $limbs,
 		private PaintedWood $wood,
@@ -62,7 +64,9 @@ final readonly class PosterPaintedTree
 			}
 			[$w, $h, $ribbon] = [$first->w, $first->h, $first->ribbon];
 			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
-			$text = $this->text->fit($people, $w * self::TextWidth, $h * ($ribbon ? self::RibbonTextHeight : self::TextHeight), $maxFont);
+			$text = $ribbon
+				? $this->text->fit($people, $w * self::TextWidth, $h * self::RibbonTextHeight, $maxFont)
+				: $this->ovalText->fit($people, $w, $h, $maxFont, self::OvalText);
 			$leaf = min($unit * .2, $w * .5);
 			foreach ($row as $node) {
 				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
@@ -70,7 +74,7 @@ final readonly class PosterPaintedTree
 				array_push($wood, ...$grown);
 				$leaves .= $sprays;
 				$plaques .= $this->plaque($node, $style, $chance->fork('plaque'))
-					. $this->text->write(
+					. $this->ovalText->write(
 						$node->person,
 						$g === 0 ? ' pst-root' : $this->people->textClass($node->person),
 						$node->x,

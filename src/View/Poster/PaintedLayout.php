@@ -26,7 +26,7 @@ final readonly class PaintedLayout
 
 	private const CrownRoom = .3;
 
-	/** Tall oval plaque (the name written along it): height relative to the row. */
+	/** Tall oval plaque: height relative to the row. */
 	private const PlaqueHeight = .56;
 
 	/** Ribbon: height relative to the row, width relative to its height at most and at least (else an oval). */
@@ -37,10 +37,7 @@ final readonly class PaintedLayout
 	private const RibbonMinWidth = 2.4;
 
 	/**
-	 * An oval at least this wide (in rows) carries its name across and is flat: its height relative to its width.
-	 * The width is where PosterBoxText stops turning the name in a tall oval (PlaqueHeight × the text's share of the
-	 * height / its share of the width / AlongBonus = .56 × .66 / .76 / 1.15 ≈ .42), so that no tall oval is left
-	 * with its name across.
+	 * An oval at least this wide (in rows) is flat, its height relative to its width; narrower ones are tall.
 	 */
 	private const FlatOvalWidth = .43;
 
@@ -104,8 +101,8 @@ final readonly class PaintedLayout
 
 		$tall = $unit * self::PlaqueHeight;
 		$w = min($slot * .9, $width * self::MaxShare);
-		// Wide enough for the name written across: a flat oval, no taller than the name needs. Narrower ones
-		// stay tall, because there the name is written along the plaque.
+		// Wide enough for the name on few lines across: a flat oval, no taller than the name needs. Narrower ones
+		// stay tall, with room for the name along them or split over more lines (PosterOvalText).
 		$h = $w >= $unit * self::FlatOvalWidth ? max($unit * self::RibbonHeight, $w * self::FlatOvalHeight) : $tall;
 
 		return [$w, $h, false];
