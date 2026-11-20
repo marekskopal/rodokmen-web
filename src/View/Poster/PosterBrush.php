@@ -125,6 +125,29 @@ final readonly class PosterBrush
 			. ' ' . $this->open(array_reverse($this->offset($spine, $widths, 1)), false) . 'Z';
 	}
 
+	/**
+	 * A curl drawn with a pen: from x, y towards $angle, straight at first, then turning ever tighter for about
+	 * $turns turns ($sign 1 = clockwise); $size is about its length.
+	 *
+	 * @return non-empty-list<array{float, float}>
+	 */
+	public function spiral(float $x, float $y, float $angle, float $size, int $sign, float $turns): array
+	{
+		$steps = 12;
+		$heading = deg2rad($angle);
+		$step = $size * .29;
+		$points = [[$x, $y]];
+		for ($s = 0; $s < $steps; $s++) {
+			$heading += $sign * 2 * M_PI * $turns / $steps * (.3 + 1.4 * $s / $steps);
+			$step *= .875;
+			$x += cos($heading) * $step;
+			$y += sin($heading) * $step;
+			$points[] = [$x, $y];
+		}
+
+		return $points;
+	}
+
 	/** @return array{float, float} the point $distance away from $x, $y in the direction of $angle */
 	public function reach(float $x, float $y, float $angle, float $distance): array
 	{

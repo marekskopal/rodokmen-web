@@ -39,6 +39,7 @@ use Rodokmen\Site\View\Poster\PosterPaintedTree;
 use Rodokmen\Site\View\Poster\PosterPeople;
 use Rodokmen\Site\View\Poster\PosterPigments;
 use Rodokmen\Site\View\Poster\PosterStyle;
+use Rodokmen\Site\View\Poster\PosterTitle;
 use Rodokmen\Site\View\Poster\PosterTree;
 use Rodokmen\Site\View\View;
 use const PREG_SET_ORDER;
@@ -222,7 +223,11 @@ final class PosterTest extends TestCase
 		self::assertStringContainsString('font-family="&quot;EB Garamond&quot;', $svg);
 		self::assertStringContainsString('@font-face{font-family:"EB Garamond"', $svg);
 		self::assertStringContainsString('/assets/vendor/@fontsource/eb-garamond/', $svg, 'the page links the font files');
-		self::assertSame(4, preg_match_all('/<rect [^>]*fill="' . PosterPigments::Lapis . '"/', $svg), 'four corner medallions');
+		self::assertSame(
+			5,
+			preg_match_all('/<rect [^>]*fill="' . PosterPigments::Lapis . '"/', $svg),
+			'four corner medallions and the initial',
+		);
 		// The person (whose ribbon in the painted tree has tails and folds too)
 		self::assertSame($layout === PosterLayout::PaintedTree ? 5 : 1, substr_count($svg, 'fill="#6e2417"'));
 		self::assertStringContainsString('Josef Novák', $svg);
@@ -237,8 +242,8 @@ final class PosterTest extends TestCase
 		}
 
 		if ($layout === PosterLayout::Tree || $layout === PosterLayout::TreeRight) {
-			// Only the two panels of the cartouche and the legend swatch are rounded; the seven boxes are labels.
-			self::assertSame(3, substr_count($svg, ' rx="'));
+			// Only the legend swatch is a rounded box; the seven boxes are labels with cut corners.
+			self::assertSame(1, preg_match_all('/<rect [^>]* rx="/', $svg));
 		}
 
 		$standalone = $this->poster->render($this->root(), $options, standalone: true)->svg;
@@ -491,11 +496,11 @@ final class PosterTest extends TestCase
 			$fan,
 			$tree,
 			$painted,
-			new PosterDecor(),
+			new PosterDecor($brush),
 			new PosterBorder($brush),
 			new PosterFonts($config),
 			new PosterHeading($repository, new HomePerson($repository, $config)),
-			$geometry,
+			new PosterTitle($view, $geometry, new PosterDecor($brush), $brush),
 		);
 
 		return [$repository, $poster];

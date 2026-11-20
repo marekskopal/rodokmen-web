@@ -19,6 +19,11 @@ number changes only when old clients or servers could not read it – see *Bundl
   of the historical style is a little wider (5 % of the short side instead of 3.5 %), so a crowded poster may
   fit one generation less on the same paper.
 
+- **Historical poster: a title like the opening of a manuscript.** The heading lies on a parchment scroll rolled up
+  at both ends instead of a rounded panel, its first letter is an illuminated initial (a gold letter on lapis in a
+  gold square with white pen work) as tall as both lines, the subtitle is written in red, and the footer is dated
+  "dne 20. 11. léta Páně MMXXVI". The simple style is unchanged.
+
 ## [1.2.1] - 2026-11-19
 
 The person page tells a life in order, and the dependencies are up to date.

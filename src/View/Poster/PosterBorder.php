@@ -14,7 +14,7 @@ use const M_PI;
  */
 final readonly class PosterBorder
 {
-	/** Outer and inner edge of the band as shares of the margin; the title's panel reaches 30 % into the margin. */
+	/** Outer and inner edge of the band as shares of the margin; the title's scroll reaches under 30 % into the margin. */
 	public const Outer = .12;
 
 	public const Inner = .66;
@@ -22,7 +22,7 @@ final readonly class PosterBorder
 	/** Length of half a wave of the vine relative to the width of the band. */
 	private const HalfWave = 1.25;
 
-	/** Half the side of a corner medallion relative to the width of the band: it keeps clear of the title's panel. */
+	/** Half the side of a corner medallion relative to the width of the band: it keeps clear of the title's scroll (its inner edge lies 69 % into the margin). */
 	private const Corner = .55;
 
 	/** How far the rules waver, and every how far along them, relative to the width of the band. */
@@ -246,20 +246,8 @@ final readonly class PosterBorder
 	/** A hairline tendril curling into a spiral from x, y, $sign = 1 clockwise, ending in a gold ball. */
 	private function tendril(float $x, float $y, float $angle, float $size, int $sign, PosterRandom $random): string
 	{
-		$turns = $random->float(1.1, 1.5);
-		$steps = 12;
-		$heading = deg2rad($angle);
-		$step = $size * .29;
-		$points = [[$x, $y]];
-		for ($s = 0; $s < $steps; $s++) {
-			// Straight at first, then curling ever tighter.
-			$heading += $sign * 2 * M_PI * $turns / $steps * (.3 + 1.4 * $s / $steps);
-			$step *= .875;
-			$x += cos($heading) * $step;
-			$y += sin($heading) * $step;
-			$points[] = [$x, $y];
-		}
-		[$bx, $by] = $points[(int) ($steps * .45)];
+		$points = $this->brush->spiral($x, $y, $angle, $size, $sign, $random->float(1.1, 1.5));
+		[$bx, $by] = $points[5];
 
 		return sprintf(
 			'<path d="%s" fill="none" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
+use DateTimeImmutable;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\View\FanGeometry;
@@ -40,7 +41,7 @@ final readonly class Poster
 		private PosterBorder $border,
 		private PosterFonts $fonts,
 		private PosterHeading $heading,
-		private FanGeometry $geometry,
+		private PosterTitle $title,
 	)
 	{
 	}
@@ -163,7 +164,7 @@ final readonly class Poster
 		$size = $radius * .075;
 		$band = $cy - $radius - $margin;
 		$reserved = $half ? $this->footerWidth($rows, $footerSize) + 2 * $footerSize : 0.0;
-		$available = $band >= $this->titleHeight($size)
+		$available = $band >= $this->title->height($size)
 			? $areaWidth - $reserved
 			: ($areaWidth - 2 * $radius) / 2 + $radius * .5;
 
@@ -183,7 +184,7 @@ final readonly class Poster
 		$upward = $options->layout !== PosterLayout::TreeRight;
 		$painted = $options->layout === PosterLayout::PaintedTree;
 		$size = min($areaWidth, $areaHeight) * .0375;
-		$band = $this->titleHeight($size) + $size * .8;
+		$band = $this->title->height($size) + $size * .8;
 		$treeHeight = $areaHeight - $band;
 
 		$chart = sprintf(
@@ -211,44 +212,21 @@ final readonly class Poster
 		return [$chart, $this->title($root, $options, $margin, $size, $areaWidth), $footer];
 	}
 
-	/** Height of the heading and the subtitle written with the given heading size. */
-	private function titleHeight(float $size): float
-	{
-		return $size * 1.2 + $size * .45 * 1.6;
-	}
-
 	/** Heading (the visitor's, or the family of the person) and the subtitle in the top left corner, fitted to $available. */
 	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available): string
 	{
-		$heading = $options->title !== '' ? $options->title : $this->heading->of($root);
-		$subtitle = 'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací');
-		$subSize = $this->geometry->fit($subtitle, $available, $size * .45);
-		$size = $this->geometry->fit($heading, $available, $size);
-		// The glyph width is an average; wide capitals get a little room to spare.
-		$textWidth = max(mb_strlen($heading) * $size, mb_strlen($subtitle) * $subSize) * FanGeometry::GlyphWidth * 1.1;
-		$cartouche = $this->decor->cartouche(
+		return $this->title->draw(
 			$options->style,
+			$options->title !== '' ? $options->title : $this->heading->of($root),
+			'Předci osoby ' . $root->name . ' · ' . $this->view->plural($options->depth, 'generace', 'generace', 'generací'),
 			$margin,
 			$margin,
-			min($available, $textWidth),
-			$size * 1.2 + $subSize * 1.4,
-			min($size * .4, $margin * .3),
-		);
-
-		return $cartouche . sprintf(
-			'<text class="pst-t pst-title" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
-			$margin,
-			$margin + $size * .9,
 			$size,
-			$this->view->e($heading),
-		)
-			. sprintf(
-				'<text class="pst-t pst-sub" x="%.1f" y="%.1f" font-size="%.1f">%s</text>',
-				$margin,
-				$margin + $size * 1.2 + $subSize * 1.1,
-				$subSize,
-				$this->view->e($subtitle),
-			);
+			$available,
+			// The scroll's rolls reach 1.3 × the padding into the margin, clear of the corner medallion (PosterBorder::Corner).
+			min($size * .4, $margin * .22),
+			new PosterRandom('title|' . $root->slug),
+		);
 	}
 
 	/**
@@ -276,7 +254,7 @@ final readonly class Poster
 			}
 		}
 		$rows[] = ['kurzívou pravděpodobní nebo nejistí předci', 'pst-t pst-prob pst-muted', null];
-		$rows[] = [$this->repository->title() . ' · ' . date('j. n. Y'), 'pst-t pst-muted', null];
+		$rows[] = [$this->repository->title() . ' · ' . $style->date(new DateTimeImmutable()), 'pst-t pst-muted', null];
 
 		return $rows;
 	}
@@ -344,7 +322,11 @@ final readonly class Poster
 			. '.pst-muted{fill:' . $style->muted() . '}'
 			. '.pst-line{font-weight:700;letter-spacing:.15em}'
 			. '.pst-root{fill:' . $style->accentInk() . '}'
-			. '.pst-years{font-weight:400}';
+			. '.pst-years{font-weight:400}'
+			. ($style->isOrnate()
+				? '.pst-rubric{fill:' . PosterPigments::Vermilion . '}'
+					. '.pst-initial{fill:' . PosterPigments::Gold . ';stroke:' . PosterPigments::GoldShade . ';font-weight:700}'
+				: '');
 	}
 
 	/** Smallest font size (mm) written into the SVG – tells the visitor whether the poster is still readable. */
