@@ -25,7 +25,7 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	await page.getByLabel('Rozvržení').selectOption('pulvejir');
 	await page.getByLabel('Papír').selectOption('a3');
 	await page.getByLabel('Orientace').selectOption('na-vysku');
-	await page.getByLabel('Nadpis').fill('Rod Skopalů');
+	await page.getByLabel('Nadpis', { exact: true }).fill('Rod Skopalů');
 
 	await expect(page).toHaveURL(/rozvrzeni=pulvejir.*format=a3.*orientace=na-vysku.*nadpis=Rod/);
 	await expect(page.locator('.poster-sheet')).toHaveClass(/poster-a3-portrait/);
@@ -46,7 +46,7 @@ test('the heading and the footer can be left out, with their parts', async ({ pa
 	await expect(sheet.locator('.pst-sub')).not.toContainText('Předci osoby');
 	await expect(sheet.locator('.pst-sub')).toContainText('generac');
 
-	const heading = page.locator('fieldset.poster-parts').filter({ hasText: 'Nadpis' }).getByRole('checkbox', { name: 'zobrazit' });
+	const heading = page.getByRole('group', { name: 'Části nadpisu' }).getByRole('checkbox', { name: 'zobrazit' });
 	await heading.uncheck();
 	await expect(sheet.locator('.pst-title')).toHaveCount(0);
 	// The parts of a hidden heading wait, still ticked, for it to come back.
@@ -54,7 +54,7 @@ test('the heading and the footer can be left out, with their parts', async ({ pa
 	await heading.check();
 	await expect(sheet.locator('.pst-title')).toHaveCount(1);
 
-	await page.locator('fieldset.poster-parts').filter({ hasText: 'Patička' }).getByRole('checkbox', { name: 'zobrazit' }).uncheck();
+	await page.getByRole('group', { name: 'Části patičky' }).getByRole('checkbox', { name: 'zobrazit' }).uncheck();
 	await expect(sheet.locator('.pst-muted')).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=1&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
 });
@@ -65,7 +65,7 @@ test('the select boxes look like the text input', async ({ page }) => {
 		const css = getComputedStyle(el);
 		return [css.borderTopColor, css.borderTopLeftRadius, css.backgroundColor, css.fontFamily];
 	});
-	expect(await look(page.getByLabel('Papír'))).toEqual(await look(page.getByLabel('Nadpis')));
+	expect(await look(page.getByLabel('Papír'))).toEqual(await look(page.getByLabel('Nadpis', { exact: true })));
 	expect(await page.getByLabel('Papír').evaluate((el) => getComputedStyle(el).appearance)).toBe('none');
 });
 

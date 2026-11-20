@@ -194,7 +194,7 @@ final class KernelTest extends TestCase
 		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1" checked>', $body);
 		$parts = (string) $this->get('/predci/antonin-novak-2024/plakat?casti=1&nadpis-zobrazit=1', loggedIn: true)->getBody();
 		self::assertStringContainsString('<input type="checkbox" name="nadpis-zobrazit" value="1" checked>', $parts);
-		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1" >', $parts);
+		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1">', $parts);
 		self::assertStringNotContainsString('Předci osoby Antonín Novák ·', $parts);
 		self::assertStringContainsString(
 			'plakat.svg?rozvrzeni=maleny-strom&amp;format=a1&amp;orientace=na-sirku&amp;styl=historicky&amp;casti=1&amp;nadpis-zobrazit=1"',
