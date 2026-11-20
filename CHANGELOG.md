@@ -10,6 +10,15 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+### Website
+
+- **Historical poster: an illuminated border.** The double rule with diamonds in the corners gave way to a border
+  like the margin of a medieval manuscript: a vermilion band between ink and gold rules, a gold vine with leaves,
+  tendrils, berries and flowers winding along it, and a gold quatrefoil on lapis in every corner. Drawn by an
+  unsteady hand and the same every time for the same person; all vector, so it prints sharp up to A0. The margin
+  of the historical style is a little wider (5 % of the short side instead of 3.5 %), so a crowded poster may
+  fit one generation less on the same paper.
+
 ## [1.2.1] - 2026-11-19
 
 The person page tells a life in order, and the dependencies are up to date.

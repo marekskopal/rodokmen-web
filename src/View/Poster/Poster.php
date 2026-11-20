@@ -27,6 +27,9 @@ final readonly class Poster
 	/** Margin around the drawing relative to the short side of the paper. */
 	private const Margin = .035;
 
+	/** Wider margin of the historical style, which holds the illuminated border (PosterBorder). */
+	private const OrnateMargin = .05;
+
 	public function __construct(
 		private Repository $repository,
 		private View $view,
@@ -34,6 +37,7 @@ final readonly class Poster
 		private PosterTree $tree,
 		private PosterPaintedTree $paintedTree,
 		private PosterDecor $decor,
+		private PosterBorder $border,
 		private PosterFonts $fonts,
 		private PosterHeading $heading,
 		private FanGeometry $geometry,
@@ -53,22 +57,30 @@ final readonly class Poster
 	 */
 	public function readable(Person $root, PosterOptions $options): PosterSheet
 	{
+		// The border does not depend on the depth: drawn once for all the tries.
+		$border = $this->drawBorder($root, $options);
 		for ($depth = $options->depth; $depth > 1; $depth--) {
-			$sheet = $this->render($root, $options->withDepth($depth));
+			$sheet = $this->sheet($root, $options->withDepth($depth), false, $border);
 			if ($sheet->smallestPoints() >= self::ReadablePoints) {
 				return $sheet;
 			}
 		}
 
-		return $this->render($root, $options->withDepth(min(1, $options->depth)));
+		return $this->sheet($root, $options->withDepth(min(1, $options->depth)), false, $border);
 	}
 
 	/** @param bool $standalone for a file that leaves the website: with the font files inside */
 	public function render(Person $root, PosterOptions $options, bool $standalone = false): PosterSheet
 	{
+		return $this->sheet($root, $options, $standalone, $this->drawBorder($root, $options));
+	}
+
+	/** The poster with the given border (drawBorder()) in its margin. */
+	private function sheet(Person $root, PosterOptions $options, bool $standalone, string $border): PosterSheet
+	{
 		$width = $options->width();
 		$height = $options->height();
-		$margin = min($width, $height) * self::Margin;
+		$margin = $this->margin($options);
 		$area = [$margin, $width - 2 * $margin, $height - 2 * $margin];
 		$generations = $this->repository->ancestorGenerations($root->slug, $options->depth);
 		$defs = [];
@@ -90,12 +102,28 @@ final readonly class Poster
 			. '<style>' . ($options->style->usesWebFont() ? $this->fonts->css($standalone) : '') . $this->css($options->style) . '</style>'
 			. '<defs>' . implode('', $defs) . '</defs>'
 			. $this->decor->paper($options->style, $width, $height)
-			. $this->decor->frame($options->style, $width, $height, $margin)
+			. $border
 			. $chart . $title . $footer
 			. '</svg>';
 
 		// Only the names count: the title follows its length and the legend its corner, not the generations.
 		return new PosterSheet($svg, $options->depth, $this->smallestFont($chart));
+	}
+
+	private function margin(PosterOptions $options): float
+	{
+		return min($options->width(), $options->height()) * ($options->style->isOrnate() ? self::OrnateMargin : self::Margin);
+	}
+
+	private function drawBorder(Person $root, PosterOptions $options): string
+	{
+		return $this->border->draw(
+			$options->style,
+			$options->width(),
+			$options->height(),
+			$this->margin($options),
+			new PosterRandom('border|' . $root->slug),
+		);
 	}
 
 	/**
