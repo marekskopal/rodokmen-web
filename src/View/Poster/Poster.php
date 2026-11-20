@@ -58,26 +58,26 @@ final readonly class Poster
 	 */
 	public function readable(Person $root, PosterOptions $options): PosterSheet
 	{
-		// The border does not depend on the depth: drawn once for all the tries.
-		$border = $this->drawBorder($root, $options);
+		// The paper and the border do not depend on the depth: drawn once for all the tries.
+		$backdrop = $this->backdrop($root, $options);
 		for ($depth = $options->depth; $depth > 1; $depth--) {
-			$sheet = $this->sheet($root, $options->withDepth($depth), false, $border);
+			$sheet = $this->sheet($root, $options->withDepth($depth), false, $backdrop);
 			if ($sheet->smallestPoints() >= self::ReadablePoints) {
 				return $sheet;
 			}
 		}
 
-		return $this->sheet($root, $options->withDepth(min(1, $options->depth)), false, $border);
+		return $this->sheet($root, $options->withDepth(min(1, $options->depth)), false, $backdrop);
 	}
 
 	/** @param bool $standalone for a file that leaves the website: with the font files inside */
 	public function render(Person $root, PosterOptions $options, bool $standalone = false): PosterSheet
 	{
-		return $this->sheet($root, $options, $standalone, $this->drawBorder($root, $options));
+		return $this->sheet($root, $options, $standalone, $this->backdrop($root, $options));
 	}
 
-	/** The poster with the given border (drawBorder()) in its margin. */
-	private function sheet(Person $root, PosterOptions $options, bool $standalone, string $border): PosterSheet
+	/** The poster drawn on the given paper with its border (backdrop()). */
+	private function sheet(Person $root, PosterOptions $options, bool $standalone, string $backdrop): PosterSheet
 	{
 		$width = $options->width();
 		$height = $options->height();
@@ -102,8 +102,7 @@ final readonly class Poster
 		)
 			. '<style>' . ($options->style->usesWebFont() ? $this->fonts->css($standalone) : '') . $this->css($options->style) . '</style>'
 			. '<defs>' . implode('', $defs) . '</defs>'
-			. $this->decor->paper($options->style, $width, $height)
-			. $border
+			. $backdrop
 			. $chart . $title . $footer
 			. '</svg>';
 
@@ -116,15 +115,17 @@ final readonly class Poster
 		return min($options->width(), $options->height()) * ($options->style->isOrnate() ? self::OrnateMargin : self::Margin);
 	}
 
-	private function drawBorder(Person $root, PosterOptions $options): string
+	/** The paper and the border in its margin: the same for every depth. */
+	private function backdrop(Person $root, PosterOptions $options): string
 	{
-		return $this->border->draw(
-			$options->style,
-			$options->width(),
-			$options->height(),
-			$this->margin($options),
-			new PosterRandom('border|' . $root->slug),
-		);
+		return $this->decor->paper($options->style, $options->width(), $options->height(), new PosterRandom('paper|' . $root->slug))
+			. $this->border->draw(
+				$options->style,
+				$options->width(),
+				$options->height(),
+				$this->margin($options),
+				new PosterRandom('border|' . $root->slug),
+			);
 	}
 
 	/**

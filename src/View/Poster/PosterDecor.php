@@ -16,21 +16,104 @@ final readonly class PosterDecor
 
 	private const Opening = '#d9c08a';
 
+	/** Edge of the parchment's gradient: the darkest the paper itself gets. */
+	public const Edge = '#dcc28e';
+
+	/** Corners yellowed more than the middles of the sides: a shade fading out from every corner. */
+	public const Corner = '#a8844f';
+
+	public const CornerOpacity = .3;
+
+	/** Large, faint stains in warm browns and ochres, darkest in their middle, with a faint tide line. */
+	public const Stains = ['#a0763f', '#8a6436', '#b58c4a'];
+
+	public const StainOpacity = .09;
+
+	/** Little rusty spots of foxing, more of them towards the edges. */
+	public const Foxing = ['#9a5a2a', '#8c4f24', '#a8693a'];
+
+	/** The strongest a spot of foxing gets: ink on it still keeps its contrast. */
+	public const FoxingOpacity = .18;
+
 	public function __construct(private PosterBrush $brush)
 	{
 	}
 
-	/** The paper: a plain colour, or parchment that darkens towards the edges. */
-	public function paper(PosterStyle $style, int $width, int $height): string
+	/**
+	 * The paper: a plain colour, or parchment that darkens towards the edges and more in the corners, with a few
+	 * large faint stains and spots of foxing. As many of them on every format, only their size follows the paper.
+	 */
+	public function paper(PosterStyle $style, int $width, int $height, PosterRandom $random): string
 	{
 		if (!$style->isOrnate()) {
 			return sprintf('<rect width="%d" height="%d" fill="%s"/>', $width, $height, $style->paper());
 		}
 
-		return '<defs><radialGradient id="pst-paper" cx="50%" cy="45%" r="75%">'
+		$short = min($width, $height);
+		$out = '<defs><radialGradient id="pst-paper" cx="50%" cy="45%" r="75%">'
 			. '<stop offset="0" stop-color="#f9f0d9"/><stop offset=".6" stop-color="' . $style->paper() . '"/>'
-			. '<stop offset="1" stop-color="#dcc28e"/></radialGradient></defs>'
-			. sprintf('<rect width="%d" height="%d" fill="url(#pst-paper)"/>', $width, $height);
+			. '<stop offset="1" stop-color="' . self::Edge . '"/></radialGradient>'
+			. sprintf(
+				'<radialGradient id="pst-corner"><stop offset="0" stop-color="%1$s" stop-opacity="%2$.2f"/>'
+				. '<stop offset="1" stop-color="%1$s" stop-opacity="0"/></radialGradient>',
+				self::Corner,
+				self::CornerOpacity,
+			);
+		foreach (self::Stains as $k => $color) {
+			$out .= sprintf(
+				'<radialGradient id="pst-stain%1$d"><stop offset="0" stop-color="%2$s" stop-opacity="%3$.3f"/>'
+				. '<stop offset=".8" stop-color="%2$s" stop-opacity="%4$.3f"/><stop offset="1" stop-color="%2$s" stop-opacity="0"/>'
+				. '</radialGradient>',
+				$k,
+				$color,
+				self::StainOpacity,
+				self::StainOpacity * .7,
+			);
+		}
+		$out .= '</defs>' . sprintf('<rect width="%d" height="%d" fill="url(#pst-paper)"/>', $width, $height);
+
+		$corners = $random->fork('corners');
+		foreach ([[0, 0], [$width, 0], [0, $height], [$width, $height]] as [$x, $y]) {
+			$out .= sprintf('<circle cx="%d" cy="%d" r="%.1f" fill="url(#pst-corner)"/>', $x, $y, $short * $corners->float(.4, .55));
+		}
+
+		$stains = $random->fork('stains');
+		for ($k = $stains->int(4, 7); $k > 0; $k--) {
+			$radius = $short * $stains->float(.1, .3);
+			$x = $stains->float(0, $width);
+			$y = $stains->float(0, $height);
+			$color = $stains->int(0, count(self::Stains) - 1);
+			$outline = $this->brush->blob($x, $y, $radius, $radius * $stains->float(.7, 1), $stains, .08, 18);
+			$out .= sprintf(
+				'<path d="%s" fill="url(#pst-stain%d)" stroke="%s" stroke-opacity="%.3f" stroke-width="%.2f"/>',
+				$outline,
+				$color,
+				self::Stains[$color],
+				self::StainOpacity * .6,
+				$short * .004,
+			);
+		}
+
+		$foxing = $random->fork('foxing');
+		for ($k = $foxing->int(10, 25); $k > 0; $k--) {
+			// Closer to the edges: the distance from the nearest edge is mostly small.
+			$in = $short * .3 * $foxing->float(0, 1) ** 2;
+			[$x, $y] = match ($foxing->int(0, 3)) {
+				0 => [$foxing->float(0, $width), $in],
+				1 => [$foxing->float(0, $width), $height - $in],
+				2 => [$in, $foxing->float(0, $height)],
+				default => [$width - $in, $foxing->float(0, $height)],
+			};
+			$radius = $short * $foxing->float(.001, .004);
+			$out .= sprintf(
+				'<path d="%s" fill="%s" fill-opacity="%.2f"/>',
+				$this->brush->blob($x, $y, $radius, $radius * $foxing->float(.7, 1), $foxing, .15, 8),
+				$foxing->pick(self::Foxing),
+				$foxing->float(.5, 1) * self::FoxingOpacity,
+			);
+		}
+
+		return $out;
 	}
 
 	/**
