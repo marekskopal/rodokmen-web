@@ -75,24 +75,22 @@ final readonly class PosterBoxText
 	}
 
 	/**
-	 * The lines write() draws for the person at letters 1 high: their length and how far their letters reach from
-	 * the middle across them (the name's tops above, the years' tails below, or both of a single line).
+	 * The lines write() draws for the person at letters 1 high: their text, its size, and how far their letters
+	 * reach from the middle across them (the name's tops above, the years' tails below, or both of a single line).
 	 *
-	 * @return list<array{float, float}>
+	 * @return list<array{string, float, float}>
 	 */
 	public function extents(Person $person, bool $twoLines): array
 	{
 		$years = $this->years->format($person->y);
 		if ($twoLines && $years !== '') {
 			return [
-				[FanGeometry::GlyphWidth * mb_strlen($person->name), self::Ascent - self::NameBaseline],
-				[FanGeometry::GlyphWidth * mb_strlen($years) * self::YearsSize, self::YearsBaseline + self::Descent * self::YearsSize],
+				[$person->name, 1.0, self::Ascent - self::NameBaseline],
+				[$years, self::YearsSize, self::YearsBaseline + self::Descent * self::YearsSize],
 			];
 		}
 
-		$length = FanGeometry::GlyphWidth * mb_strlen(trim($person->name . ' ' . $years));
-
-		return [[$length, max(self::LineBaseline + self::Descent, self::Ascent - self::LineBaseline)]];
+		return [[trim($person->name . ' ' . $years), 1.0, max(self::LineBaseline + self::Descent, self::Ascent - self::LineBaseline)]];
 	}
 
 	/**

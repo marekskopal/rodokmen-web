@@ -71,7 +71,7 @@ final readonly class PosterPaintedTree
 			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
 			$text = $ribbon
 				? $this->text->fit($people, $w * self::TextWidth, $h * self::RibbonTextHeight, $maxFont)
-				: $this->ovalText->fit($people, $w, $h, $maxFont, self::OvalTextWidth, self::OvalTextHeight);
+				: $this->ovalText->fit($people, $style, $w, $h, $maxFont, self::OvalTextWidth, self::OvalTextHeight);
 			$leaf = min($unit * .2, $w * .5);
 			foreach ($row as $node) {
 				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
