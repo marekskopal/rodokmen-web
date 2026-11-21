@@ -86,6 +86,15 @@ final class DemoFamily
 				'zapati' => 'Ukázková data rodokmen-web – smyšlená rodina.',
 				'kontakt' => ['jmeno' => 'Marek Skopal', 'email' => ''],
 				'pribeh' => ['menu' => 'Příběh Skopalových', 'rod' => 8, 'tlacitko' => 'Přečíst příběh Skopalových'],
+				'uvod' => [
+					'nadpis' => 'Kováři od Litovelské brány',
+					'odstavce' => [
+						'Pět generací Skopalů kovalo v Uničově – od Matouše, který přišel jako tovaryš, až po Antonína, jenž kovárnu zavřel.',
+						'Ve 20. století se rod rozešel do Litovle a Olomouce. Jak se to stalo, vypráví příběh rodu.',
+					],
+					'foto' => '',
+					'foto_popis' => '',
+				],
 				'maPribeh' => true,
 			],
 			'root' => self::slug(1),

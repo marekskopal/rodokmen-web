@@ -8,10 +8,15 @@
 /** @var array<string, Rodokmen\Site\Data\Model\Story> $lineStories */
 /** @var Rodokmen\Site\Data\Model\Stats $stats */
 /** @var list<string> $stories */
+/** @var Rodokmen\Site\Data\Model\Intro $intro */
+/** @var list<array{name: string, lat: float, lon: float, colors: list<string>}> $mapPlaces */
 $sides = [
     'Po otci' => array_values(array_filter($cards, static fn ($c) => $c->isPaternal())),
     'Po matce' => array_values(array_filter($cards, static fn ($c) => !$c->isPaternal())),
 ];
+$showStories = $story !== null || $otherStories !== [] || $intro->hasText();
+$photo = $intro->photo !== '' && $v->hasImage($intro->photo) ? $intro->photo : null;
+$teaserTitle = $intro->heading !== '' ? $intro->heading : ($story->title ?? '');
 $father = $repo->person($home->father);
 $mother = $repo->person($home->mother);
 ?>
@@ -43,21 +48,53 @@ $mother = $repo->person($home->mother);
     <div><strong><?= $stats->generations ?></strong><span>generací</span></div>
 </section>
 
-<?php if ($story !== null || $otherStories !== []): ?>
-<section class="section">
-    <?php if ($story !== null): ?>
-        <?php require __DIR__ . '/partials/story-card.php' ?>
+<?php if ($showStories || $mapPlaces !== []): ?>
+<section class="section home-feature<?= $showStories && $mapPlaces !== [] ? '' : ' home-feature-single' ?>">
+    <?php if ($showStories): ?>
+        <div class="home-stories">
+            <?php if ($story !== null || $intro->hasText()): ?>
+                <article class="story-teaser" style="--c: <?= $v->e($story->line->color ?? 'var(--accent)') ?>">
+                    <?php if ($photo !== null): ?>
+                        <figure class="story-teaser-photo">
+                            <a href="<?= $v->e($story?->url() ?? $v->imageUrl($photo, true)) ?>"<?= $story === null ? ' data-lightbox' : '' ?>><img src="<?= $v->e($v->imageUrl($photo)) ?>"<?= $v->srcset($photo, '(max-width: 820px) 100vw, 640px') ?> alt="<?= $v->e($intro->photoCaption !== '' ? $intro->photoCaption : $teaserTitle) ?>"></a>
+                            <?php if ($intro->photoCaption !== ''): ?><figcaption><?= $v->e($intro->photoCaption) ?></figcaption><?php endif ?>
+                        </figure>
+                    <?php endif ?>
+                    <div class="story-teaser-body">
+                        <?php if ($story !== null): ?>
+                            <p class="eyebrow"><?= $story->line !== null ? 'Rod ' . $v->e($story->line->name) : 'Příběh rodu' ?></p>
+                        <?php endif ?>
+                        <?php if ($teaserTitle !== ''): ?><h2><?= $v->e($teaserTitle) ?></h2><?php endif ?>
+                        <?php if ($intro->paragraphs !== []): ?>
+                            <?php foreach ($intro->paragraphs as $paragraph): ?><p><?= $v->e($paragraph) ?></p><?php endforeach ?>
+                        <?php elseif ($story !== null && $story->lead !== ''): ?>
+                            <p><?= $v->e($story->lead) ?></p>
+                        <?php endif ?>
+                        <?php if ($story !== null): ?>
+                            <a class="btn btn-primary" href="<?= $v->e($story->url()) ?>"><?= $v->e($v->storyButton($story)) ?> →</a>
+                        <?php endif ?>
+                    </div>
+                </article>
+            <?php endif ?>
+            <?php if ($otherStories !== []): ?>
+                <h2 class="home-subtitle"><?= $story !== null || $intro->hasText() ? 'Další příběhy rodů' : 'Příběhy rodů' ?></h2>
+                <ul class="story-list">
+                    <?php foreach ($otherStories as $other): ?>
+                        <li style="--c: <?= $v->e($other->line->color ?? 'var(--accent)') ?>">
+                            <a href="<?= $v->e($other->url()) ?>"><?= $v->e($other->title) ?></a>
+                            <?php if ($other->lead !== ''): ?><span class="muted"><?= $v->e($other->lead) ?></span><?php endif ?>
+                        </li>
+                    <?php endforeach ?>
+                </ul>
+            <?php endif ?>
+        </div>
     <?php endif ?>
-    <?php if ($otherStories !== []): ?>
-        <h2 class="section-title"><?= $story !== null ? 'Další příběhy rodů' : 'Příběhy rodů' ?></h2>
-        <ul class="story-list">
-            <?php foreach ($otherStories as $other): ?>
-                <li style="--c: <?= $v->e($other->line->color ?? 'var(--accent)') ?>">
-                    <a href="<?= $v->e($other->url()) ?>"><?= $v->e($other->title) ?></a>
-                    <?php if ($other->lead !== ''): ?><span class="muted"><?= $v->e($other->lead) ?></span><?php endif ?>
-                </li>
-            <?php endforeach ?>
-        </ul>
+    <?php if ($mapPlaces !== []): ?>
+        <aside class="home-map" aria-labelledby="home-map-title">
+            <h2 class="home-subtitle" id="home-map-title">Kde žili naši předci</h2>
+            <div class="minimap home-minimap" data-map='<?= $v->json($mapPlaces) ?>' data-link="/mapa"></div>
+            <p class="home-map-foot"><span class="muted"><?= $v->e($v->plural(count($mapPlaces), 'místo', 'místa', 'míst')) ?></span> <a href="/mapa">Celá mapa s osobami →</a></p>
+        </aside>
     <?php endif ?>
 </section>
 <?php endif ?>

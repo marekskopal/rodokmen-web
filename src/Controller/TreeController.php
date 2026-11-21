@@ -54,6 +54,9 @@ final readonly class TreeController
 			'story' => $this->stories->main(),
 			'otherStories' => array_values(array_filter($this->stories->all(), static fn (Story $story): bool => !$story->main)),
 			'lineStories' => $this->storiesByLine(),
+			'intro' => $this->repository->siteConfig()->intro,
+			'mapPlaces' => $this->mapPlaces(),
+			'needsMap' => $this->repository->places() !== [],
 		]);
 	}
 
@@ -269,6 +272,31 @@ final readonly class TreeController
 			. ($this->auth->isHttps($request) ? '; Secure' : '');
 
 		return (new RedirectResponse($this->view->explorerUrl($person->slug)))->withAddedHeader('Set-Cookie', $cookie);
+	}
+
+	/**
+	 * Places for the map on the home page, each with the colours of its lines.
+	 *
+	 * @return list<array{name: string, lat: float, lon: float, colors: list<string>}>
+	 */
+	private function mapPlaces(): array
+	{
+		$places = [];
+		foreach ($this->repository->places() as $place) {
+			$colors = [];
+			foreach ($place->lines as $group) {
+				$colors[] = $this->repository->lineColor($group->k !== 0 ? $group->k : null);
+			}
+			$places[] = [
+				'name' => $place->name,
+				'lat' => $place->lat,
+				'lon' => $place->lon,
+				// A place without any line still gets a visible marker.
+				'colors' => $colors !== [] ? array_values(array_unique($colors)) : [$this->repository->lineColor(null)],
+			];
+		}
+
+		return $places;
 	}
 
 	/** @return array<string, Story> by line slug */

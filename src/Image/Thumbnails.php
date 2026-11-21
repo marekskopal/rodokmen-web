@@ -30,6 +30,12 @@ final readonly class Thumbnails
 	{
 	}
 
+	/** Whether img/{name}.jpg exists (a crop, a document or a photo exported by the skill). */
+	public function exists(string $name): bool
+	{
+		return preg_match('/^[a-z0-9_\-]+$/', $name) === 1 && is_file($this->source($name));
+	}
+
 	public function isSupported(): bool
 	{
 		return $this->webp ?? (

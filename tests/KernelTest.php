@@ -16,6 +16,7 @@ use Rodokmen\Site\Kernel;
 use Rodokmen\Site\Tests\Support\Fixture;
 use Rodokmen\Site\Tests\Support\Images;
 use const JSON_THROW_ON_ERROR;
+use const JSON_UNESCAPED_UNICODE;
 use const PHP_URL_QUERY;
 
 /**
@@ -330,6 +331,81 @@ final class KernelTest extends TestCase
 		self::assertSame(1, substr_count($body, '<li><strong>Petr Novák (* 1993)</strong>'));
 	}
 
+	public function testHomeShowsTheStoriesNextToTheMapOfThePlaces(): void
+	{
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+
+		self::assertStringContainsString('<section class="section home-feature">', $home);
+		self::assertStringContainsString('<h2>Příběh Nováků</h2>', $home);
+		self::assertStringContainsString('Od Josefa k Antonínovi', $home);
+		self::assertStringContainsString('Kde žili naši předci', $home);
+		self::assertStringContainsString('data-link="/mapa"', $home);
+		self::assertStringContainsString('&quot;name&quot;:&quot;Praha&quot;', $home);
+		self::assertStringContainsString(
+			'&quot;colors&quot;:[&quot;#336699&quot;,&quot;#9a8f7d&quot;]',
+			$home,
+			'the line and the nearest family',
+		);
+		self::assertStringContainsString('1 místo', $home);
+		self::assertStringContainsString('/assets/vendor/leaflet/leaflet.js', $home);
+		self::assertStringNotContainsString('story-teaser-photo', $home);
+	}
+
+	public function testHomeIntroWithPhoto(): void
+	{
+		$data = Fixture::siteData();
+		$config = $data['config'];
+		self::assertIsArray($config);
+		$config['uvod'] = ['nadpis' => 'Kováři od brány', 'odstavce' => ['První odstavec.', 'Druhý odstavec.'], 'foto' => 'rodina', 'foto_popis' => 'Rodina před kovárnou'];
+		$data['config'] = $config;
+		file_put_contents($this->dir . '/site.json', json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+		Images::jpeg($this->dir . '/img/rodina.jpg', 1200, 800);
+
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+
+		self::assertStringContainsString('<h2>Kováři od brány</h2>', $home);
+		self::assertStringContainsString('<p>První odstavec.</p><p>Druhý odstavec.</p>', $home);
+		self::assertStringNotContainsString('Od Josefa k Antonínovi', $home, 'the intro replaces the lead');
+		self::assertStringContainsString('src="/obrazek/nahled/rodina.jpg"', $home);
+		self::assertStringContainsString('<figcaption>Rodina před kovárnou</figcaption>', $home);
+		self::assertStringContainsString('Přečíst příběh Nováků →', $home);
+
+		unlink($this->dir . '/img/rodina.jpg');
+		self::assertStringNotContainsString(
+			'story-teaser-photo',
+			(string) $this->get('/', loggedIn: true)->getBody(),
+			'a missing photo is left out',
+		);
+	}
+
+	public function testHomeMapPlaceWithoutLinesHasAColor(): void
+	{
+		$data = Fixture::siteData();
+		$places = $data['places'];
+		self::assertIsArray($places);
+		self::assertIsArray($places[0]);
+		$places[0]['lines'] = [];
+		$data['places'] = $places;
+		file_put_contents($this->dir . '/site.json', json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+
+		self::assertStringContainsString('&quot;colors&quot;:[&quot;#9a8f7d&quot;]', $home);
+	}
+
+	public function testHomeWithoutPlacesHasNoMap(): void
+	{
+		$data = Fixture::siteData();
+		$data['places'] = [];
+		file_put_contents($this->dir . '/site.json', json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+
+		self::assertStringContainsString('home-feature home-feature-single', $home);
+		self::assertStringNotContainsString('Kde žili naši předci', $home);
+		self::assertStringNotContainsString('leaflet.js', $home);
+	}
+
 	public function testMainStoryMovedToTheAddressOfItsLine(): void
 	{
 		$response = $this->get('/pribeh', loggedIn: true);
@@ -363,7 +439,7 @@ final class KernelTest extends TestCase
 		self::assertSame(404, $this->get('/pribeh', loggedIn: true)->getStatusCode());
 		$home = (string) $this->get('/', loggedIn: true)->getBody();
 		self::assertStringContainsString('<a href="/pribeh/malovi" class="">Příběh rodu</a>', $home);
-		self::assertStringContainsString('<h2 class="section-title">Příběhy rodů</h2>', $home);
+		self::assertStringContainsString('<h2 class="home-subtitle">Příběhy rodů</h2>', $home);
 	}
 
 	public function testSearchIndex(): void

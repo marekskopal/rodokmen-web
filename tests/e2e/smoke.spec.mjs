@@ -79,3 +79,13 @@ test('the stories are in the menu and linked from their lines', async ({ page })
 	await page.getByRole('link', { name: /Přečíst příběh Skopalových/ }).click();
 	await expect(page).toHaveURL(/\/pribeh\/skopalovi$/);
 });
+
+test('the home page map leads to the place on the full map', async ({ page }) => {
+	await page.goto('/');
+	const map = page.locator('.home-minimap.leaflet-container');
+	await expect(map).toBeVisible();
+	await expect(map.locator('.leaflet-marker-icon')).toHaveCount(JSON.parse(await map.getAttribute('data-map')).length);
+	await map.locator('.leaflet-marker-icon').first().click();
+	await expect(page).toHaveURL(/\/mapa#.+/);
+	await expect(page.locator('#map .leaflet-popup')).toBeVisible();
+});

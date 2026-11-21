@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\ArrayReader;
 use Rodokmen\Site\Data\InvalidDataException;
 use Rodokmen\Site\Data\Model\Box;
+use Rodokmen\Site\Data\Model\Intro;
 use Rodokmen\Site\Data\Model\Issue;
 use Rodokmen\Site\Data\Model\Line;
 use Rodokmen\Site\Data\Model\Person;
@@ -42,6 +43,22 @@ final class ModelTest extends TestCase
 		self::assertSame('Odkud byl Josef', $this->data->hypotheses[0]->title);
 		self::assertSame('kandidát', $this->data->hypotheses[0]->items[0]->text);
 		self::assertSame(['josef-novak-1960'], $this->data->documents[0]->people);
+		self::assertFalse($this->data->config->intro->hasText(), 'no "uvod" in web.json');
+	}
+
+	public function testIntro(): void
+	{
+		$intro = Intro::fromReader(
+			ArrayReader::of(['nadpis' => 'Kováři', 'odstavce' => ['A.', 'B.'], 'foto' => 'rodina', 'foto_popis' => 'Popis']),
+		);
+
+		self::assertSame(
+			['Kováři', ['A.', 'B.'], 'rodina', 'Popis'],
+			[$intro->heading, $intro->paragraphs, $intro->photo, $intro->photoCaption],
+		);
+		self::assertTrue($intro->hasText());
+		self::assertTrue(new Intro(paragraphs: ['A.'])->hasText());
+		self::assertFalse(Intro::fromReader(ArrayReader::of(['nadpis' => '', 'odstavce' => [], 'foto' => 'x']))->hasText());
 	}
 
 	public function testPerson(): void

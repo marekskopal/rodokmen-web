@@ -113,6 +113,11 @@ final class View
 		return '/predci/' . rawurlencode($slug);
 	}
 
+	public function hasImage(string $key): bool
+	{
+		return $this->thumbnails->exists($key);
+	}
+
 	public function imageUrl(string $key, bool $full = false): string
 	{
 		return '/obrazek/' . ($full ? 'plny' : 'nahled') . '/' . rawurlencode($key) . '.jpg';
