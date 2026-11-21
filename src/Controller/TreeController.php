@@ -53,7 +53,6 @@ final readonly class TreeController
 			'stories' => $this->storyTitles(),
 			'story' => $this->stories->main(),
 			'otherStories' => array_values(array_filter($this->stories->all(), static fn (Story $story): bool => !$story->main)),
-			'lineStories' => $this->storiesByLine(),
 			'intro' => $this->repository->siteConfig()->intro,
 			'mapPlaces' => $this->mapPlaces(),
 			'needsMap' => $this->repository->places() !== [],
@@ -297,19 +296,6 @@ final readonly class TreeController
 		}
 
 		return $places;
-	}
-
-	/** @return array<string, Story> by line slug */
-	private function storiesByLine(): array
-	{
-		$stories = [];
-		foreach ($this->stories->all() as $story) {
-			if ($story->line !== null) {
-				$stories[$story->line->slug] = $story;
-			}
-		}
-
-		return $stories;
 	}
 
 	/** @return list<string> */

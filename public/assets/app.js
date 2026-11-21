@@ -177,6 +177,8 @@
 
     const inCzechLands = ([lat, lon]) => lat > 48.4 && lat < 51.2 && lon > 12 && lon < 19;
 
+    const rawUrlEncode = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
     const whenLeaflet = (fn) => {
         if (window.L) return fn();
         window.addEventListener('load', () => window.L && fn());
@@ -219,11 +221,13 @@
         tiles(map);
         const bounds = places.map((p) => {
             const m = marker(p.lat, p.lon, p.colors ?? [el.dataset.color]).addTo(map).bindTooltip(p.name);
-            // The home page map leads to the place on the full map.
-            if (el.dataset.link) m.on('click', () => { location.href = `${el.dataset.link}#${encodeURIComponent(p.name)}`; });
+            // The home page map leads to the place on the full map (the anchor encoded like PHP rawurlencode,
+            // which gives the ids of the places listed there).
+            if (el.dataset.link) m.on('click', () => { location.href = `${el.dataset.link}#${rawUrlEncode(p.name)}`; });
             return [p.lat, p.lon];
         });
-        const home = bounds.filter(inCzechLands);
+        // The home page map fits the Czech lands like the full map; a person's map shows all their places.
+        const home = el.dataset.fit === 'czech' ? bounds.filter(inCzechLands) : [];
         const fit = home.length ? home : bounds;
         if (fit.length === 1) map.setView(fit[0], 10);
         else map.fitBounds(fit, { padding: [20, 20], maxZoom: 11 });

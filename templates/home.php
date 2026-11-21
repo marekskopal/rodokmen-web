@@ -5,7 +5,6 @@
 /** @var list<Rodokmen\Site\View\LineSummary> $cards */
 /** @var Rodokmen\Site\Data\Model\Story|null $story */
 /** @var list<Rodokmen\Site\Data\Model\Story> $otherStories */
-/** @var array<string, Rodokmen\Site\Data\Model\Story> $lineStories */
 /** @var Rodokmen\Site\Data\Model\Stats $stats */
 /** @var list<string> $stories */
 /** @var Rodokmen\Site\Data\Model\Intro $intro */
@@ -48,6 +47,37 @@ $mother = $repo->person($home->mother);
     <div><strong><?= $stats->generations ?></strong><span>generací</span></div>
 </section>
 
+<?php foreach ($sides as $sideTitle => $sideCards): if ($sideCards === []) { continue; } ?>
+<section class="section">
+    <h2 class="section-title"><?= $v->e($sideTitle) ?></h2>
+    <div class="lines">
+        <?php foreach ($sideCards as $card): $line = $card->line; $lineUrl = '/rod/' . rawurlencode($line->slug); ?>
+            <article class="line-card" style="--c: <?= $v->e($line->color) ?>">
+                <header>
+                    <h3><a href="<?= $v->e($lineUrl) ?>"><?= $v->e($line->name) ?></a></h3>
+                    <span class="line-meta"><?= $v->e($v->plural($card->count, 'osoba', 'osoby', 'osob')) ?> · <?= $v->e($v->plural($card->generations, 'generace', 'generace', 'generací')) ?></span>
+                </header>
+                <p><?= $v->e($line->desc) ?></p>
+                <?php if ($card->oldest !== null): ?>
+                    <p class="line-oldest"><span class="muted">Nejvzdálenější známý předek:</span>
+                        <a href="<?= $v->e($v->personUrl($card->oldest->slug)) ?>"><?= $v->e($card->oldest->name) ?></a>
+                        <span class="muted"><?= $v->e($card->oldest->y) ?></span></p>
+                <?php endif ?>
+                <?php if ($card->places !== []): ?>
+                    <p class="chips"><?php foreach (array_slice($card->places, 0, 5) as $place): ?><span class="chip"><?= $v->e($place) ?></span><?php endforeach ?></p>
+                <?php endif ?>
+                <footer>
+                    <a href="<?= $v->e($lineUrl) ?>">O rodu →</a>
+                    <?php if ($card->root !== null): ?>
+                        <a href="<?= $v->e($v->explorerUrl($card->root->slug)) ?>" class="muted">předci</a>
+                    <?php endif ?>
+                </footer>
+            </article>
+        <?php endforeach ?>
+    </div>
+</section>
+<?php endforeach ?>
+
 <?php if ($showStories || $mapPlaces !== []): ?>
 <section class="section home-feature<?= $showStories && $mapPlaces !== [] ? '' : ' home-feature-single' ?>">
     <?php if ($showStories): ?>
@@ -77,7 +107,7 @@ $mother = $repo->person($home->mother);
                 </article>
             <?php endif ?>
             <?php if ($otherStories !== []): ?>
-                <h2 class="home-subtitle"><?= $story !== null || $intro->hasText() ? 'Další příběhy rodů' : 'Příběhy rodů' ?></h2>
+                <h2 class="home-subtitle"><?= $story !== null ? 'Další příběhy rodů' : 'Příběhy rodů' ?></h2>
                 <ul class="story-list">
                     <?php foreach ($otherStories as $other): ?>
                         <li style="--c: <?= $v->e($other->line->color ?? 'var(--accent)') ?>">
@@ -92,46 +122,12 @@ $mother = $repo->person($home->mother);
     <?php if ($mapPlaces !== []): ?>
         <aside class="home-map" aria-labelledby="home-map-title">
             <h2 class="home-subtitle" id="home-map-title">Kde žili naši předci</h2>
-            <div class="minimap home-minimap" data-map='<?= $v->json($mapPlaces) ?>' data-link="/mapa"></div>
+            <div class="minimap home-minimap" data-map='<?= $v->json($mapPlaces) ?>' data-link="/mapa" data-fit="czech"></div>
             <p class="home-map-foot"><span class="muted"><?= $v->e($v->plural(count($mapPlaces), 'místo', 'místa', 'míst')) ?></span> <a href="/mapa">Celá mapa s osobami →</a></p>
         </aside>
     <?php endif ?>
 </section>
 <?php endif ?>
-
-<?php foreach ($sides as $sideTitle => $sideCards): if ($sideCards === []) { continue; } ?>
-<section class="section">
-    <h2 class="section-title"><?= $v->e($sideTitle) ?></h2>
-    <div class="lines">
-        <?php foreach ($sideCards as $card): $line = $card->line; $lineUrl = '/rod/' . rawurlencode($line->slug); ?>
-            <article class="line-card" style="--c: <?= $v->e($line->color) ?>">
-                <header>
-                    <h3><a href="<?= $v->e($lineUrl) ?>"><?= $v->e($line->name) ?></a></h3>
-                    <span class="line-meta"><?= $v->e($v->plural($card->count, 'osoba', 'osoby', 'osob')) ?> · <?= $v->e($v->plural($card->generations, 'generace', 'generace', 'generací')) ?></span>
-                </header>
-                <p><?= $v->e($line->desc) ?></p>
-                <?php if ($card->oldest !== null): ?>
-                    <p class="line-oldest"><span class="muted">Nejvzdálenější známý předek:</span>
-                        <a href="<?= $v->e($v->personUrl($card->oldest->slug)) ?>"><?= $v->e($card->oldest->name) ?></a>
-                        <span class="muted"><?= $v->e($card->oldest->y) ?></span></p>
-                <?php endif ?>
-                <?php if ($card->places !== []): ?>
-                    <p class="chips"><?php foreach (array_slice($card->places, 0, 5) as $place): ?><span class="chip"><?= $v->e($place) ?></span><?php endforeach ?></p>
-                <?php endif ?>
-                <?php if (isset($lineStories[$line->slug])): ?>
-                    <p class="line-story"><a href="<?= $v->e($lineStories[$line->slug]->url()) ?>"><?= $v->e($lineStories[$line->slug]->title) ?> →</a></p>
-                <?php endif ?>
-                <footer>
-                    <a href="<?= $v->e($lineUrl) ?>">O rodu →</a>
-                    <?php if ($card->root !== null): ?>
-                        <a href="<?= $v->e($v->explorerUrl($card->root->slug)) ?>" class="muted">předci</a>
-                    <?php endif ?>
-                </footer>
-            </article>
-        <?php endforeach ?>
-    </div>
-</section>
-<?php endforeach ?>
 
 <?php if ($stories !== []): ?>
 <section class="section">
