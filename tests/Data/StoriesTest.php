@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Rodokmen\Site\Tests\Data;
 
 use PHPUnit\Framework\TestCase;
+use Rodokmen\Site\Data\Model\Story;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
 use Rodokmen\Site\Data\Stories;
@@ -96,6 +97,55 @@ final class StoriesTest extends TestCase
 		}
 	}
 
+	public function testStoriesOfAllLines(): void
+	{
+		$main = $this->stories->main();
+		$line = $this->stories->forLine('malovi');
+
+		self::assertSame(
+			['Příběh Nováků', 'Příběh Malých'],
+			array_map(static fn (Story $story): string => $story->title, $this->stories->all()),
+		);
+		self::assertSame($main, $this->stories->forLine('novakovi'), 'the main story is the story of its line');
+		self::assertNotNull($line);
+		self::assertFalse($line->main);
+		self::assertSame('Marie a její předci.', $line->lead);
+		self::assertSame('Malí', $line->line?->name);
+		self::assertNull($this->stories->forLine('nikdo'));
+		self::assertNull($this->stories->forLine(''));
+	}
+
+	public function testMainStoryWinsOverAFileOfItsLine(): void
+	{
+		file_put_contents($this->dir . '/md/pribeh-novakovi.md', "---\ntitle: Jiný příběh\n---\n");
+
+		self::assertSame('Příběh Nováků', $this->stories->forLine('novakovi')?->title);
+		self::assertCount(2, $this->stories->all());
+	}
+
+	public function testMainStoryOfAnUnknownLineComesFirst(): void
+	{
+		$data = Fixture::siteData();
+		$config = $data['config'];
+		self::assertIsArray($config);
+		$config['pribeh'] = ['rod' => 99];
+		$data['config'] = $config;
+		$dir = Fixture::dataDir($data);
+		$siteConfig = Fixture::config($dir);
+		$stories = new Stories(new Repository($siteConfig, new SiteDataLoader($siteConfig)));
+
+		try {
+			self::assertSame(
+				['Příběh Nováků', 'Příběh Malých'],
+				array_map(static fn (Story $story): string => $story->title, $stories->all()),
+			);
+			self::assertNull($stories->main()?->line);
+			self::assertNull($stories->forLine('novakovi'));
+		} finally {
+			Fixture::removeDir($dir);
+		}
+	}
+
 	public function testStoryOfAnOldExport(): void
 	{
 		$data = Fixture::siteData();
@@ -111,7 +161,7 @@ final class StoriesTest extends TestCase
 			self::assertSame('Příběh Nováků', $stories->main()?->title, 'the file decides');
 			self::assertSame('novakovi', $stories->main()->line?->slug, 'line 8 by default');
 			unlink($dir . '/md/pribeh.md');
-			self::assertNull($stories->main());
+			self::assertNull(new Stories(new Repository($siteConfig, new SiteDataLoader($siteConfig)))->main());
 		} finally {
 			Fixture::removeDir($dir);
 		}

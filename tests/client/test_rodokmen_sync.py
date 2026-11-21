@@ -4,6 +4,7 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import os
 import socket
 import ssl
 import tempfile
@@ -37,6 +38,38 @@ def make_project(root):
     return root
 
 
+def collect(project):
+    """The bundle's files; the files made by rodokmen-sync go to a folder next to the project."""
+    staging = project.parent / f"{project.name}-staging"
+    staging.mkdir(exist_ok=True)
+    return quiet(sync.collect, project, staging)
+
+
+def add_story(project, name, text):
+    path = project / "data" / "pribehy" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+SITE = {
+    "people": {"jan-novak-1890": {}},
+    "records": {"krest_jan_1890": {}},
+    "families": {},
+    "lines": {"novakovi": {"k": 8}, "rybkovi": {"k": 9}},
+}
+
+STORY = """---
+title: Příběh Rybků
+lead: ''
+---
+<!-- for Claude: check the date -->
+## Rybníkáři
+[Jan](/osoba/jan-novak-1890/) and his [baptism](/zdroj/krest_jan_1890/), [the line](/rod/rybkovi/),
+[nobody](/osoba/nikdo/) and [a family](/rodina/nikdo-a-nikdo/).
+"""
+
+
 def quiet(function, *args, **kwargs):
     with redirect_stdout(io.StringIO()):
         return function(*args, **kwargs)
@@ -68,16 +101,74 @@ class ConfigTest(unittest.TestCase):
 class BundleTest(unittest.TestCase):
     def test_collect_takes_only_publishable_files(self):
         with tempfile.TemporaryDirectory() as tmp:
-            files = quiet(sync.collect, make_project(Path(tmp)))
+            files = collect(make_project(Path(tmp)))
             self.assertEqual(sorted(files), ["full/krest_jan_1890.jpg", "img/krest_jan_1890.jpg", "md/zajimavosti.md", "site.json"])
+
+    def test_collect_publishes_the_stories_of_the_lines(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = make_project(Path(tmp) / "project")
+            (project / "web/src/data/site.json").write_text(json.dumps(SITE), encoding="utf-8")
+            add_story(project, "rybkovi.md", STORY)
+            add_story(project, "neznami.md", "unknown line")
+            add_story(project, "Rybkovi-2.md", "not an address")
+            add_story(project, "poznamky.txt", "not markdown")
+            output = io.StringIO()
+            with redirect_stdout(output):
+                files = sync.collect(project, Path(tmp))
+
+            self.assertIn("md/pribeh-rybkovi.md", files)
+            self.assertEqual([path for path in files if path.startswith("md/pribeh")], ["md/pribeh-rybkovi.md"])
+            text = files["md/pribeh-rybkovi.md"].read_text(encoding="utf-8")
+            self.assertNotIn("<!--", text)
+            self.assertTrue(text.startswith("---\ntitle: Příběh Rybků\n"))
+            self.assertNotEqual(files["md/pribeh-rybkovi.md"].parent, project / "data" / "pribehy", "staged, not the source")
+            log = output.getvalue()
+            self.assertIn("Skipping data/pribehy/neznami.md", log)
+            self.assertIn("Skipping data/pribehy/Rybkovi-2.md", log)
+            self.assertNotIn("poznamky", log)
+            self.assertIn("broken link /osoba/nikdo/ in data/pribehy/rybkovi.md", log)
+            self.assertIn("broken link /rodina/nikdo-a-nikdo/", log)
+            self.assertNotIn("jan-novak-1890", log)
+            self.assertNotIn("krest_jan_1890", log)
+
+    def test_story_of_the_main_line_and_unreadable_story(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = make_project(Path(tmp) / "project")
+            site = dict(SITE, config={"pribeh": {"rod": 9}})
+            (project / "web/src/data/site.json").write_text(json.dumps(site), encoding="utf-8")
+            (project / "web/src/generated/pribeh.md").write_text("main story", encoding="utf-8")
+            story = add_story(project, "rybkovi.md", "## Rybníkáři\n")
+            os.utime(story, (1_000_000_000, 1_000_000_000))
+            output = io.StringIO()
+            with redirect_stdout(output):
+                files = sync.collect(project, Path(tmp))
+            self.assertIn("rybkovi.md is not shown – the line rybkovi has the main story", output.getvalue())
+            self.assertEqual(files["md/pribeh-rybkovi.md"].stat().st_mtime, 1_000_000_000, "rsync compares the time")
+            self.assertEqual(sync.main_line({"lines": SITE["lines"]}), "novakovi", "line 8 by default")
+            self.assertIsNone(sync.main_line({"config": {"maPribeh": False}, "lines": SITE["lines"]}))
+
+            story.write_bytes("Rybníkáři".encode("cp1250"))
+            with self.assertRaises(sync.SyncError):
+                quiet(sync.collect, project, Path(tmp))
+
+    def test_broken_links(self):
+        self.assertEqual(sync.broken_links("[a](/rod/rybkovi/) [b](/rod/x/) [c](/rod/x/#y)", SITE), ["/rod/x"])
+        self.assertEqual(sync.broken_links("/osoba/x/", {"people": []}), ["/osoba/x"])
+        self.assertEqual(sync.strip_comments("a<!-- x\ny -->\nb <!--z-->c"), "ab c")
+
+    def test_collect_fails_on_broken_site_json(self):
+        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(sync.SyncError):
+            project = make_project(Path(tmp))
+            (project / "web/src/data/site.json").write_text("{", encoding="utf-8")
+            sync.collect(project, Path(tmp))
 
     def test_collect_without_export_fails(self):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaises(sync.SyncError):
-            sync.collect(Path(tmp))
+            sync.collect(Path(tmp), Path(tmp))
 
     def test_manifest_lists_hashes_and_sizes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            files = quiet(sync.collect, make_project(Path(tmp)))
+            files = collect(make_project(Path(tmp)))
             manifest = sync.build_manifest(files)
             self.assertEqual(manifest["format"], 1)
             self.assertEqual(manifest["files"]["img/krest_jan_1890.jpg"],
@@ -97,7 +188,7 @@ class LocalTargetTest(unittest.TestCase):
             (data / "img").mkdir(parents=True)
             (data / "img/old_record.jpg").write_bytes(b"old")
             (data / "notes.txt").write_text("not part of a bundle")
-            files = quiet(sync.collect, project)
+            files = collect(project)
             manifest = sync.build_manifest(files)
 
             preview = sync.sync_local(files, manifest, data, dry_run=True)
@@ -113,9 +204,25 @@ class LocalTargetTest(unittest.TestCase):
             again = sync.sync_local(files, manifest, data)
             self.assertEqual((again["copied"], again["unchanged"]), ([], 4))
 
+    def test_deleted_story_is_removed_from_the_website(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = make_project(Path(tmp) / "project")
+            (project / "web/src/data/site.json").write_text(json.dumps(SITE), encoding="utf-8")
+            story = add_story(project, "rybkovi.md", "## Rybníkáři\n")
+            data = Path(tmp) / "data"
+            files = collect(project)
+            sync.sync_local(files, sync.build_manifest(files), data)
+            self.assertTrue((data / "md/pribeh-rybkovi.md").is_file())
+
+            story.unlink()
+            files = collect(project)
+            result = sync.sync_local(files, sync.build_manifest(files), data)
+            self.assertEqual(result["deleted"], ["md/pribeh-rybkovi.md"])
+            self.assertFalse((data / "md/pribeh-rybkovi.md").exists())
+
     def test_stage_and_rsync_command(self):
         with tempfile.TemporaryDirectory() as tmp:
-            files = quiet(sync.collect, make_project(Path(tmp) / "project"))
+            files = collect(make_project(Path(tmp) / "project"))
             manifest = sync.build_manifest(files)
             staged = Path(tmp) / "stage"
             sync.stage(files, manifest, staged)
@@ -233,7 +340,7 @@ class FakeSite:
 class ApiTargetTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.files = quiet(sync.collect, make_project(Path(self.tmp.name)))
+        self.files = collect(make_project(Path(self.tmp.name)))
         self.manifest = sync.build_manifest(self.files)
 
     def tearDown(self):
@@ -338,7 +445,7 @@ class RetryTest(unittest.TestCase):
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.files = quiet(sync.collect, make_project(Path(self.tmp.name)))
+        self.files = collect(make_project(Path(self.tmp.name)))
         self.manifest = sync.build_manifest(self.files)
         self.site = FakeSite()
         self.waits = []

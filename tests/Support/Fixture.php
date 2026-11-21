@@ -32,6 +32,17 @@ final class Fixture
 		celá [rodina Josefa](/rodina/josef-novak-1960-rodina/) patří k [rodu Nováků](/rod/novakovi/).
 		MD;
 
+	/** md/pribeh-malovi.md as rodokmen-sync publishes data/pribehy/malovi.md. */
+	public const LineStory = <<<'MD'
+		---
+		title: Příběh Malých
+		lead: Marie a její předci.
+		---
+
+		## Marie (1992)
+		[Marie Malá](/osoba/marie-mala-1992/) se narodila jako dcera mlynáře.
+		MD;
+
 	/** @return array<string, mixed> site.json as exported by tools/export_web.py */
 	public static function siteData(): array
 	{
@@ -164,6 +175,16 @@ final class Fixture
 					'people' => ['jan-novak-1990', 'josef-novak-1960'],
 					'gens' => ['jan-novak-1990' => 1, 'josef-novak-1960' => 2],
 				],
+				'malovi' => [
+					'k' => 12,
+					'slug' => 'malovi',
+					'name' => 'Malí',
+					'desc' => 'Rod matky.',
+					'color' => '#993366',
+					'root' => 'marie-mala-1992',
+					'people' => ['marie-mala-1992'],
+					'gens' => ['marie-mala-1992' => 1],
+				],
 			],
 			'places' => [
 				[
@@ -199,6 +220,7 @@ final class Fixture
 		file_put_contents($dir . '/site.json', json_encode($siteData ?? self::siteData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 		file_put_contents($dir . '/md/zajimavosti.md', "# Zajímavosti\n\n## Dva Augustinové\nText.\n\n## Narozen na Boží hod\nText.\n");
 		file_put_contents($dir . '/md/pribeh.md', self::Story);
+		file_put_contents($dir . '/md/pribeh-malovi.md', self::LineStory);
 
 		return $dir;
 	}

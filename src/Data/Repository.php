@@ -201,10 +201,10 @@ final class Repository
 		return $this->data()->hypotheses;
 	}
 
-	/** Markdown note exported by the skill: zajimavosti, pribeh, denik, dotazy. */
+	/** Markdown note exported by the skill: zajimavosti, pribeh, denik, dotazy, or a line's story pribeh-<line>. */
 	public function markdown(string $name): ?string
 	{
-		if (preg_match('/^[a-z]+$/', $name) !== 1) {
+		if (preg_match('/^[a-z]+(-[a-z0-9-]+)?$/', $name) !== 1) {
 			return null;
 		}
 

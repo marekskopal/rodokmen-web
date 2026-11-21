@@ -13,6 +13,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
+use Rodokmen\Site\Data\Model\Story;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\View\AncestorTable;
@@ -51,6 +52,8 @@ final readonly class TreeController
 			'stats' => $this->repository->stats(),
 			'stories' => $this->storyTitles(),
 			'story' => $this->stories->main(),
+			'otherStories' => array_values(array_filter($this->stories->all(), static fn (Story $story): bool => !$story->main)),
+			'lineStories' => $this->storiesByLine(),
 		]);
 	}
 
@@ -216,14 +219,12 @@ final readonly class TreeController
 			throw new NotFoundException();
 		}
 
-		$story = $this->stories->main();
-
 		return $this->view->page('line', [
 			'title' => 'Rod ' . $line->name,
 			'nav' => 'home',
 			'summary' => $this->lineSummaries->of($line),
 			'byGeneration' => $this->lineSummaries->generations($line),
-			'story' => $story?->line?->slug === $line->slug ? $story : null,
+			'story' => $this->stories->forLine($line->slug),
 		]);
 	}
 
@@ -268,6 +269,19 @@ final readonly class TreeController
 			. ($this->auth->isHttps($request) ? '; Secure' : '');
 
 		return (new RedirectResponse($this->view->explorerUrl($person->slug)))->withAddedHeader('Set-Cookie', $cookie);
+	}
+
+	/** @return array<string, Story> by line slug */
+	private function storiesByLine(): array
+	{
+		$stories = [];
+		foreach ($this->stories->all() as $story) {
+			if ($story->line !== null) {
+				$stories[$story->line->slug] = $story;
+			}
+		}
+
+		return $stories;
 	}
 
 	/** @return list<string> */

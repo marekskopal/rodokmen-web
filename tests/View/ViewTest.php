@@ -220,7 +220,30 @@ final class ViewTest extends TestCase
 	{
 		self::assertSame('Rodiče', $this->view->generationName(1));
 		self::assertSame('5. generace předků', $this->view->generationName(5));
-		self::assertSame('Přečíst příběh Nováků', $this->view->storyButton());
+	}
+
+	public function testStoryLinks(): void
+	{
+		$stories = new Stories($this->repository);
+		$main = $stories->main();
+		$line = $stories->forLine('malovi');
+		self::assertNotNull($main);
+		self::assertNotNull($line);
+
+		self::assertSame('Přečíst příběh Nováků', $this->view->storyButton($main));
+		self::assertSame('Přečíst příběh', $this->view->storyButton($line));
+		self::assertSame('/pribeh/novakovi', $main->url());
+		self::assertSame('/pribeh/malovi', $line->url());
+		self::assertSame(['/pribehy', 'Příběhy'], $this->view->storyMenu());
+
+		unlink($this->dir . '/md/pribeh-malovi.md');
+		$view = new View(
+			Fixture::config($this->dir),
+			$this->repository,
+			new Stories($this->repository),
+			new Thumbnails(Fixture::config($this->dir), new WebpResizer()),
+		);
+		self::assertSame(['/pribeh/novakovi', 'Příběh Nováků'], $view->storyMenu(), 'one story: the menu leads to it');
 	}
 
 	public function testRenderAndPage(): void

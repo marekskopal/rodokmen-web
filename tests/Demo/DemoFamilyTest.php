@@ -83,7 +83,7 @@ final class DemoFamilyTest extends TestCase
 	/** @return iterable<string, array{string}> */
 	public static function pages(): iterable
 	{
-		foreach (['/', '/predci', '/strom', '/vejir', '/generace', '/mapa', '/zapisy', '/osoba/antonin-skopal-1889', '/zapis/unicov_krest_antonin_skopal_1889', '/zapis/litovel_krest_josef_skopal_1921', '/zajimavosti', '/pribeh', '/rod/skopalovi', '/rod/krejci', '/denik', '/hledame', '/hledat?q=Skopal'] as $uri) {
+		foreach (['/', '/predci', '/strom', '/vejir', '/generace', '/mapa', '/zapisy', '/osoba/antonin-skopal-1889', '/zapis/unicov_krest_antonin_skopal_1889', '/zapis/litovel_krest_josef_skopal_1921', '/zajimavosti', '/pribeh/skopalovi', '/pribeh/horakovi', '/pribehy', '/rod/skopalovi', '/rod/krejci', '/denik', '/hledame', '/hledat?q=Skopal'] as $uri) {
 			yield $uri => [$uri];
 		}
 	}

@@ -98,6 +98,10 @@ final class RepositoryTest extends TestCase
 		self::assertStringContainsString('## Dva Augustinové', (string) $this->repository->markdown('zajimavosti'));
 		self::assertNull($this->repository->markdown('denik'));
 		self::assertNull($this->repository->markdown('../site'));
+		self::assertNull($this->repository->markdown('pribeh-..'));
+		self::assertStringContainsString('Příběh Malých', (string) $this->repository->markdown('pribeh-malovi'));
+		file_put_contents($this->dir . '/md/pribeh-novy--rod-2.md', 'Text');
+		self::assertSame('Text', $this->repository->markdown('pribeh-novy--rod-2'), 'any line slug rodokmen-sync accepts');
 		self::assertCount(1, $this->repository->documents());
 		self::assertCount(2, $this->repository->issues());
 		self::assertCount(1, $this->repository->hypotheses());

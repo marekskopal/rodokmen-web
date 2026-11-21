@@ -13,6 +13,8 @@ const pages = [
 	['/dokumenty', 'photos and documents'],
 	['/zajimavosti', 'stories'],
 	['/pribeh', 'family story'],
+	['/pribehy', 'stories of the lines'],
+	['/pribeh/horakovi', 'story of a line'],
 	['/rod/skopalovi', 'family line'],
 	['/denik', 'research log'],
 	['/hledame', 'open questions'],
@@ -59,14 +61,21 @@ test('an unknown page answers 404', async ({ page, consoleErrors }) => {
 	consoleErrors.splice(0, consoleErrors.length, ...consoleErrors.filter((e) => !e.includes('404')));
 });
 
-test('the family story is in the menu and linked from its line', async ({ page }) => {
+test('the stories are in the menu and linked from their lines', async ({ page }) => {
 	await page.goto('/');
-	await page.locator('#mainnav').getByRole('link', { name: 'Příběh Skopalových' }).click();
+	await page.locator('#mainnav').getByRole('link', { name: 'Příběhy' }).click();
+	await expect(page).toHaveURL(/\/pribehy$/);
+	await page.getByRole('link', { name: /Příběh Horáků/ }).click();
+	await expect(page).toHaveURL(/\/pribeh\/horakovi$/);
+	await expect(page.locator('.lead')).toHaveText('Tři generace sládků v litovelském pivovaru.');
+
+	await page.goto('/pribeh');
+	await expect(page).toHaveURL(/\/pribeh\/skopalovi$/);
 	await expect(page.locator('h1')).toHaveText('Příběh Skopalových');
 	await expect(page.locator('.prose a', { hasText: 'Matouš Skopal' })).toHaveAttribute('href', '/osoba/matous-skopal-1756');
 
 	await page.getByRole('link', { name: /Rod Skopalovi/ }).click();
 	await expect(page).toHaveURL(/\/rod\/skopalovi$/);
 	await page.getByRole('link', { name: /Přečíst příběh Skopalových/ }).click();
-	await expect(page).toHaveURL(/\/pribeh$/);
+	await expect(page).toHaveURL(/\/pribeh\/skopalovi$/);
 });

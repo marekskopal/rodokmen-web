@@ -11,6 +11,8 @@ Run it in the folder of a family tree project made with the rodokmen skill (the 
 
 Steps: runs the skill's exporter (tools/export_web.py), collects its output into a data bundle
 (site.json, notes, crops and full scans) described by manifest.json, and sends only the files that changed.
+Stories of the other family lines (data/pribehy/<line>.md, <line> = the line's address in site.json, e.g.
+novakovi.md) are not exported by the skill; rodokmen-sync publishes them itself, without the <!-- notes -->.
 
 Settings can live in rodokmen-web.env in the project folder (keep it out of git – it holds the token):
 
@@ -39,12 +41,18 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 FORMAT = 1
 CONFIG_FILE = "rodokmen-web.env"
 MANIFEST = "manifest.json"
 PATH_RE = re.compile(r"^(site\.json|md/[a-z0-9_-]+\.md|(img|full)/[a-z0-9_-]+\.jpg)$")
 NOTES = ("zajimavosti", "pribeh", "denik", "dotazy")
+# Stories of the family lines next to the main story (data/pribeh.md): data/pribehy/<line slug>.md.
+STORIES = "data/pribehy"
+STORY_NAME_RE = re.compile(r"^[a-z0-9-]+$")
+# Links to the pages of the website, checked like at the end of tools/export_web.py.
+LINK_RE = re.compile(r"/(osoba|zdroj|rod|rodina)/([^/\s)\"'#?<>\]]+)")
+LINK_TARGETS = {"osoba": "people", "zdroj": "records", "rod": "lines", "rodina": "families"}
 # Where the skill's exporter writes its output inside the project.
 SOURCES = {
     "site.json": "web/src/data/site.json",
@@ -109,12 +117,16 @@ def export(project):
         raise SyncError("The exporter failed – fix the reported problem and run rodokmen-sync again")
 
 
-def collect(project):
-    """Files of the bundle: {published path: source file}."""
+def collect(project, staging):
+    """Files of the bundle: {published path: source file}. Files made here (the stories) are written to staging."""
     files = {}
     site_json = project / SOURCES["site.json"]
     if not site_json.is_file():
         raise SyncError(f"{site_json} not found – the export did not run (try without --no-export)")
+    try:
+        site = json.loads(site_json.read_text(encoding="utf-8-sig"))
+    except ValueError as e:
+        raise SyncError(f"{site_json} is not valid JSON ({e}) – run the export again") from None
     files["site.json"] = site_json
     for note in NOTES:
         source = project / SOURCES["md"] / f"{note}.md"
@@ -128,6 +140,66 @@ def collect(project):
                 files[path] = source
             elif source.is_file() and not source.name.startswith("."):
                 log(f"Skipping {source} (only lower-case .jpg names are published)")
+    files.update(collect_stories(project, site if isinstance(site, dict) else {}, staging))
+    return files
+
+
+def strip_comments(markdown):
+    """<!-- … --> notes in markdown are for Claude, not for the website (like strip_comments of the exporter)."""
+    return re.sub(r"<!--.*?-->\n?", "", markdown, flags=re.S)
+
+
+def keys(site, name):
+    value = site.get(name)
+    return set(value) if isinstance(value, dict) else set()
+
+
+def broken_links(markdown, site):
+    """Links to persons, records, lines and families that are not in site.json, each once."""
+    known = {kind: keys(site, name) for kind, name in LINK_TARGETS.items()}
+    return list(dict.fromkeys(m.group(0) for m in LINK_RE.finditer(markdown) if m.group(2) not in known[m.group(1)]))
+
+
+def main_line(site):
+    """Address of the line of the main story (web.json → pribeh.rod, line 8 by default), None without a main story."""
+    config = site.get("config") if isinstance(site.get("config"), dict) else {}
+    if config.get("maPribeh") is False:
+        return None
+    story = config.get("pribeh") if isinstance(config.get("pribeh"), dict) else {}
+    number = story.get("rod") if story.get("rod") is not None else 8
+    lines = site.get("lines") if isinstance(site.get("lines"), dict) else {}
+    return next((slug for slug, line in lines.items() if isinstance(line, dict) and line.get("k") == number), None)
+
+
+def collect_stories(project, site, staging):
+    """Stories of the family lines, data/pribehy/<line>.md → md/pribeh-<line>.md without the comments."""
+    files = {}
+    directory = project / STORIES
+    lines = keys(site, "lines")
+    main = main_line(site) if (project / SOURCES["md"] / "pribeh.md").is_file() else None
+    for source in sorted(directory.iterdir()) if directory.is_dir() else []:
+        if not source.is_file() or source.name.startswith(".") or source.suffix != ".md":
+            continue
+        name = source.relative_to(project).as_posix()
+        if not STORY_NAME_RE.match(source.stem) or source.stem not in lines:
+            example = next(iter(sorted(lines)), "novakovi")
+            log(f"Skipping {name} – the file name must be the address of a family line from site.json, e.g. {example}.md")
+            continue
+        if source.stem == main:
+            log(f"WARNING: {name} is not shown – the line {main} has the main story, data/pribeh.md")
+        try:
+            text = strip_comments(source.read_text(encoding="utf-8-sig"))
+        except (OSError, UnicodeDecodeError) as e:
+            raise SyncError(f"Cannot read {name} ({e}) – save it as UTF-8 text") from None
+        for link in broken_links(text, site):
+            log(f"WARNING: broken link {link}/ in {name} – fix it (the addresses are in web/src/data/site.json)")
+        target = staging / f"pribeh-{source.stem}.md"
+        with open(target, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        # The source's time, so that rsync (which compares size and time) sends the story only when it changed.
+        stat = source.stat()
+        os.utime(target, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        files[f"md/pribeh-{source.stem}.md"] = target
     return files
 
 
@@ -399,7 +471,12 @@ def run(args, environ):
         return
     if not args.no_export:
         export(project)
-    files = collect(project)
+    with tempfile.TemporaryDirectory(prefix="rodokmen-sync-") as staging:
+        files = collect(project, Path(staging))
+        publish(files, target, config, args)
+
+
+def publish(files, target, config, args):
     manifest = build_manifest(files)
     log(f"Bundle: {len(files)} files")
 

@@ -17,7 +17,7 @@ final class SkillLinksTest extends TestCase
 		yield 'person with anchor' => ['/osoba/jan-novak-1990/#zapisy', '/osoba/jan-novak-1990#zapisy'];
 		yield 'record' => ['/zdroj/praha_krest/', '/zapis/praha_krest'];
 		yield 'line' => ['/rod/novakovi/', '/rod/novakovi'];
-		yield 'story' => ['/pribehy/', '/pribeh'];
+		yield 'stories' => ['/pribehy/', '/pribehy'];
 		yield 'page with query' => ['/generace/?rod=novakovi', '/generace?rod=novakovi'];
 		yield 'already local form' => ['/osoba/jan-novak-1990', '/osoba/jan-novak-1990'];
 		yield 'home' => ['/', '/'];

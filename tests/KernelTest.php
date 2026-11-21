@@ -46,9 +46,9 @@ final class KernelTest extends TestCase
 	/** @return iterable<string, array{string, list<string>}> */
 	public static function pages(): iterable
 	{
-		yield 'home' => ['/', ['Rodokmen Testových', 'Novákovi', 'Dva Augustinové', 'href="/rod/novakovi"', 'Přečíst příběh Nováků →', '>Příběh Nováků</a>']];
+		yield 'home' => ['/', ['Rodokmen Testových', 'Novákovi', 'Dva Augustinové', 'href="/rod/novakovi"', 'Přečíst příběh Nováků →', 'href="/pribehy"', 'Další příběhy rodů', 'href="/pribeh/malovi"']];
 		yield 'story' => [
-			'/pribeh',
+			'/pribeh/novakovi',
 			[
 				'<h1>Příběh Nováků</h1>',
 				'Od Josefa k Antonínovi',
@@ -57,6 +57,9 @@ final class KernelTest extends TestCase
 				'Rod Novákovi',
 			]];
 
+		yield 'line story' => ['/pribeh/malovi', ['<h1>Příběh Malých</h1>', 'Marie a její předci.', 'href="/osoba/marie-mala-1992"', 'Rod Malí', 'href="/pribehy"']];
+		yield 'stories' => ['/pribehy', ['Příběhy rodů', 'Příběh Nováků', 'href="/pribeh/novakovi"', 'Příběh Malých', 'Marie a její předci.']];
+		yield 'line with its story' => ['/rod/malovi', ['Malí', 'Příběh Malých', 'href="/pribeh/malovi"']];
 		yield 'line' => ['/rod/novakovi', ['Novákovi', 'Pražský rod.', '2 osoby', 'Příběh Nováků', 'Josef Novák', 'Prarodiče', 'href="/predci/josef-novak-1960"']];
 		yield 'explorer' => ['/predci', ['Prohlížeč předků', 'Jan Novák', 'Marie Malá']];
 		yield 'explorer of person' => ['/predci/jan-novak-1990', ['Josef Novák']];
@@ -327,13 +330,40 @@ final class KernelTest extends TestCase
 		self::assertSame(1, substr_count($body, '<li><strong>Petr Novák (* 1993)</strong>'));
 	}
 
-	public function testWithoutStoryThereIsNoStoryPageNorMenuItem(): void
+	public function testMainStoryMovedToTheAddressOfItsLine(): void
+	{
+		$response = $this->get('/pribeh', loggedIn: true);
+
+		self::assertSame(301, $response->getStatusCode());
+		self::assertSame('/pribeh/novakovi', $response->getHeaderLine('Location'));
+	}
+
+	public function testStoriesThatDoNotExist(): void
+	{
+		self::assertSame(404, $this->get('/pribeh/nikdo', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/pribeh/..%2Fsite', loggedIn: true)->getStatusCode());
+	}
+
+	public function testWithoutStoriesThereIsNoStoryPageNorMenuItem(): void
+	{
+		unlink($this->dir . '/md/pribeh.md');
+		unlink($this->dir . '/md/pribeh-malovi.md');
+
+		self::assertSame(404, $this->get('/pribeh', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/pribeh/novakovi', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/pribehy', loggedIn: true)->getStatusCode());
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+		self::assertStringNotContainsString('href="/pribeh', $home);
+	}
+
+	public function testOnlyALineStory(): void
 	{
 		unlink($this->dir . '/md/pribeh.md');
 
 		self::assertSame(404, $this->get('/pribeh', loggedIn: true)->getStatusCode());
 		$home = (string) $this->get('/', loggedIn: true)->getBody();
-		self::assertStringNotContainsString('href="/pribeh"', $home);
+		self::assertStringContainsString('<a href="/pribeh/malovi" class="">Příběh rodu</a>', $home);
+		self::assertStringContainsString('<h2 class="section-title">Příběhy rodů</h2>', $home);
 	}
 
 	public function testSearchIndex(): void
@@ -342,7 +372,12 @@ final class KernelTest extends TestCase
 		$items = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
 
 		self::assertIsArray($items);
-		self::assertCount(4 + 1 + 1, $items);
+		self::assertCount(4 + 1 + 2 + 1, $items);
+		$story = array_values(array_filter($items, static fn (mixed $item): bool => is_array($item) && $item['t'] === 'příběh'))[1] ?? null;
+		self::assertSame(
+			['t' => 'příběh', 'n' => 'Příběh Malých', 'd' => 'Marie a její předci.', 'x' => 'Marie (1992) Marie Malá se narodila jako dcera mlynáře.', 'u' => '/pribeh/malovi', 'c' => '#993366'],
+			$story,
+		);
 		self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
 	}
 

@@ -10,12 +10,12 @@ use League\CommonMark\Extension\CommonMark\Node\Inline\Link;
 /**
  * Links in the skill's texts (stories, interesting facts) point to the pages of the skill's own website:
  * /osoba/<slug>/, /zdroj/<key>/, /rod/<slug>/, /rodina/<id>/. Here the addresses have no trailing slash,
- * a register entry is /zapis/<key>, the story /pribeh and families have no page of their own (the link is dropped, its text kept).
+ * a register entry is /zapis/<key> and families have no page of their own (the link is dropped, its text kept).
  */
 final class SkillLinks
 {
 	/** First path segment on the skill's website => the same page here. */
-	private const Renamed = ['zdroj' => 'zapis', 'pribehy' => 'pribeh'];
+	private const Renamed = ['zdroj' => 'zapis'];
 
 	/** Pages the skill's website has and this one does not. */
 	private const Missing = ['rodina'];

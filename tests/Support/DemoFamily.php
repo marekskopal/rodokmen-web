@@ -152,6 +152,16 @@ final class DemoFamily
 
 				Mateřské linie vedou na jih Hané – k sedlákům Dvořákům do Kostelce a k tesařům Procházkovým do Plumlova.
 				MD,
+			'pribeh-horakovi' => <<<'MD'
+				---
+				title: Příběh Horáků
+				lead: 'Tři generace sládků v litovelském pivovaru.'
+				---
+
+				## Sládci z Litovle (1828–1944)
+				[Antonín Horák](/osoba/antonin-horak-1828/) přišel do Litovle jako pivovarský tovaryš. Jeho syn i vnuk
+				zůstali u kotlů – Jan Horák vařil pivo až do své smrti v roce 1944.
+				MD,
 			'denik' => <<<'MD'
 				# Deník hledání
 
