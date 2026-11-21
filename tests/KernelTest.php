@@ -46,7 +46,18 @@ final class KernelTest extends TestCase
 	/** @return iterable<string, array{string, list<string>}> */
 	public static function pages(): iterable
 	{
-		yield 'home' => ['/', ['Rodokmen Testových', 'Novákovi', 'Dva Augustinové']];
+		yield 'home' => ['/', ['Rodokmen Testových', 'Novákovi', 'Dva Augustinové', 'href="/rod/novakovi"', 'Přečíst příběh Nováků →', '>Příběh Nováků</a>']];
+		yield 'story' => [
+			'/pribeh',
+			[
+				'<h1>Příběh Nováků</h1>',
+				'Od Josefa k Antonínovi',
+				'href="/osoba/josef-novak-1960"',
+				'href="/zapis/praha_krest_jan_novak_1990"',
+				'Rod Novákovi',
+			]];
+
+		yield 'line' => ['/rod/novakovi', ['Novákovi', 'Pražský rod.', '2 osoby', 'Příběh Nováků', 'Josef Novák', 'Prarodiče', 'href="/predci/josef-novak-1960"']];
 		yield 'explorer' => ['/predci', ['Prohlížeč předků', 'Jan Novák', 'Marie Malá']];
 		yield 'explorer of person' => ['/predci/jan-novak-1990', ['Josef Novák']];
 		yield 'tree' => ['/strom/antonin-novak-2024', ['Celý strom předků', 'Josef Novák']];
@@ -316,6 +327,15 @@ final class KernelTest extends TestCase
 		self::assertSame(1, substr_count($body, '<li><strong>Petr Novák (* 1993)</strong>'));
 	}
 
+	public function testWithoutStoryThereIsNoStoryPageNorMenuItem(): void
+	{
+		unlink($this->dir . '/md/pribeh.md');
+
+		self::assertSame(404, $this->get('/pribeh', loggedIn: true)->getStatusCode());
+		$home = (string) $this->get('/', loggedIn: true)->getBody();
+		self::assertStringNotContainsString('href="/pribeh"', $home);
+	}
+
 	public function testSearchIndex(): void
 	{
 		$response = $this->get('/data/hledani.json', loggedIn: true);
@@ -404,6 +424,7 @@ final class KernelTest extends TestCase
 	{
 		self::assertSame(404, $this->get('/osoba/nikdo', loggedIn: true)->getStatusCode());
 		self::assertSame(404, $this->get('/neexistuje', loggedIn: true)->getStatusCode());
+		self::assertSame(404, $this->get('/rod/nikdo', loggedIn: true)->getStatusCode());
 		self::assertSame('/prihlaseni', $this->get('/neexistuje')->getHeaderLine('Location'));
 	}
 

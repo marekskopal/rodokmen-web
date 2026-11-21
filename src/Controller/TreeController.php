@@ -14,8 +14,10 @@ use Rodokmen\Site\Auth\Auth;
 use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\View\AncestorTable;
 use Rodokmen\Site\View\FanChart;
+use Rodokmen\Site\View\LineSummaries;
 use Rodokmen\Site\View\View;
 
 /**
@@ -32,6 +34,8 @@ final readonly class TreeController
 		private View $view,
 		private FanChart $fanChart,
 		private AncestorTable $ancestorTable,
+		private LineSummaries $lineSummaries,
+		private Stories $stories,
 	)
 	{
 	}
@@ -39,41 +43,14 @@ final readonly class TreeController
 	#[RouteGet('/')]
 	public function home(ServerRequestInterface $request): ResponseInterface
 	{
-		$lines = $this->repository->lines();
-		$cards = [];
-		foreach ($lines as $line) {
-			$oldest = null;
-			$places = [];
-			foreach ($line->people as $slug) {
-				$person = $this->repository->person($slug);
-				if ($person === null) {
-					continue;
-				}
-				if ($oldest === null || $person->gen > $oldest->gen) {
-					$oldest = $person;
-				}
-				foreach ($this->repository->placeNamesOf($slug) as $place) {
-					$places[$place] = true;
-				}
-			}
-
-			$cards[] = [
-				'line' => $line,
-				'root' => $this->repository->person($line->root),
-				'count' => count($line->people),
-				'generations' => $line->generationCount(),
-				'oldest' => $oldest,
-				'places' => array_slice(array_map(strval(...), array_keys($places)), 0, 5),
-			];
-		}
-
 		return $this->view->page('home', [
 			'title' => $this->repository->title(),
 			'nav' => 'home',
 			'home' => $this->repository->person($this->homePerson->slug($request)),
-			'cards' => $cards,
+			'cards' => $this->lineSummaries->all(),
 			'stats' => $this->repository->stats(),
 			'stories' => $this->storyTitles(),
+			'story' => $this->stories->main(),
 		]);
 	}
 
@@ -227,6 +204,26 @@ final readonly class TreeController
 			'line' => $this->repository->lineByNumber($person->line),
 			'ownFamily' => $ownFamily,
 			'documents' => $person->docs,
+		]);
+	}
+
+	/** @param array<string, string> $args */
+	#[RouteGet('/rod/{slug}')]
+	public function line(ServerRequestInterface $request, array $args): ResponseInterface
+	{
+		$line = $this->repository->line($args['slug']);
+		if ($line === null) {
+			throw new NotFoundException();
+		}
+
+		$story = $this->stories->main();
+
+		return $this->view->page('line', [
+			'title' => 'Rod ' . $line->name,
+			'nav' => 'home',
+			'summary' => $this->lineSummaries->of($line),
+			'byGeneration' => $this->lineSummaries->generations($line),
+			'story' => $story?->line?->slug === $line->slug ? $story : null,
 		]);
 	}
 

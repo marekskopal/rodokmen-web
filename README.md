@@ -25,6 +25,9 @@ The user interface is in Czech, like the skill.
 - **Person pages** with a life timeline, family, siblings, places on a map, every register entry with the
   highlighted crop of the scan, transcription and translation, and family photos. Scans and photos open in a
   viewer with zoom and pan (mouse wheel, pinch, drag) in full resolution.
+- **Family story** (`/pribeh`) written with the skill (title and lead from its front matter) in the menu and on the
+  home page, and a **page for every family line** (`/rod/<line>`) with its people by generation. Links in the
+  skill's texts to persons, register entries and lines lead to the pages of this website.
 - **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,
   **research log**, **open questions** and **search**.
 - **GEDCOM export** of the whole tree (GEDCOM 5.5.1) with the register entries as sources, for other genealogy

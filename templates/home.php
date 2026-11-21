@@ -2,12 +2,13 @@
 /** @var Rodokmen\Site\View\View $v */
 /** @var Rodokmen\Site\Data\Repository $repo */
 /** @var Rodokmen\Site\Data\Model\Person $home */
-/** @var list<array{line: Rodokmen\Site\Data\Model\Line, root: Rodokmen\Site\Data\Model\Person|null, count: int, generations: int, oldest: Rodokmen\Site\Data\Model\Person|null, places: list<string>}> $cards */
+/** @var list<Rodokmen\Site\View\LineSummary> $cards */
+/** @var Rodokmen\Site\Data\Model\Story|null $story */
 /** @var Rodokmen\Site\Data\Model\Stats $stats */
 /** @var list<string> $stories */
 $sides = [
-    'Po otci' => array_values(array_filter($cards, static fn ($c) => $c['line']->k <= 11)),
-    'Po matce' => array_values(array_filter($cards, static fn ($c) => $c['line']->k >= 12)),
+    'Po otci' => array_values(array_filter($cards, static fn ($c) => $c->isPaternal())),
+    'Po matce' => array_values(array_filter($cards, static fn ($c) => !$c->isPaternal())),
 ];
 $father = $repo->person($home->father);
 $mother = $repo->person($home->mother);
@@ -40,30 +41,39 @@ $mother = $repo->person($home->mother);
     <div><strong><?= $stats->generations ?></strong><span>generací</span></div>
 </section>
 
+<?php if ($story !== null): ?>
+<section class="section">
+    <?php require __DIR__ . '/partials/story-card.php' ?>
+</section>
+<?php endif ?>
+
 <?php foreach ($sides as $sideTitle => $sideCards): if ($sideCards === []) { continue; } ?>
 <section class="section">
     <h2 class="section-title"><?= $v->e($sideTitle) ?></h2>
     <div class="lines">
-        <?php foreach ($sideCards as $card): $line = $card['line']; ?>
+        <?php foreach ($sideCards as $card): $line = $card->line; $lineUrl = '/rod/' . rawurlencode($line->slug); ?>
             <article class="line-card" style="--c: <?= $v->e($line->color) ?>">
                 <header>
-                    <h3><?= $v->e($line->name) ?></h3>
-                    <span class="line-meta"><?= $v->e($v->plural($card['count'], 'osoba', 'osoby', 'osob')) ?> · <?= $v->e($v->plural($card['generations'], 'generace', 'generace', 'generací')) ?></span>
+                    <h3><a href="<?= $v->e($lineUrl) ?>"><?= $v->e($line->name) ?></a></h3>
+                    <span class="line-meta"><?= $v->e($v->plural($card->count, 'osoba', 'osoby', 'osob')) ?> · <?= $v->e($v->plural($card->generations, 'generace', 'generace', 'generací')) ?></span>
                 </header>
                 <p><?= $v->e($line->desc) ?></p>
-                <?php if ($card['oldest'] !== null): ?>
+                <?php if ($card->oldest !== null): ?>
                     <p class="line-oldest"><span class="muted">Nejvzdálenější známý předek:</span>
-                        <a href="<?= $v->e($v->personUrl($card['oldest']->slug)) ?>"><?= $v->e($card['oldest']->name) ?></a>
-                        <span class="muted"><?= $v->e($card['oldest']->y) ?></span></p>
+                        <a href="<?= $v->e($v->personUrl($card->oldest->slug)) ?>"><?= $v->e($card->oldest->name) ?></a>
+                        <span class="muted"><?= $v->e($card->oldest->y) ?></span></p>
                 <?php endif ?>
-                <?php if ($card['places'] !== []): ?>
-                    <p class="chips"><?php foreach ($card['places'] as $place): ?><span class="chip"><?= $v->e($place) ?></span><?php endforeach ?></p>
+                <?php if ($card->places !== []): ?>
+                    <p class="chips"><?php foreach (array_slice($card->places, 0, 5) as $place): ?><span class="chip"><?= $v->e($place) ?></span><?php endforeach ?></p>
+                <?php endif ?>
+                <?php if ($story !== null && $story->line?->slug === $line->slug): ?>
+                    <p class="line-story"><a href="/pribeh"><?= $v->e($story->title) ?> →</a></p>
                 <?php endif ?>
                 <footer>
-                    <?php if ($card['root'] !== null): ?>
-                        <a href="<?= $v->e($v->explorerUrl($card['root']->slug)) ?>">Předci rodu →</a>
+                    <a href="<?= $v->e($lineUrl) ?>">O rodu →</a>
+                    <?php if ($card->root !== null): ?>
+                        <a href="<?= $v->e($v->explorerUrl($card->root->slug)) ?>" class="muted">předci</a>
                     <?php endif ?>
-                    <a href="/generace?rod=<?= $v->e($line->slug) ?>" class="muted">seznam</a>
                 </footer>
             </article>
         <?php endforeach ?>
@@ -75,8 +85,8 @@ $mother = $repo->person($home->mother);
 <section class="section">
     <h2 class="section-title">Zajímavosti z matrik</h2>
     <ul class="stories">
-        <?php foreach ($stories as $story): ?>
-            <li><a href="/zajimavosti#<?= $v->e(rawurlencode($story)) ?>"><?= $v->e($story) ?></a></li>
+        <?php foreach ($stories as $storyTitle): ?>
+            <li><a href="/zajimavosti#<?= $v->e(rawurlencode($storyTitle)) ?>"><?= $v->e($storyTitle) ?></a></li>
         <?php endforeach ?>
     </ul>
 </section>

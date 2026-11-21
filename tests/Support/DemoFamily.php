@@ -85,6 +85,8 @@ final class DemoFamily
 				'popis' => 'Ukázkový rodokmen: kromě jména autora jsou všechny osoby, data a zápisy smyšlené.',
 				'zapati' => 'Ukázková data rodokmen-web – smyšlená rodina.',
 				'kontakt' => ['jmeno' => 'Marek Skopal', 'email' => ''],
+				'pribeh' => ['menu' => 'Příběh Skopalových', 'rod' => 8, 'tlacitko' => 'Přečíst příběh Skopalových'],
+				'maPribeh' => true,
 			],
 			'root' => self::slug(1),
 			'aliases' => [],
@@ -134,12 +136,18 @@ final class DemoFamily
 				Josef Skopal a Marie Horáková se vzali 13. 5. 1946 – v květnu jako před 63 lety Josefovi prarodiče Jan a Terezie.
 				MD,
 			'pribeh' => <<<'MD'
-				# Příběh rodu
+				---
+				title: Příběh Skopalových
+				lead: 'Pět generací kovářů z Uničova – a jak se rod ve 20. století rozešel do světa.'
+				---
 
-				Nejstarší známý předek, **Matouš Skopal**, přišel do Uničova jako kovářský tovaryš a oženil se s dcerou
+				## Kovárna u Litovelské brány (1756–1951)
+				Nejstarší známý předek, [Matouš Skopal](/osoba/matous-skopal-1756/), přišel do Uničova jako kovářský tovaryš a oženil se s dcerou
 				místního mistra. Kovárnu po něm převzal syn Jakub a po něm další tři generace.
 
-				Ve 20. století se rod rozešel do světa: **Josef Skopal** se vyučil zámečníkem a usadil se v Litovli,
+				## Do světa (20. století)
+				Ve 20. století se rod rozešel do světa: [Josef Skopal](/osoba/josef-skopal-1921/) se vyučil zámečníkem a usadil se v Litovli
+				([křest](/zdroj/litovel_krest_josef_skopal_1921/)),
 				jeho syn **Pavel** vystudoval strojní fakultu a odešel do Olomouce.
 
 				Mateřské linie vedou na jih Hané – k sedlákům Dvořákům do Kostelce a k tesařům Procházkovým do Plumlova.

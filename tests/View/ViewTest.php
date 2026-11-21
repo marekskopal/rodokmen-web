@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
 use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\Fixture;
@@ -28,7 +29,7 @@ final class ViewTest extends TestCase
 		$this->dir = Fixture::dataDir();
 		$config = Fixture::config($this->dir);
 		$this->repository = new Repository($config, new SiteDataLoader($config));
-		$this->view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer()));
+		$this->view = new View($config, $this->repository, new Stories($this->repository), new Thumbnails($config, new WebpResizer()));
 	}
 
 	protected function tearDown(): void
@@ -54,7 +55,7 @@ final class ViewTest extends TestCase
 	{
 		Images::jpeg($this->dir . '/img/krest.jpg', 1000, 500);
 		$config = Fixture::config($this->dir);
-		$view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer(), true));
+		$view = new View($config, $this->repository, new Stories($this->repository), new Thumbnails($config, new WebpResizer(), true));
 
 		self::assertSame(
 			' srcset="/obrazek/nahled/480/krest.webp 480w, /obrazek/nahled/960/krest.webp 960w, /obrazek/nahled/1440/krest.webp 1000w"'
@@ -70,7 +71,12 @@ final class ViewTest extends TestCase
 		);
 		self::assertSame('', $view->srcset('chybi', '240px'), 'no source');
 
-		$withoutWebp = new View($config, $this->repository, new Thumbnails($config, new WebpResizer(), false));
+		$withoutWebp = new View(
+			$config,
+			$this->repository,
+			new Stories($this->repository),
+			new Thumbnails($config, new WebpResizer(), false),
+		);
 		self::assertSame('', $withoutWebp->srcset('krest', '240px'));
 	}
 
@@ -200,6 +206,23 @@ final class ViewTest extends TestCase
 		self::assertStringNotContainsString('<script>', $this->view->markdown('<script>alert(1)</script>'));
 	}
 
+	public function testMarkdownLinksLeadToThePagesOfThisWebsite(): void
+	{
+		$html = $this->view->markdown(Fixture::Story);
+
+		self::assertStringContainsString('<a href="/osoba/josef-novak-1960">Josef Novák</a>', $html);
+		self::assertStringContainsString('<a href="/zapis/praha_krest_jan_novak_1990">zápisu</a>', $html);
+		self::assertStringContainsString('<a href="/rod/novakovi">rodu Nováků</a>', $html);
+		self::assertStringContainsString('celá rodina Josefa patří', $html, 'a family has no page: only the text is kept');
+	}
+
+	public function testHelpers(): void
+	{
+		self::assertSame('Rodiče', $this->view->generationName(1));
+		self::assertSame('5. generace předků', $this->view->generationName(5));
+		self::assertSame('Přečíst příběh Nováků', $this->view->storyButton());
+	}
+
 	public function testRenderAndPage(): void
 	{
 		$html = $this->view->render('search', ['query' => '<b>']);
@@ -219,7 +242,12 @@ final class ViewTest extends TestCase
 		$config = Fixture::config($this->dir, searchHint: 'Např. Novák, Lomnice');
 		self::assertSame(
 			'Např. Novák, Lomnice',
-			(new View($config, $this->repository, new Thumbnails($config, new WebpResizer())))->searchHint(),
+			(new View(
+				$config,
+				$this->repository,
+				new Stories($this->repository),
+				new Thumbnails($config, new WebpResizer()),
+			))->searchHint(),
 		);
 	}
 }

@@ -13,6 +13,7 @@ const pages = [
 	['/dokumenty', 'photos and documents'],
 	['/zajimavosti', 'stories'],
 	['/pribeh', 'family story'],
+	['/rod/skopalovi', 'family line'],
 	['/denik', 'research log'],
 	['/hledame', 'open questions'],
 	['/hledat', 'search'],
@@ -56,4 +57,16 @@ test('an unknown page answers 404', async ({ page, consoleErrors }) => {
 	expect(response?.status()).toBe(404);
 	// Chromium reports the failed document load itself as a console error.
 	consoleErrors.splice(0, consoleErrors.length, ...consoleErrors.filter((e) => !e.includes('404')));
+});
+
+test('the family story is in the menu and linked from its line', async ({ page }) => {
+	await page.goto('/');
+	await page.locator('#mainnav').getByRole('link', { name: 'Příběh Skopalových' }).click();
+	await expect(page.locator('h1')).toHaveText('Příběh Skopalových');
+	await expect(page.locator('.prose a', { hasText: 'Matouš Skopal' })).toHaveAttribute('href', '/osoba/matous-skopal-1756');
+
+	await page.getByRole('link', { name: /Rod Skopalovi/ }).click();
+	await expect(page).toHaveURL(/\/rod\/skopalovi$/);
+	await page.getByRole('link', { name: /Přečíst příběh Skopalových/ }).click();
+	await expect(page).toHaveURL(/\/pribeh$/);
 });

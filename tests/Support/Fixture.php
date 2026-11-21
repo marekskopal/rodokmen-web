@@ -20,11 +20,30 @@ use const JSON_UNESCAPED_UNICODE;
  */
 final class Fixture
 {
+	/** md/pribeh.md as the exporter writes it: front matter and links to the pages of the skill's website. */
+	public const Story = <<<'MD'
+		---
+		title: Příběh Nováků
+		lead: 'Od Josefa k Antonínovi – tři generace v Praze.'
+		---
+
+		## Josef v Praze (1960)
+		[Josef Novák](/osoba/josef-novak-1960/) přišel do Prahy. Křest jeho syna je v [zápisu](/zdroj/praha_krest_jan_novak_1990/),
+		celá [rodina Josefa](/rodina/josef-novak-1960-rodina/) patří k [rodu Nováků](/rod/novakovi/).
+		MD;
+
 	/** @return array<string, mixed> site.json as exported by tools/export_web.py */
 	public static function siteData(): array
 	{
 		return [
-			'config' => ['nazev' => 'Rodokmen Testových', 'popis' => '', 'zapati' => 'Testovací patička', 'kontakt' => ['jmeno' => 'Markovi Testovi', 'email' => 'test@example.org']],
+			'config' => [
+				'nazev' => 'Rodokmen Testových',
+				'popis' => '',
+				'zapati' => 'Testovací patička',
+				'kontakt' => ['jmeno' => 'Markovi Testovi', 'email' => 'test@example.org'],
+				'pribeh' => ['menu' => 'Příběh Nováků', 'rod' => 8, 'tlacitko' => 'Přečíst příběh Nováků'],
+				'maPribeh' => true,
+			],
 			'root' => 'antonin-novak-2024',
 			'aliases' => ['stary-slug' => 'jan-novak-1990'],
 			'stats' => ['ancestors' => 3, 'documented' => 2, 'records' => 1, 'generations' => 3],
@@ -179,6 +198,7 @@ final class Fixture
 		mkdir($dir . '/md', 0777, true);
 		file_put_contents($dir . '/site.json', json_encode($siteData ?? self::siteData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 		file_put_contents($dir . '/md/zajimavosti.md', "# Zajímavosti\n\n## Dva Augustinové\nText.\n\n## Narozen na Boží hod\nText.\n");
+		file_put_contents($dir . '/md/pribeh.md', self::Story);
 
 		return $dir;
 	}
