@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Rodokmen\Site\View;
 
 use Laminas\Diactoros\Response\HtmlResponse;
-use League\CommonMark\GithubFlavoredMarkdownConverter;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Event\DocumentParsedEvent;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\MarkdownConverter;
 use Psr\Http\Message\ResponseInterface;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
 use Stringable;
 use Throwable;
@@ -27,11 +32,12 @@ use const PHP_INT_MIN;
  */
 final class View
 {
-	private ?GithubFlavoredMarkdownConverter $markdown = null;
+	private ?MarkdownConverter $markdown = null;
 
 	public function __construct(
 		private readonly Config $config,
 		private readonly Repository $repository,
+		private readonly Stories $stories,
 		private readonly Thumbnails $thumbnails,
 	) {
 	}
@@ -79,10 +85,13 @@ final class View
 
 	public function markdown(string $text): string
 	{
-		$this->markdown ??= new GithubFlavoredMarkdownConverter([
-			'html_input' => 'escape',
-			'allow_unsafe_links' => false,
-		]);
+		if ($this->markdown === null) {
+			$environment = new Environment(['html_input' => 'escape', 'allow_unsafe_links' => false]);
+			$environment->addExtension(new CommonMarkCoreExtension());
+			$environment->addExtension(new GithubFlavoredMarkdownExtension());
+			$environment->addEventListener(DocumentParsedEvent::class, new SkillLinks());
+			$this->markdown = new MarkdownConverter($environment);
+		}
 
 		return (string) $this->markdown->convert($text);
 	}
@@ -283,6 +292,31 @@ final class View
 			'S' => 'Sčítání lidu',
 			'J' => 'Jiný pramen',
 		][$kind] ?? $kind;
+	}
+
+	/** Heading of a generation of ancestors (0 = the home person). */
+	public function generationName(int $gen): string
+	{
+		return [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Praprarodiče'][$gen] ?? $gen . '. generace předků';
+	}
+
+	/** Label of the menu item of the family story (web.json → pribeh.menu), null when there is no story. */
+	public function storyMenu(): ?string
+	{
+		if (!$this->repository->isAvailable() || $this->stories->main() === null) {
+			return null;
+		}
+		$menu = $this->repository->siteConfig()->story->menu;
+
+		return $menu !== '' ? $menu : 'Příběh rodu';
+	}
+
+	/** Label of the link to the family story (web.json → pribeh.tlacitko). */
+	public function storyButton(): string
+	{
+		$button = $this->repository->siteConfig()->story->button;
+
+		return $button !== '' ? $button : 'Přečíst příběh';
 	}
 
 	/** Czech plural: plural(1, 'osoba', 'osoby', 'osob'). */

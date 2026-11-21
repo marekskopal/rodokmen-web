@@ -11,6 +11,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Data\Model\Record;
 use Rodokmen\Site\Data\Repository;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\View\View;
 use const JSON_UNESCAPED_UNICODE;
 
@@ -22,11 +23,10 @@ final readonly class SourcesController
 	/** Markdown notes exported by the skill: URL => [file, title]. */
 	private const Notes = [
 		'zajimavosti' => ['zajimavosti', 'Zajímavosti'],
-		'pribeh' => ['pribeh', 'Příběh rodu'],
 		'denik' => ['denik', 'Deník hledání'],
 	];
 
-	public function __construct(private Repository $repository, private View $view)
+	public function __construct(private Repository $repository, private Stories $stories, private View $view)
 	{
 	}
 
@@ -125,7 +125,7 @@ final readonly class SourcesController
 	}
 
 	/** @param array<string, string> $args */
-	#[RouteGet('/{note:zajimavosti|pribeh|denik}')]
+	#[RouteGet('/{note:zajimavosti|denik}')]
 	public function note(ServerRequestInterface $request, array $args): ResponseInterface
 	{
 		[$file, $title] = self::Notes[$args['note']];
@@ -139,6 +139,22 @@ final readonly class SourcesController
 			'nav' => 'notes',
 			'html' => $this->view->markdown($text),
 			'wide' => $args['note'] === 'denik',
+		]);
+	}
+
+	#[RouteGet('/pribeh')]
+	public function story(): ResponseInterface
+	{
+		$story = $this->stories->main();
+		if ($story === null) {
+			throw new NotFoundException();
+		}
+
+		return $this->view->page('story', [
+			'title' => $story->title,
+			'nav' => 'story',
+			'story' => $story,
+			'html' => $this->view->markdown($story->text),
 		]);
 	}
 

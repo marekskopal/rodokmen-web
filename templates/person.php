@@ -37,7 +37,7 @@ usort($children, static fn (Person|Side $a, Person|Side $b): int
     <header class="person-head">
         <div>
             <p class="eyebrow">
-                <?php if ($line !== null): ?><a href="/generace?rod=<?= $v->e($line->slug) ?>"><?= $v->lineDot($line->k) ?>Rod <?= $v->e($line->name) ?></a> · <?php endif ?>
+                <?php if ($line !== null): ?><a href="/rod/<?= $v->e(rawurlencode($line->slug)) ?>"><?= $v->lineDot($line->k) ?>Rod <?= $v->e($line->name) ?></a> · <?php endif ?>
                 <?= $v->e(ucfirst($person->rel)) ?> · <?= $person->gen ?>. generace
             </p>
             <h1><?= $v->e($person->name) ?></h1>

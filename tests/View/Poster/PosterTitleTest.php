@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
 use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\Fixture;
@@ -30,7 +31,8 @@ final class PosterTitleTest extends TestCase
 	{
 		$this->dir = Fixture::dataDir();
 		$config = Fixture::config($this->dir);
-		$view = new View($config, new Repository($config, new SiteDataLoader($config)), new Thumbnails($config, new WebpResizer()));
+		$repository = new Repository($config, new SiteDataLoader($config));
+		$view = new View($config, $repository, new Stories($repository), new Thumbnails($config, new WebpResizer()));
 		$brush = new PosterBrush();
 		$this->title = new PosterTitle($view, new FanGeometry(), new PosterDecor($brush), $brush);
 	}

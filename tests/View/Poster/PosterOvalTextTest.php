@@ -9,6 +9,7 @@ use ReflectionClass;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
 use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\Fixture;
@@ -40,7 +41,7 @@ final class PosterOvalTextTest extends TestCase
 		$this->dir = Fixture::dataDir();
 		$config = Fixture::config($this->dir);
 		$this->repository = new Repository($config, new SiteDataLoader($config));
-		$view = new View($config, $this->repository, new Thumbnails($config, new WebpResizer()));
+		$view = new View($config, $this->repository, new Stories($this->repository), new Thumbnails($config, new WebpResizer()));
 		$geometry = new FanGeometry();
 		$labels = new FanLabels($view, $geometry);
 		$this->box = new PosterBoxText($view, $geometry, $labels, new FanYears());

@@ -11,6 +11,7 @@ use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
+use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
 use Rodokmen\Site\Image\WebpResizer;
 use Rodokmen\Site\Tests\Support\DemoFamily;
@@ -575,7 +576,7 @@ final class PosterTest extends TestCase
 	{
 		$config = Fixture::config($dir);
 		$repository = new Repository($config, new SiteDataLoader($config));
-		$view = new View($config, $repository, new Thumbnails($config, new WebpResizer()));
+		$view = new View($config, $repository, new Stories($repository), new Thumbnails($config, new WebpResizer()));
 		$geometry = new FanGeometry();
 		$labels = new FanLabels($view, $geometry);
 		$people = new PosterPeople($repository);

@@ -6,8 +6,10 @@ $nav ??= '';
 $bare ??= false;
 $wide ??= false;
 $siteTitle = $repo->title();
+$storyMenu = $v->storyMenu();
 $items = [
     'home' => ['/', 'Úvod'],
+    ...($storyMenu !== null ? ['story' => ['/pribeh', $storyMenu]] : []),
     'explorer' => ['/predci', 'Předci'],
     'generations' => ['/generace', 'Generace'],
     'map' => ['/mapa', 'Mapa'],
@@ -23,7 +25,7 @@ $items = [
     <meta name="robots" content="noindex, nofollow">
     <title><?= $v->e(($title ?? '') !== $siteTitle && ($title ?? '') !== '' ? $title . ' · ' . $siteTitle : $siteTitle) ?></title>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/app.css?v=12">
+    <link rel="stylesheet" href="/assets/app.css?v=13">
     <?php if (($nav === 'map') || !empty($needsMap)): ?>
         <?php /* Built by `pnpm build` from package.json; the query changes with the Leaflet version (cache). */ ?>
         <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css?v=1.9.4">
@@ -46,7 +48,7 @@ $items = [
         </button>
         <nav id="mainnav" class="nav">
             <?php foreach ($items as $key => [$href, $label]): ?>
-                <a href="<?= $href ?>" class="<?= $nav === $key ? 'active' : '' ?>"><?= $label ?></a>
+                <a href="<?= $href ?>" class="<?= $nav === $key ? 'active' : '' ?>"><?= $v->e($label) ?></a>
             <?php endforeach ?>
             <a href="/hledat" class="nav-search <?= $nav === 'search' ? 'active' : '' ?>" aria-label="Hledat">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>

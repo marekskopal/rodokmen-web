@@ -4,7 +4,6 @@
 /** @var array<int, list<Rodokmen\Site\Data\Model\Person>> $byGeneration */
 /** @var array<string, Rodokmen\Site\Data\Model\Line> $lines */
 /** @var string $activeLine */
-$genNames = [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Praprarodiče'];
 ?>
 <header class="page-head">
     <p class="eyebrow">Přehled</p>
@@ -27,7 +26,7 @@ $genNames = [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Pr
     <section class="gen" data-gen>
         <h2 class="gen-title">
             <span class="gen-num"><?= (int) $gen ?></span>
-            <?= $v->e($genNames[$gen] ?? $gen . '. generace předků') ?>
+            <?= $v->e($v->generationName($gen)) ?>
             <span class="muted thin" data-gen-count><?= count($people) ?></span>
         </h2>
         <div class="table-wrap">

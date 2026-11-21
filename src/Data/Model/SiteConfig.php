@@ -16,6 +16,9 @@ final readonly class SiteConfig
 		/** Whom to write to, in the dative as used in a sentence ("Janu Novákovi"). */
 		public string $contactName = '',
 		public string $contactEmail = '',
+		public StoryConfig $story = new StoryConfig(),
+		/** Whether the project has a story (data/pribeh.md); the exporter writes a placeholder pribeh.md without it. */
+		public bool $hasStory = false,
 	) {
 	}
 
@@ -27,6 +30,9 @@ final readonly class SiteConfig
 			$r->string('zapati', ''),
 			$r->object('kontakt')->string('jmeno', ''),
 			$r->object('kontakt')->string('email', ''),
+			StoryConfig::fromReader($r->object('pribeh')),
+			// Older exports without the flag: whether md/pribeh.md exists decides.
+			$r->bool('maPribeh', true),
 		);
 	}
 }
