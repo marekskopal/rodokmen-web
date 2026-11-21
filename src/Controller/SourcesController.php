@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Rodokmen\Site\Controller;
 
 use Laminas\Diactoros\Response\JsonResponse;
+use Laminas\Diactoros\Response\RedirectResponse;
 use League\Route\Http\Exception\NotFoundException;
 use MarekSkopal\Router\Attribute\RouteGet;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Rodokmen\Site\Data\Model\Record;
+use Rodokmen\Site\Data\Model\Story;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\View\View;
+use const ENT_HTML5;
+use const ENT_QUOTES;
 use const JSON_UNESCAPED_UNICODE;
 
 /**
@@ -142,19 +146,45 @@ final readonly class SourcesController
 		]);
 	}
 
+	/** The main story; its address is the one of its line (/pribeh/<line>) when the line is known. */
 	#[RouteGet('/pribeh')]
-	public function story(): ResponseInterface
+	public function mainStory(): ResponseInterface
 	{
 		$story = $this->stories->main();
 		if ($story === null) {
 			throw new NotFoundException();
 		}
+		if ($story->line !== null) {
+			return new RedirectResponse($story->url(), 301);
+		}
 
-		return $this->view->page('story', [
-			'title' => $story->title,
+		return $this->storyPage($story);
+	}
+
+	/** @param array<string, string> $args */
+	#[RouteGet('/pribeh/{line}')]
+	public function story(ServerRequestInterface $request, array $args): ResponseInterface
+	{
+		$story = $this->stories->forLine($args['line']);
+		if ($story === null) {
+			throw new NotFoundException();
+		}
+
+		return $this->storyPage($story);
+	}
+
+	#[RouteGet('/pribehy')]
+	public function storyList(): ResponseInterface
+	{
+		$stories = $this->stories->all();
+		if ($stories === []) {
+			throw new NotFoundException();
+		}
+
+		return $this->view->page('stories', [
+			'title' => 'Příběhy rodů',
 			'nav' => 'story',
-			'story' => $story,
-			'html' => $this->view->markdown($story->text),
+			'stories' => $stories,
 		]);
 	}
 
@@ -193,6 +223,16 @@ final readonly class SourcesController
 				'c' => '#9a8f7d',
 			];
 		}
+		foreach ($this->stories->all() as $story) {
+			$items[] = [
+				't' => 'příběh',
+				'n' => $story->title,
+				'd' => $story->lead,
+				'x' => self::plainText($this->view->markdown($story->text)),
+				'u' => $story->url(),
+				'c' => $this->repository->lineColor($story->line?->k),
+			];
+		}
 		foreach ($this->repository->places() as $place) {
 			$items[] = [
 				't' => 'místo',
@@ -204,6 +244,25 @@ final readonly class SourcesController
 		}
 
 		return new JsonResponse($items, 200, ['Cache-Control' => 'private, max-age=300'], JSON_UNESCAPED_UNICODE);
+	}
+
+	private function storyPage(Story $story): ResponseInterface
+	{
+		return $this->view->page('story', [
+			'title' => $story->title,
+			'nav' => 'story',
+			'story' => $story,
+			'html' => $this->view->markdown($story->text),
+			'more' => count($this->stories->all()) > 1,
+		]);
+	}
+
+	/** Words of rendered markdown for the search, without the markup. */
+	private static function plainText(string $html): string
+	{
+		$text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+		return trim((string) preg_replace('/\s+/u', ' ', $text));
 	}
 
 	private static function queryString(ServerRequestInterface $request, string $name): string

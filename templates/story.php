@@ -2,6 +2,7 @@
 /** @var Rodokmen\Site\View\View $v */
 /** @var Rodokmen\Site\Data\Model\Story $story */
 /** @var string $html */
+/** @var bool $more other stories exist */
 ?>
 <header class="page-head">
     <?php if ($story->line !== null): ?>
@@ -13,4 +14,7 @@
 <div class="prose" data-anchor-headings>
     <?= $html ?>
 </div>
-<p class="next-step"><a href="/zajimavosti">Další zajímavosti z rodokmenu →</a></p>
+<p class="next-step">
+    <?php if ($more): ?><a href="/pribehy">Příběhy dalších rodů →</a> · <?php endif ?>
+    <a href="/zajimavosti">Zajímavosti z rodokmenu →</a>
+</p>

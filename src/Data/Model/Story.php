@@ -6,7 +6,7 @@ namespace Rodokmen\Site\Data\Model;
 
 use Rodokmen\Site\Data\FrontMatter;
 
-/** A story written in markdown with a front matter (title, lead), e.g. data/pribeh.md of the skill. */
+/** A story of a family line written in markdown with a front matter (title, lead), e.g. data/pribeh.md of the skill. */
 final readonly class Story
 {
 	public function __construct(
@@ -16,10 +16,18 @@ final readonly class Story
 		public string $text,
 		/** The line the story is about. */
 		public ?Line $line,
+		/** The main story (data/pribeh.md), not one of the other lines (data/pribehy/<line>.md). */
+		public bool $main = false,
 	) {
 	}
 
-	public static function fromMarkdown(string $markdown, ?Line $line): self
+	/** The main story without a known line stays at /pribeh. */
+	public function url(): string
+	{
+		return $this->line !== null ? '/pribeh/' . rawurlencode($this->line->slug) : '/pribeh';
+	}
+
+	public static function fromMarkdown(string $markdown, ?Line $line, bool $main = false): self
 	{
 		$document = FrontMatter::parse($markdown);
 		$title = $document->field('title');
@@ -30,6 +38,6 @@ final readonly class Story
 			$body = ltrim(substr($body, strlen($m[0])), "\r\n");
 		}
 
-		return new self($title !== '' ? $title : 'Příběh rodu', $document->field('lead'), $body, $line);
+		return new self($title !== '' ? $title : 'Příběh rodu', $document->field('lead'), $body, $line, $main);
 	}
 }

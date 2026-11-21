@@ -25,9 +25,11 @@ The user interface is in Czech, like the skill.
 - **Person pages** with a life timeline, family, siblings, places on a map, every register entry with the
   highlighted crop of the scan, transcription and translation, and family photos. Scans and photos open in a
   viewer with zoom and pan (mouse wheel, pinch, drag) in full resolution.
-- **Family story** (`/pribeh`) written with the skill (title and lead from its front matter) in the menu and on the
-  home page, and a **page for every family line** (`/rod/<line>`) with its people by generation. Links in the
-  skill's texts to persons, register entries and lines lead to the pages of this website.
+- **Family stories**: the main story written with the skill and a story for any other family line
+  (`/pribeh/<line>`, all of them on `/pribehy`), with the title and lead from their front matter, in the menu, on
+  the home page, on the line pages and in the search; and a **page for every family line** (`/rod/<line>`) with
+  its people by generation. Links in the skill's texts to persons, register entries and lines lead to the pages of
+  this website.
 - **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,
   **research log**, **open questions** and **search**.
 - **GEDCOM export** of the whole tree (GEDCOM 5.5.1) with the register entries as sources, for other genealogy
@@ -112,6 +114,15 @@ Files already uploaded stay on the server, so running the command again after a 
 Options `--target` and `--token` and the environment variables `RODOKMEN_WEB_TARGET` / `RODOKMEN_WEB_TOKEN`
 override the file. Targets: `https://…` (API), `user@host:/path` or `ssh://user@host:port/path` (rsync over SSH),
 anything else is a local folder.
+
+#### Stories of the other family lines
+
+The skill writes one story, `data/pribeh.md`, about the main line (`web.json` → `pribeh.rod`). A story of any other
+line goes to `data/pribehy/<line>.md` in the same format (front matter with `title` and `lead`, then markdown);
+`<line>` is the line's address from `web/src/data/site.json` → `lines`, e.g. `data/pribehy/novakovi.md` for
+`/rod/novakovi`. The skill's exporter does not know these files, so `rodokmen-sync` publishes them itself: it
+drops the `<!-- notes -->`, warns about links to persons, records, lines or families that do not exist and skips a
+file whose name is not a line. Deleting the file removes the story from the website on the next sync.
 
 ## Installation
 

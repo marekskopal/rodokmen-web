@@ -13,6 +13,7 @@ use League\CommonMark\MarkdownConverter;
 use Psr\Http\Message\ResponseInterface;
 use Rodokmen\Site\Config;
 use Rodokmen\Site\Data\Model\Person;
+use Rodokmen\Site\Data\Model\Story;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\Stories;
 use Rodokmen\Site\Image\Thumbnails;
@@ -300,23 +301,22 @@ final class View
 		return [0 => 'Výchozí osoba', 1 => 'Rodiče', 2 => 'Prarodiče', 3 => 'Praprarodiče'][$gen] ?? $gen . '. generace předků';
 	}
 
-	/** Label of the menu item of the family story (web.json → pribeh.menu), null when there is no story. */
-	public function storyMenu(): ?string
+	/**
+	 * Menu item of the stories (Stories::menu()); none on the error pages without data.
+	 *
+	 * @return array{string, string}|null [address, label]
+	 */
+	public function storyMenu(): ?array
 	{
-		if (!$this->repository->isAvailable() || $this->stories->main() === null) {
-			return null;
-		}
-		$menu = $this->repository->siteConfig()->story->menu;
-
-		return $menu !== '' ? $menu : 'Příběh rodu';
+		return $this->repository->isAvailable() ? $this->stories->menu() : null;
 	}
 
-	/** Label of the link to the family story (web.json → pribeh.tlacitko). */
-	public function storyButton(): string
+	/** Label of the link to a story (web.json → pribeh.tlacitko for the main one). */
+	public function storyButton(Story $story): string
 	{
 		$button = $this->repository->siteConfig()->story->button;
 
-		return $button !== '' ? $button : 'Přečíst příběh';
+		return $story->main && $button !== '' ? $button : 'Přečíst příběh';
 	}
 
 	/** Czech plural: plural(1, 'osoba', 'osoby', 'osob'). */
