@@ -175,6 +175,10 @@
         });
     };
 
+    const inCzechLands = ([lat, lon]) => lat > 48.4 && lat < 51.2 && lon > 12 && lon < 19;
+
+    const rawUrlEncode = (s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
     const whenLeaflet = (fn) => {
         if (window.L) return fn();
         window.addEventListener('load', () => window.L && fn());
@@ -200,7 +204,7 @@
             bounds.push([p.lat, p.lon]);
         });
         // Fit to the Czech lands; far-away places (e.g. Vilnius) stay reachable by zooming out.
-        const home = bounds.filter(([lat, lon]) => lat > 48.4 && lat < 51.2 && lon > 12 && lon < 19);
+        const home = bounds.filter(inCzechLands);
         const fit = home.length ? home : bounds;
         if (fit.length) map.fitBounds(fit, { padding: [30, 30] });
         $$('.place').forEach((d) => d.addEventListener('toggle', () => {
@@ -216,11 +220,19 @@
         const map = L.map(el, { scrollWheelZoom: false, attributionControl: false, zoomControl: false });
         tiles(map);
         const bounds = places.map((p) => {
-            marker(p.lat, p.lon, [el.dataset.color]).addTo(map).bindTooltip(p.name);
+            const m = marker(p.lat, p.lon, p.colors ?? [el.dataset.color]).addTo(map).bindTooltip(p.name);
+            // The home page map leads to the place on the full map (the anchor encoded like PHP rawurlencode,
+            // which gives the ids of the places listed there).
+            if (el.dataset.link) m.on('click', () => { location.href = `${el.dataset.link}#${rawUrlEncode(p.name)}`; });
             return [p.lat, p.lon];
         });
-        if (bounds.length === 1) map.setView(bounds[0], 10);
-        else map.fitBounds(bounds, { padding: [20, 20], maxZoom: 11 });
+        // The home page map fits the Czech lands like the full map; a person's map shows all their places.
+        const home = el.dataset.fit === 'czech' ? bounds.filter(inCzechLands) : [];
+        const fit = home.length ? home : bounds;
+        if (fit.length === 1) map.setView(fit[0], 10);
+        else map.fitBounds(fit, { padding: [20, 20], maxZoom: 11 });
+        // Places outside the Czech lands are left out of the view: without wheel zoom they need the buttons.
+        if (fit.length < bounds.length) L.control.zoom().addTo(map);
     }));
 
     // Full ancestor tree: collapse/expand, depth presets, zoom, find, drag to pan

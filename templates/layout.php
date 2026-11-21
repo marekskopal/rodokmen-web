@@ -25,13 +25,13 @@ $items = [
     <meta name="robots" content="noindex, nofollow">
     <title><?= $v->e(($title ?? '') !== $siteTitle && ($title ?? '') !== '' ? $title . ' · ' . $siteTitle : $siteTitle) ?></title>
     <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/assets/app.css?v=14">
+    <link rel="stylesheet" href="/assets/app.css?v=16">
     <?php if (($nav === 'map') || !empty($needsMap)): ?>
         <?php /* Built by `pnpm build` from package.json; the query changes with the Leaflet version (cache). */ ?>
         <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.css?v=1.9.4">
         <script src="/assets/vendor/leaflet/leaflet.js?v=1.9.4" defer></script>
     <?php endif ?>
-    <script src="/assets/app.js?v=11" defer></script>
+    <script src="/assets/app.js?v=12" defer></script>
     <script src="/assets/viewer.js?v=1" defer></script>
     <script src="/assets/theme.js?v=1"></script>
 </head>

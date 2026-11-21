@@ -19,6 +19,7 @@ final readonly class SiteConfig
 		public StoryConfig $story = new StoryConfig(),
 		/** Whether the project has a story (data/pribeh.md); the exporter writes a placeholder pribeh.md without it. */
 		public bool $hasStory = false,
+		public Intro $intro = new Intro(),
 	) {
 	}
 
@@ -33,6 +34,7 @@ final readonly class SiteConfig
 			StoryConfig::fromReader($r->object('pribeh')),
 			// Older exports without the flag: whether md/pribeh.md exists decides.
 			$r->bool('maPribeh', true),
+			Intro::fromReader($r->object('uvod')),
 		);
 	}
 }

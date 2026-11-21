@@ -27,7 +27,8 @@ The user interface is in Czech, like the skill.
   viewer with zoom and pan (mouse wheel, pinch, drag) in full resolution.
 - **Family stories**: the main story written with the skill and a story for any other family line
   (`/pribeh/<line>`, all of them on `/pribehy`), with the title and lead from their front matter, in the menu, on
-  the home page, on the line pages and in the search; and a **page for every family line** (`/rod/<line>`) with
+  the home page (next to a map of the places, with the intro text and photo from `web.json` → `uvod`), on the
+  line pages and in the search; and a **page for every family line** (`/rod/<line>`) with
   its people by generation. Links in the skill's texts to persons, register entries and lines lead to the pages of
   this website.
 - **Generations**, **map** of places (Leaflet, bundled; map tiles from OpenStreetMap), **register entries**, **photos and documents**, **stories**,

@@ -53,7 +53,9 @@ final readonly class TreeController
 			'stories' => $this->storyTitles(),
 			'story' => $this->stories->main(),
 			'otherStories' => array_values(array_filter($this->stories->all(), static fn (Story $story): bool => !$story->main)),
-			'lineStories' => $this->storiesByLine(),
+			'intro' => $this->repository->siteConfig()->intro,
+			'mapPlaces' => $this->mapPlaces(),
+			'needsMap' => $this->repository->places() !== [],
 		]);
 	}
 
@@ -271,17 +273,29 @@ final readonly class TreeController
 		return (new RedirectResponse($this->view->explorerUrl($person->slug)))->withAddedHeader('Set-Cookie', $cookie);
 	}
 
-	/** @return array<string, Story> by line slug */
-	private function storiesByLine(): array
+	/**
+	 * Places for the map on the home page, each with the colours of its lines.
+	 *
+	 * @return list<array{name: string, lat: float, lon: float, colors: list<string>}>
+	 */
+	private function mapPlaces(): array
 	{
-		$stories = [];
-		foreach ($this->stories->all() as $story) {
-			if ($story->line !== null) {
-				$stories[$story->line->slug] = $story;
+		$places = [];
+		foreach ($this->repository->places() as $place) {
+			$colors = [];
+			foreach ($place->lines as $group) {
+				$colors[] = $this->repository->lineColor($group->k !== 0 ? $group->k : null);
 			}
+			$places[] = [
+				'name' => $place->name,
+				'lat' => $place->lat,
+				'lon' => $place->lon,
+				// A place without any line still gets a visible marker.
+				'colors' => $colors !== [] ? array_values(array_unique($colors)) : [$this->repository->lineColor(null)],
+			];
 		}
 
-		return $stories;
+		return $places;
 	}
 
 	/** @return list<string> */
