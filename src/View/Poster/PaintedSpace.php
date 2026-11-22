@@ -28,9 +28,10 @@ final readonly class PaintedSpace
 		/** Height of a generation's row and the y of the boundary between the person's row and the parents'. */
 		private float $unit,
 		private float $top,
-		/** Size of the corner kept free, bottom right. */
+		/** Size of the corner kept free, bottom right (bottom left with $cornerLeft). */
 		private float $cornerWidth,
 		private float $cornerHeight,
+		private bool $cornerLeft = false,
 	) {
 		$rows = [];
 		$reach = [];
@@ -51,7 +52,8 @@ final readonly class PaintedSpace
 		if ($x < 0 || $x > $this->width || $y < 0 || $y > $this->height) {
 			return false;
 		}
-		if ($x > $this->width - $this->cornerWidth && $y > $this->height - $this->cornerHeight) {
+		$inCorner = $this->cornerLeft ? $x < $this->cornerWidth : $x > $this->width - $this->cornerWidth;
+		if ($inCorner && $y > $this->height - $this->cornerHeight) {
 			return false;
 		}
 

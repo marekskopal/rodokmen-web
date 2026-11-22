@@ -572,7 +572,7 @@ final class PosterTest extends TestCase
 	}
 
 	/** @return array{Repository, Poster} */
-	private static function poster(string $dir): array
+	public static function poster(string $dir): array
 	{
 		$config = Fixture::config($dir);
 		$repository = new Repository($config, new SiteDataLoader($config));

@@ -36,7 +36,7 @@ test('the explorer leads to the poster, which follows the choices', async ({ pag
 	expect(pageSizes(await page.pdf({ preferCSSPageSize: true }))).toEqual([[842, 1191]]);
 });
 
-test('the heading and the footer can be left out, with their parts', async ({ page }) => {
+test('the heading and the footer can be moved or left out, with their parts', async ({ page }) => {
 	await openPoster(page);
 	const sheet = page.locator('.poster-sheet svg');
 	await expect(sheet.locator('.pst-sub')).toContainText('Předci osoby');
@@ -46,17 +46,23 @@ test('the heading and the footer can be left out, with their parts', async ({ pa
 	await expect(sheet.locator('.pst-sub')).not.toContainText('Předci osoby');
 	await expect(sheet.locator('.pst-sub')).toContainText('generac');
 
-	const heading = page.getByRole('group', { name: 'Části nadpisu' }).getByRole('checkbox', { name: 'zobrazit' });
-	await heading.uncheck();
+	const heading = page.locator('select[name="nadpis-zobrazit"]');
+	await expect(heading).toHaveValue('vlevo');
+	await heading.selectOption('vypnuto');
 	await expect(sheet.locator('.pst-title')).toHaveCount(0);
 	// The parts of a hidden heading wait, still ticked, for it to come back.
 	await expect(page.getByRole('checkbox', { name: 'počet generací' })).toBeChecked();
-	await heading.check();
+	await heading.selectOption('vpravo');
 	await expect(sheet.locator('.pst-title')).toHaveCount(1);
+	expect(Number(await sheet.locator('.pst-title').getAttribute('x'))).toBeGreaterThan(841 / 2);
 
-	await page.getByRole('group', { name: 'Části patičky' }).getByRole('checkbox', { name: 'zobrazit' }).uncheck();
+	const footer = page.locator('select[name="paticka-zobrazit"]');
+	await expect(footer).toHaveValue('vpravo');
+	await footer.selectOption('vlevo');
+	await expect(sheet.locator('.pst-muted').first()).toHaveAttribute('text-anchor', 'start');
+	await footer.selectOption('vypnuto');
 	await expect(sheet.locator('.pst-muted')).toHaveCount(0);
-	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=1&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
+	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=vpravo&paticka-zobrazit=vypnuto&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
 });
 
 test('the select boxes look like the text input', async ({ page }) => {

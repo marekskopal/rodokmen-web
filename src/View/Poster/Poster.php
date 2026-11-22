@@ -10,8 +10,8 @@ use Rodokmen\Site\View\View;
 use const INF;
 
 /**
- * Large-format poster of a person's ancestors as one SVG sheet measured in millimetres: the title in the top left
- * corner, the chart in the middle, the family lines and the date in a free corner.
+ * Large-format poster of a person's ancestors as one SVG sheet measured in millimetres: the title in a top corner
+ * (the left one by default), the chart in the middle, the family lines and the date in a free corner.
  */
 final readonly class Poster
 {
@@ -129,8 +129,8 @@ final readonly class Poster
 	}
 
 	/**
-	 * The fan in the middle of the sheet (the half fan standing on the bottom edge), the title in the top left
-	 * corner, the legend in the bottom right corner (top right for the half fan).
+	 * The fan in the middle of the sheet (the half fan standing on the bottom edge), the title in a top corner, the
+	 * legend in a bottom corner (a top one for the half fan) – on the sides the visitor chose.
 	 *
 	 * @param non-empty-list<list<?string>> $generations
 	 * @param array{float, float, float} $area margin, width and height of the area inside the margins
@@ -157,23 +157,39 @@ final readonly class Poster
 			$this->fan->render($generations, $options->style, $radius, $half, $defs),
 		);
 
+		$parts = $options->parts;
 		$rows = $this->footer->rows($generations, $options, $this->heading($root, $options));
 		$footerSize = max(self::MinFooterFont, $radius * .022);
-		$footer = $this->footer->draw($rows, $footerSize, $margin + $areaWidth, $half ? $margin : $margin + $areaHeight, $half);
+		// Above the half fan the legend and the title share the band: side by side, or the legend below the title
+		// when both go to the same side.
+		$stacked = $half && $rows !== [] && $parts->heading() && $parts->footerLeft() !== $parts->headingRight();
 
 		// Free room for the title: a band above the chart (beside the legend of the half fan), or the corner beside it.
 		$size = $radius * .075;
 		$band = $cy - $radius - $margin;
-		$reserved = $half && $rows !== [] ? $this->footer->width($rows, $footerSize) + 2 * $footerSize : 0.0;
+		$reserved = $half && $rows !== [] && !$stacked ? $this->footer->width($rows, $footerSize) + 2 * $footerSize : 0.0;
 		$available = $band >= $this->title->height($size, $this->subtitle($root, $options) !== '')
 			? $areaWidth - $reserved
 			: ($areaWidth - 2 * $radius) / 2 + $radius * .5;
 
-		return [$chart, $this->title($root, $options, $margin, $size, $available), $footer];
+		$edge = $half ? $margin : $margin + $areaHeight;
+		if ($stacked) {
+			$edge += $this->titleExtent($root, $options, $margin, $size, $available)[1] + $footerSize;
+		}
+		$footer = $this->footer->draw(
+			$rows,
+			$footerSize,
+			$parts->footerLeft() ? $margin : $margin + $areaWidth,
+			$edge,
+			$half,
+			$parts->footerLeft(),
+		);
+
+		return [$chart, $this->title($root, $options, $margin, $size, $available, $areaWidth), $footer];
 	}
 
 	/**
-	 * The title in a band across the top, the tree below it, the legend in the free corner beside the person.
+	 * The title in a band across the top, the tree below it, the legend in a free corner beside the person.
 	 *
 	 * @param non-empty-list<list<?string>> $generations
 	 * @param array{float, float, float} $area margin, width and height of the area inside the margins
@@ -189,16 +205,10 @@ final readonly class Poster
 			$options->layout,
 			$generations,
 			[$areaWidth, $areaHeight],
-			$this->title->extent(
-				$options->style,
-				$this->heading($root, $options),
-				$this->subtitle($root, $options),
-				$size,
-				$areaWidth,
-				$this->titlePad($size, $margin),
-			),
+			$this->titleExtent($root, $options, $margin, $size, $areaWidth),
 			$size,
 			$this->subtitle($root, $options) !== '',
+			$options->parts->headingRight(),
 		);
 		$treeHeight = $areaHeight - $band;
 
@@ -207,7 +217,14 @@ final readonly class Poster
 			$margin,
 			$margin + $band,
 			$painted
-				? $this->paintedTree->render($generations, $options->style, $areaWidth, $treeHeight, $size * .9)
+				? $this->paintedTree->render(
+					$generations,
+					$options->style,
+					$areaWidth,
+					$treeHeight,
+					$size * .9,
+					$options->parts->footerLeft(),
+				)
 				: $this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
 		);
 
@@ -223,30 +240,58 @@ final readonly class Poster
 				$cornerWidth / $this->footer->width($rows, 1.0),
 				$cornerHeight * .9 / (count($rows) * 1.6),
 			);
-			$right = $upward ? $margin + $areaWidth : $margin + $cornerWidth;
-			$footer = $this->footer->draw($rows, $footerSize, $right, $margin + $areaHeight, false);
+			// The tree to the right leaves only the corners beside the person, on the left: the footer is aligned in it.
+			$left = $options->parts->footerLeft();
+			$x = $left ? $margin : ($upward ? $margin + $areaWidth : $margin + $cornerWidth);
+			$footer = $this->footer->draw($rows, $footerSize, $x, $margin + $areaHeight, false, $left);
 		}
 
-		return [$chart, $this->title($root, $options, $margin, $size, $areaWidth), $footer];
+		return [$chart, $this->title($root, $options, $margin, $size, $areaWidth, $areaWidth), $footer];
 	}
 
-	/** Heading (the visitor's, or the family of the person) and the subtitle in the top left corner, fitted to $available. */
-	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available): string
+	/**
+	 * Heading (the visitor's, or the family of the person) and the subtitle in the top left or top right corner of the
+	 * area $areaWidth wide, fitted to $available.
+	 */
+	private function title(Person $root, PosterOptions $options, float $margin, float $size, float $available, float $areaWidth): string
 	{
 		if (!$options->parts->heading()) {
 			return '';
 		}
 
+		$heading = $this->heading($root, $options);
+		$subtitle = $this->subtitle($root, $options);
+		$left = $options->parts->headingRight()
+			? $margin + $areaWidth - $this->title->width($options->style, $heading, $subtitle, $size, $available)
+			: $margin;
+
 		return $this->title->draw(
 			$options->style,
-			$this->heading($root, $options),
-			$this->subtitle($root, $options),
-			$margin,
+			$heading,
+			$subtitle,
+			$left,
 			$margin,
 			$size,
 			$available,
 			$this->titlePad($size, $margin),
 			new PosterRandom('title|' . $root->slug),
+		);
+	}
+
+	/**
+	 * Width and height of the title fitted to $available (PosterTitle::extent()).
+	 *
+	 * @return array{float, float}
+	 */
+	private function titleExtent(Person $root, PosterOptions $options, float $margin, float $size, float $available): array
+	{
+		return $this->title->extent(
+			$options->style,
+			$this->heading($root, $options),
+			$this->subtitle($root, $options),
+			$size,
+			$available,
+			$this->titlePad($size, $margin),
 		);
 	}
 

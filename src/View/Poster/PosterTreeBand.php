@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Rodokmen\Site\View\Poster;
 
 /**
- * Where the tree of the poster starts below the title in the top left corner: as high as it can without its boxes
+ * Where the tree of the poster starts below the title in the top left (or top right) corner: as high as it can without its boxes
  * running into the title, at most below the whole band of the title. A tree that is shallow on the left (or whose
  * oldest generation leaves the corner empty) so takes the whole height of the sheet. Its branches and leaves may
  * grow behind the title, the names may not.
@@ -25,18 +25,32 @@ final readonly class PosterTreeBand
 	/**
 	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
 	 * @param array{float, float} $area width and height of the area inside the margins
-	 * @param array{float, float} $title width and height of the title in the area's top left corner (PosterTitle::extent())
+	 * @param array{float, float} $title width and height of the title in the area's top corner (PosterTitle::extent())
 	 * @param float $size the heading's size
 	 * @param bool $subtitle whether the title has a subtitle
+	 * @param bool $right whether the title stands in the top right corner (otherwise the top left one)
 	 * @return float how far below the top of the area the tree starts
 	 */
-	public function of(PosterLayout $layout, array $generations, array $area, array $title, float $size, bool $subtitle): float
+	public function of(
+		PosterLayout $layout,
+		array $generations,
+		array $area,
+		array $title,
+		float $size,
+		bool $subtitle,
+		bool $right = false,
+	): float
 	{
 		[$width, $height] = $area;
 		$band = $this->title->height($size, $subtitle) + $size * .8;
 		for ($step = 0; $step < self::Steps; $step++) {
 			$shift = $band * $step / self::Steps;
-			if ($this->clear($this->boxes($layout, $generations, $width, $height - $shift), $shift, $title, $size * self::Clearance)) {
+			$boxes = $this->boxes($layout, $generations, $width, $height - $shift);
+			if ($right) {
+				// Mirrored, the title stands in the top left corner again.
+				$boxes = array_map(static fn (array $box): array => [$width - $box[0] - $box[2], $box[1], $box[2], $box[3]], $boxes);
+			}
+			if ($this->clear($boxes, $shift, $title, $size * self::Clearance)) {
 				return $shift;
 			}
 		}

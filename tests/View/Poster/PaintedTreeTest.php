@@ -201,6 +201,11 @@ final class PaintedTreeTest extends TestCase
 		self::assertFalse($space->free(-1, 160));
 		self::assertFalse($space->free(100, 301));
 		self::assertFalse($space->free(350, 280), 'the corner of the legend');
+		self::assertTrue($space->free(50, 280), 'the other bottom corner');
+
+		$left = new PaintedSpace([], 400, 300, 80, 240, 100, 50, true);
+		self::assertFalse($left->free(50, 280), 'the corner of the legend on the left');
+		self::assertTrue($left->free(350, 280));
 	}
 
 	public function testForksContinueTheWoodBelow(): void
