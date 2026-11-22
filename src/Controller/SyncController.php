@@ -18,6 +18,8 @@ use Rodokmen\Site\Sync\DataStore;
 use Rodokmen\Site\Sync\InvalidManifestException;
 use Rodokmen\Site\Sync\Manifest;
 use Rodokmen\Site\Sync\SyncException;
+use Throwable;
+use const JSON_INVALID_UTF8_SUBSTITUTE;
 
 /**
  * Data upload API used by bin/rodokmen-sync (enabled by SITE_SYNC_TOKEN):
@@ -125,6 +127,18 @@ final readonly class SyncController
 			$this->logger->warning('Sync API: ' . $e->getMessage(), ['status' => $e->status]);
 
 			return new JsonResponse(['error' => $e->getMessage(), 'details' => $e->details], $e->status);
+		} catch (Throwable $e) {
+			// The client holds the token, so it may see the reason (e.g. "Read-only file system") and print it;
+			// the website's HTML error page would leave its user guessing.
+			$this->logger->error('Sync API: ' . $e->getMessage(), ['exception' => $e]);
+
+			// A path in the message need not be UTF-8: the answer must still be JSON.
+			return new JsonResponse(
+				['error' => 'Server error: ' . $e->getMessage()],
+				500,
+				[],
+				JsonResponse::DEFAULT_JSON_FLAGS | JSON_INVALID_UTF8_SUBSTITUTE,
+			);
 		}
 	}
 

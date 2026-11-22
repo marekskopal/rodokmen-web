@@ -32,7 +32,7 @@ final readonly class Logger
 		// Tracy stops the process when its log folder is missing; without one the records go to stderr (SafeLogger).
 		$directory = is_dir($directory) && is_writable($directory) ? $directory : null;
 
-		$tracyLogger = new TracyLogger($directory, $debug, $stderr ? 'php://stderr' : null);
+		$tracyLogger = new TracyLogger($directory, $debug, $stderr ? ErrorStream::Stderr : null);
 
 		if ($handleErrors) {
 			Debugger::setLogger($tracyLogger);

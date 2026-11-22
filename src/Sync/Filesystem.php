@@ -46,14 +46,14 @@ final readonly class Filesystem
 	{
 		$modified = @filemtime($source);
 		if ($modified === false || !@copy($source, $target) || !@touch($target, $modified)) {
-			throw new RuntimeException('Cannot copy ' . $source . ' to ' . $target);
+			throw self::failure('Cannot copy ' . $source . ' to ' . $target);
 		}
 	}
 
 	public function ensureDir(string $dir): void
 	{
 		if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-			throw new RuntimeException('Cannot create ' . $dir);
+			throw self::failure('Cannot create ' . $dir);
 		}
 	}
 
@@ -63,9 +63,11 @@ final readonly class Filesystem
 	 */
 	public function writeStream(StreamInterface $body, string $file, int $maxSize, int $chunkSize): string
 	{
-		$out = fopen($file, 'wb');
+		// A failed write may leave no warning (a short fwrite()): an older one must not be given as its reason.
+		error_clear_last();
+		$out = @fopen($file, 'wb');
 		if ($out === false) {
-			throw new RuntimeException('Cannot write ' . $file);
+			throw self::failure('Cannot write ' . $file);
 		}
 
 		$hash = hash_init('sha256');
@@ -83,18 +85,35 @@ final readonly class Filesystem
 					throw new SyncException('File is larger than ' . $maxSize . ' bytes', 413);
 				}
 				hash_update($hash, $chunk);
-				if (fwrite($out, $chunk) !== strlen($chunk)) {
-					throw new RuntimeException('Cannot write ' . $file . ' (disk full?)');
+				if (@fwrite($out, $chunk) !== strlen($chunk)) {
+					throw self::failure('Cannot write ' . $file, 'disk full?');
 				}
 			}
 		} finally {
-			$closed = fclose($out);
+			$closed = @fclose($out);
 		}
 
 		if (!$closed) {
-			throw new RuntimeException('Cannot write ' . $file . ' (disk full?)');
+			throw self::failure('Cannot write ' . $file, 'disk full?');
 		}
 
 		return hash_final($hash);
+	}
+
+	/**
+	 * An exception for a failed file operation with the reason PHP gave for it (e.g. "Read-only file system",
+	 * "Disk quota exceeded", "Permission denied"), so that the log and the sync client say what is wrong.
+	 * $guess is added in brackets when PHP gave no reason.
+	 */
+	public static function failure(string $message, string $guess = ''): RuntimeException
+	{
+		$reason = error_get_last()['message'] ?? '';
+		error_clear_last();
+
+		if ($reason !== '') {
+			return new RuntimeException($message . ': ' . $reason);
+		}
+
+		return new RuntimeException($guess === '' ? $message : $message . ' (' . $guess . ')');
 	}
 }

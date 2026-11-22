@@ -49,6 +49,23 @@ final class FilesystemTest extends TestCase
 		self::assertSame('hello world', file_get_contents($this->dir . '/f'));
 	}
 
+	public function testAFailedWriteSaysWhy(): void
+	{
+		$this->expectExceptionMessageMatches(
+			'~^Cannot write .*/missing/f: fopen\(.*\): Failed to open stream: No such file or directory$~',
+		);
+
+		new Filesystem()->writeStream((new StreamFactory())->createStream('crop'), $this->dir . '/missing/f', 100, 4);
+	}
+
+	public function testAFailureWithoutAReasonFromPhpGivesTheGuess(): void
+	{
+		error_clear_last();
+
+		self::assertSame('Cannot write f (disk full?)', Filesystem::failure('Cannot write f', 'disk full?')->getMessage());
+		self::assertSame('Cannot write f', Filesystem::failure('Cannot write f')->getMessage());
+	}
+
 	public function testWriteStreamStopsAtTheSizeLimit(): void
 	{
 		try {
