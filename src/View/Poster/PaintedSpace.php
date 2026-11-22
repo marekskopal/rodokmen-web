@@ -57,7 +57,8 @@ final readonly class PaintedSpace
 			return false;
 		}
 
-		$row = (int) round(($this->top - $y) / $this->unit + .5);
+		// Below the parents' row everything belongs to the person's row (with the descendants on the trunk).
+		$row = max(0, (int) round(($this->top - $y) / $this->unit + .5));
 		for ($g = max(0, $row - 1); $g <= $row + 1; $g++) {
 			if ($this->covered($g, $x, $y)) {
 				return false;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
+use Rodokmen\Site\Data\Model\Person;
+
 /**
  * Where the tree of the poster starts below the title in the top left (or top right) corner: as high as it can without its boxes
  * running into the title, at most below the whole band of the title. A tree that is shallow on the left (or whose
@@ -29,6 +31,7 @@ final readonly class PosterTreeBand
 	 * @param float $size the heading's size
 	 * @param bool $subtitle whether the title has a subtitle
 	 * @param bool $right whether the title stands in the top right corner (otherwise the top left one)
+	 * @param list<Person> $descendants the person's descendants on the trunk of the painted tree
 	 * @return float how far below the top of the area the tree starts
 	 */
 	public function of(
@@ -39,13 +42,14 @@ final readonly class PosterTreeBand
 		float $size,
 		bool $subtitle,
 		bool $right = false,
+		array $descendants = [],
 	): float
 	{
 		[$width, $height] = $area;
 		$band = $this->title->height($size, $subtitle) + $size * .8;
 		for ($step = 0; $step < self::Steps; $step++) {
 			$shift = $band * $step / self::Steps;
-			$boxes = $this->boxes($layout, $generations, $width, $height - $shift);
+			$boxes = $this->boxes($layout, $generations, $width, $height - $shift, $descendants);
 			if ($right) {
 				// Mirrored, the title stands in the top left corner again.
 				$boxes = array_map(static fn (array $box): array => [$width - $box[0] - $box[2], $box[1], $box[2], $box[3]], $boxes);
@@ -60,12 +64,13 @@ final readonly class PosterTreeBand
 
 	/**
 	 * @param non-empty-list<list<?string>> $generations
+	 * @param list<Person> $descendants
 	 * @return list<array{float, float, float, float}> x, y, width and height of every box with a name
 	 */
-	private function boxes(PosterLayout $layout, array $generations, float $width, float $height): array
+	private function boxes(PosterLayout $layout, array $generations, float $width, float $height, array $descendants): array
 	{
 		return match ($layout) {
-			PosterLayout::PaintedTree => $this->paintedTree->plaques($generations, $width, $height),
+			PosterLayout::PaintedTree => $this->paintedTree->plaques($generations, $width, $height, $descendants),
 			PosterLayout::Tree, PosterLayout::TreeRight => $this->tree->boxes(
 				$generations,
 				$width,

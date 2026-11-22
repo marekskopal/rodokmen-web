@@ -228,6 +228,19 @@ final class KernelTest extends TestCase
 			$parts,
 		);
 
+		// The descendants down to the default person, to choose for the painted tree; the default person has none.
+		self::assertStringNotContainsString('name="potomci"', $body);
+		$grandfather = (string) $this->get('/predci/josef-novak-1960/plakat?potomci=jan-novak-1990', loggedIn: true)->getBody();
+		self::assertStringContainsString(
+			'<label class="field" data-live="descendants"><span class="field-label">Potomci</span>',
+			$grandfather,
+		);
+		self::assertStringContainsString('<option value="jan-novak-1990" selected>až po Jan Novák</option>', $grandfather);
+		self::assertStringContainsString('<option value="antonin-novak-2024" >až po Antonín Novák</option>', $grandfather);
+		self::assertStringContainsString('&amp;potomci=jan-novak-1990', $grandfather, 'the download keeps the choice');
+		$fan = (string) $this->get('/predci/josef-novak-1960/plakat?rozvrzeni=vejir', loggedIn: true)->getBody();
+		self::assertStringContainsString('<label class="field" data-live="descendants" hidden>', $fan, 'only for the painted tree');
+
 		$tree = (string) $this->get('/predci/antonin-novak-2024/plakat?rozvrzeni=strom-vpravo', loggedIn: true)->getBody();
 		self::assertStringContainsString('<option value="strom-vpravo" selected>', $tree);
 		self::assertStringContainsString('>Josef Novák', $tree);

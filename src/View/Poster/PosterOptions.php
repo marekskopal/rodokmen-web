@@ -17,6 +17,8 @@ final readonly class PosterOptions
 		public PosterStyle $style,
 		public string $title,
 		public PosterParts $parts = new PosterParts(),
+		/** Slug of the descendant down to whom the painted tree shows the person's descendants; '' for none. */
+		public string $descendant = '',
 	) {
 	}
 
@@ -39,6 +41,7 @@ final readonly class PosterOptions
 			PosterStyle::tryFrom(self::string($query, 'styl')) ?? PosterStyle::Historical,
 			mb_substr($title, 0, self::MaxTitleLength),
 			PosterParts::fromQuery($query),
+			trim(self::string($query, 'potomci')),
 		);
 	}
 
@@ -54,7 +57,16 @@ final readonly class PosterOptions
 
 	public function withDepth(int $depth): self
 	{
-		return new self($this->layout, $this->format, $this->orientation, $depth, $this->style, $this->title, $this->parts);
+		return new self(
+			$this->layout,
+			$this->format,
+			$this->orientation,
+			$depth,
+			$this->style,
+			$this->title,
+			$this->parts,
+			$this->descendant,
+		);
 	}
 
 	/**
@@ -71,6 +83,7 @@ final readonly class PosterOptions
 			'generace' => $depth ? (string) $this->depth : '',
 			'styl' => $this->style->value,
 			'nadpis' => $this->title,
+			'potomci' => $this->descendant,
 		] + $this->parts->query(), static fn (string $value): bool => $value !== ''));
 	}
 

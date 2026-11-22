@@ -26,6 +26,11 @@ final readonly class PaintedLayout
 
 	private const CrownRoom = .3;
 
+	/** Room on the trunk for one descendant of the person below them, in rows, and the size of their ribbon. */
+	private const DescendantRow = .55;
+
+	private const DescendantSize = .8;
+
 	/** Tall oval plaque: height relative to the row. */
 	private const PlaqueHeight = .56;
 
@@ -61,25 +66,63 @@ final readonly class PaintedLayout
 	/**
 	 * Room for the legend: width and height of the free corner beside the mound, bottom right.
 	 *
+	 * @param int $descendants how many descendants stand on the trunk below the person
 	 * @return array{float, float}
 	 */
-	public function corner(int $depth, float $width, float $height): array
+	public function corner(int $depth, float $width, float $height, int $descendants = 0): array
 	{
-		$unit = $this->unit($depth + 1, $height);
+		$unit = $this->unit($depth + 1, $height, $descendants);
 
 		return [($width / 2 - $width * self::GroundWidth) * .9, $height * self::GroundHeight + $unit * self::RootRow * .6];
 	}
 
-	/** Height of one generation's row in a tree of that many rows (the person's included). */
-	public function unit(int $rows, float $height): float
+	/**
+	 * Height of one generation's row in a tree of that many rows (the person's included) with that many
+	 * descendants on the trunk: the trunk grows longer for them, the mound and the roots stay.
+	 */
+	public function unit(int $rows, float $height, int $descendants = 0): float
 	{
-		return $height * (1 - self::GroundHeight) / ($rows - 1 + self::RootRow + self::CrownRoom);
+		return $height * (1 - self::GroundHeight) / ($rows - 1 + self::RootRow + $descendants * self::DescendantRow + self::CrownRoom);
 	}
 
-	/** The y of the boundary between the person's row and the parents' row. */
-	public function top(float $height, float $unit): float
+	/** The y of the boundary between the person's row (with the descendants below the person) and the parents' row. */
+	public function top(float $height, float $unit, int $descendants = 0): float
 	{
-		return $height * (1 - self::GroundHeight) - self::RootRow * $unit;
+		return $height * (1 - self::GroundHeight) - (self::RootRow + $descendants * self::DescendantRow) * $unit;
+	}
+
+	/**
+	 * The person's descendants on the trunk below the person, the child first, on smaller ribbons of the same
+	 * colour. Their index runs below zero (-1 for the child), clear of the person's 0.
+	 *
+	 * @param array<int, array<int, PaintedNode>> $nodes the ancestors (nodes()), the person first
+	 * @param list<Person> $people
+	 * @return list<PaintedNode>
+	 */
+	public function descendants(array $nodes, array $people, float $unit): array
+	{
+		$root = $nodes[0][0] ?? null;
+		if ($root === null) {
+			return [];
+		}
+
+		$nodes = [];
+		foreach ($people as $k => $person) {
+			$nodes[] = new PaintedNode(
+				$person,
+				0,
+				-1 - $k,
+				$root->x,
+				$root->y + ($k + 1) * self::DescendantRow * $unit,
+				$root->w * self::DescendantSize,
+				$root->h * self::DescendantSize,
+				$root->girth,
+				false,
+				$root->ribbon,
+			);
+		}
+
+		return $nodes;
 	}
 
 	/** Thickness of the trunk. */
@@ -113,18 +156,20 @@ final readonly class PaintedLayout
 	 * that stand closest to each other.
 	 *
 	 * @param array<int, array<int, ?Person>> $places
+	 * @param int $descendants how many descendants stand on the trunk below the person (descendants())
 	 * @return array<int, array<int, PaintedNode>>
 	 */
-	public function nodes(array $places, float $width, float $height, PosterRandom $random): array
+	public function nodes(array $places, float $width, float $height, PosterRandom $random, int $descendants = 0): array
 	{
-		$unit = $this->unit(count($places), $height);
+		$unit = $this->unit(count($places), $height, $descendants);
 		$all = max(1, $this->count($places, 0, 0));
 		$nodes = [];
 		$columns = $this->columns($places, $width);
 		foreach ($columns as $g => $row) {
 			$slot = $this->slot($row, $width);
 			[$w, $h, $ribbon] = $this->plaqueSize($slot, $width, $unit);
-			$y = $g === 0 ? $this->top($height, $unit) + $unit * .5 : $this->top($height, $unit) - ($g - .5) * $unit;
+			$top = $this->top($height, $unit, $descendants);
+			$y = $g === 0 ? $top + $unit * .5 : $top - ($g - .5) * $unit;
 			foreach ($row as $i => $x) {
 				$chance = $random->fork(sprintf('place%d.%d', $g, $i));
 				// A little off its place, so that the rows do not look ruled; the person stands still.

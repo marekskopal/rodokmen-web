@@ -37,6 +37,7 @@ The user interface is in Czech, like the skill.
   software.
 - **Ancestor poster** for printing or a print shop: a person's ancestors as a fan, a half fan, a tree or a painted tree on one sheet from A4
   to A0, in a simple or a historical style, saved as PDF in the browser at the right paper size or downloaded as SVG.
+  The painted tree can add the person's descendants down to the website's default person on its trunk.
 - **Print and PDF**: a numbered list of a person's ancestors (vývod) with their facts and register entries, and
   print-friendly person pages (the browser's Save as PDF).
 - HTTPS only with HSTS, a strict Content-Security-Policy and the other security headers; responsive, dark mode.

@@ -51,6 +51,7 @@ final readonly class PosterPaintedTree
 	/**
 	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
 	 * @param bool $cornerLeft whether the corner of the legend is bottom left (otherwise bottom right)
+	 * @param list<Person> $descendants the person's descendants on the trunk below the person, the child first
 	 */
 	public function render(
 		array $generations,
@@ -59,18 +60,22 @@ final readonly class PosterPaintedTree
 		float $height,
 		float $maxFont,
 		bool $cornerLeft = false,
+		array $descendants = [],
 	): string
 	{
 		$random = self::random($generations);
-		$unit = $this->layout->unit(count($generations), $height);
-		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, $random);
-		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
+		$count = count($descendants);
+		$unit = $this->layout->unit(count($generations), $height, $count);
+		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, $random, $count);
+		$below = $this->layout->descendants($nodes, $descendants, $unit);
+		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height, $count);
 		$space = new PaintedSpace(
-			$nodes,
+			// The leaves keep off the descendants' ribbons too.
+			[0 => array_merge($nodes[0] ?? [], $below)] + $nodes,
 			$width,
 			$height,
 			$unit,
-			$this->layout->top($height, $unit),
+			$this->layout->top($height, $unit, $count),
 			$cornerWidth,
 			$cornerHeight,
 			$cornerLeft,
@@ -82,16 +87,12 @@ final readonly class PosterPaintedTree
 		$plaques = '';
 		foreach ($nodes as $g => $row) {
 			// All plaques of a generation have the same size.
-			$first = array_values($row)[0] ?? null;
-			if ($first === null) {
+			$row = array_values($row);
+			if ($row === []) {
 				continue;
 			}
-			[$w, $h, $ribbon] = [$first->w, $first->h, $first->ribbon];
-			$people = array_map(static fn (PaintedNode $node): Person => $node->person, array_values($row));
-			$text = $ribbon
-				? $this->text->fit($people, $w * self::TextWidth, $h * self::RibbonTextHeight, $maxFont)
-				: $this->ovalText->fit($people, $style, $w, $h, $maxFont, self::OvalTextWidth, self::OvalTextHeight);
-			$leaf = min($unit * .2, $w * .5);
+			$text = $this->fit($row, $style, $maxFont);
+			$leaf = min($unit * .2, $row[0]->w * .5);
 			foreach ($row as $node) {
 				$chance = $random->fork(sprintf('%d.%d', $g, $node->i));
 				[$grown, $sprays] = $this->grow($node, $nodes, $leaf, $unit * .05, $space, $style, $chance);
@@ -107,6 +108,8 @@ final readonly class PosterPaintedTree
 					);
 			}
 		}
+
+		$plaques .= $this->descendantPlaques($below, $style, $maxFont, $random);
 
 		// Thin wood first, so that the thicker limb covers the joint.
 		usort($wood, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
@@ -137,11 +140,14 @@ final readonly class PosterPaintedTree
 	 * Where render() puts the name plaques.
 	 *
 	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
+	 * @param list<Person> $descendants the person's descendants on the trunk, as for render()
 	 * @return list<array{float, float, float, float}> x, y, width and height around every plaque
 	 */
-	public function plaques(array $generations, float $width, float $height): array
+	public function plaques(array $generations, float $width, float $height, array $descendants = []): array
 	{
-		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, self::random($generations));
+		$count = count($descendants);
+		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, self::random($generations), $count);
+		$nodes[] = $this->layout->descendants($nodes, $descendants, $this->layout->unit(count($generations), $height, $count));
 		$rects = [];
 		foreach ($nodes as $row) {
 			foreach ($row as $node) {
@@ -159,9 +165,46 @@ final readonly class PosterPaintedTree
 	 *
 	 * @return array{float, float}
 	 */
-	public function corner(int $depth, float $width, float $height): array
+	public function corner(int $depth, float $width, float $height, int $descendants = 0): array
 	{
-		return $this->layout->corner($depth, $width, $height);
+		return $this->layout->corner($depth, $width, $height, $descendants);
+	}
+
+	/**
+	 * The descendants' ribbons in the person's colour, their names all of one size.
+	 *
+	 * @param list<PaintedNode> $below
+	 */
+	private function descendantPlaques(array $below, PosterStyle $style, float $maxFont, PosterRandom $random): string
+	{
+		if ($below === []) {
+			return '';
+		}
+
+		// Their plaques are like the person's: a ribbon, or an oval where the person has one.
+		$text = $this->fit($below, $style, $maxFont);
+		$out = '';
+		foreach ($below as $node) {
+			$out .= $this->plaque($node, $style, $random->fork(sprintf('descendant%d', -$node->i)))
+				. $this->ovalText->write($node->person, ' pst-root', $node->x, $node->y, $text);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * One size of the names for plaques of the same size, on ribbons or on ovals as the first of them.
+	 *
+	 * @param non-empty-list<PaintedNode> $nodes
+	 */
+	private function fit(array $nodes, PosterStyle $style, float $maxFont): BoxText
+	{
+		[$w, $h] = [$nodes[0]->w, $nodes[0]->h];
+		$people = array_map(static fn (PaintedNode $node): Person => $node->person, $nodes);
+
+		return $nodes[0]->ribbon
+			? $this->text->fit($people, $w * self::TextWidth, $h * self::RibbonTextHeight, $maxFont)
+			: $this->ovalText->fit($people, $style, $w, $h, $maxFont, self::OvalTextWidth, self::OvalTextHeight);
 	}
 
 	/**
