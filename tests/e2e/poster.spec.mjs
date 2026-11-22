@@ -65,6 +65,26 @@ test('the heading and the footer can be moved or left out, with their parts', as
 	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /casti=1&nadpis-zobrazit=vpravo&paticka-zobrazit=vypnuto&nadpis-generace=1&paticka-nazev=1&paticka-datum=1&paticka-legenda=1$/);
 });
 
+test('the painted tree adds the descendants down to the home person on its trunk', async ({ page }) => {
+	await page.goto('/predci/pavel-skopal-1952/plakat');
+	const sheet = page.locator('.poster-sheet svg');
+	const descendants = page.getByLabel('Potomci');
+	await expect(descendants).toHaveValue('');
+	await expect(sheet.getByText('Marek Skopal')).toHaveCount(0);
+
+	await descendants.selectOption({ label: 'až po Marek Skopal' });
+	await expect(sheet.getByText('Marek Skopal')).toHaveCount(1);
+	await expect(page.getByRole('link', { name: 'Stáhnout SVG' })).toHaveAttribute('href', /potomci=marek-skopal/);
+
+	// Only the painted tree draws them: the choice hides with the other layouts and comes back with it.
+	await page.getByLabel('Rozvržení').selectOption('vejir');
+	await expect(descendants).toBeHidden();
+	await expect(sheet.getByText('Marek Skopal')).toHaveCount(0);
+	await page.getByLabel('Rozvržení').selectOption('maleny-strom');
+	await expect(page.getByLabel('Potomci')).toHaveValue('marek-skopal');
+	await expect(sheet.getByText('Marek Skopal')).toHaveCount(1);
+});
+
 test('the select boxes look like the text input', async ({ page }) => {
 	await openPoster(page);
 	const look = (locator) => locator.evaluate((el) => {

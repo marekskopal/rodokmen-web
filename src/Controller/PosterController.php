@@ -27,7 +27,7 @@ final readonly class PosterController
 
 	/**
 	 * ?rozvrzeni=vejir|pulvejir|strom|strom-vpravo|maleny-strom, ?format=a4…a0, ?orientace=na-sirku|na-vysku, ?generace=N,
-	 * ?styl=jednoduchy|historicky, ?nadpis=…, ?casti=1 with the placements (PosterParts::Places)
+	 * ?styl=jednoduchy|historicky, ?nadpis=…, ?potomci=<slug> (painted tree, PosterOptions::$descendant), ?casti=1 with the placements (PosterParts::Places)
 	 * and the ticked parts (PosterParts::Names)
 	 *
 	 * @param array<string, string> $args
@@ -52,6 +52,7 @@ final readonly class PosterController
 			'wide' => true,
 			'person' => $person,
 			'heading' => $this->heading->of($person),
+			'descendants' => $this->poster->descendantChoices($person),
 			'options' => $options,
 			'available' => $available,
 			'readable' => $readable->depth,

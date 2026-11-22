@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View\Poster;
 
+use Rodokmen\Site\Data\HomePerson;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\View\View;
@@ -42,6 +43,7 @@ final readonly class Poster
 		private PosterTitle $title,
 		private PosterTreeBand $band,
 		private PosterFooter $footer,
+		private HomePerson $homePerson,
 	)
 	{
 	}
@@ -113,6 +115,44 @@ final readonly class Poster
 	private function margin(PosterOptions $options): float
 	{
 		return min($options->width(), $options->height()) * ($options->style->isOrnate() ? self::OrnateMargin : self::Margin);
+	}
+
+	/**
+	 * The person's descendants down to the website's default person, the child first: what the poster can add
+	 * below the person (PosterOptions::$descendant). Empty when the person is not an ancestor of the default person.
+	 *
+	 * @return list<Person>
+	 */
+	public function descendantChoices(Person $root): array
+	{
+		$path = $this->repository->pathBetween($root->slug, $this->homePerson->defaultSlug()) ?? [];
+		$people = [];
+		foreach (array_slice($path, 1) as $slug) {
+			$person = $this->repository->person($slug);
+			if ($person !== null) {
+				$people[] = $person;
+			}
+		}
+
+		return $people;
+	}
+
+	/**
+	 * The descendants the poster draws below the person: down to the chosen one, only on the painted tree.
+	 *
+	 * @return list<Person>
+	 */
+	private function descendants(Person $root, PosterOptions $options): array
+	{
+		if ($options->layout !== PosterLayout::PaintedTree || $options->descendant === '') {
+			return [];
+		}
+
+		$choices = $this->descendantChoices($root);
+		$slugs = array_map(static fn (Person $person): string => $person->slug, $choices);
+		$index = array_search($options->descendant, $slugs, true);
+
+		return $index === false ? [] : array_slice($choices, 0, $index + 1);
 	}
 
 	/** The paper and the border in its margin: the same for every depth. */
@@ -201,6 +241,7 @@ final readonly class Poster
 		$upward = $options->layout !== PosterLayout::TreeRight;
 		$painted = $options->layout === PosterLayout::PaintedTree;
 		$size = min($areaWidth, $areaHeight) * .0375;
+		$descendants = $this->descendants($root, $options);
 		$band = !$options->parts->heading() ? 0.0 : $this->band->of(
 			$options->layout,
 			$generations,
@@ -209,6 +250,7 @@ final readonly class Poster
 			$size,
 			$this->subtitle($root, $options) !== '',
 			$options->parts->headingRight(),
+			$descendants,
 		);
 		$treeHeight = $areaHeight - $band;
 
@@ -224,6 +266,7 @@ final readonly class Poster
 					$treeHeight,
 					$size * .9,
 					$options->parts->footerLeft(),
+					$descendants,
 				)
 				: $this->tree->render($generations, $options->style, $areaWidth, $treeHeight, $upward, $size * .9),
 		);
@@ -231,7 +274,7 @@ final readonly class Poster
 		// The painted tree colours men and women, not the family lines: it lists no lines.
 		$rows = $this->footer->rows($generations, $options, $this->heading($root, $options), !$painted);
 		[$cornerWidth, $cornerHeight] = $painted
-			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight)
+			? $this->paintedTree->corner(count($generations) - 1, $areaWidth, $treeHeight, count($descendants))
 			: $this->tree->corner(count($generations) - 1, $areaWidth, $treeHeight, $upward);
 		$footer = '';
 		if ($rows !== []) {

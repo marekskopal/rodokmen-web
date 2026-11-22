@@ -611,6 +611,7 @@ final class PosterTest extends TestCase
 			$title,
 			new PosterTreeBand($tree, $painted, $title),
 			new PosterFooter($repository, $view),
+			new HomePerson($repository, $config),
 		);
 
 		return [$repository, $poster];

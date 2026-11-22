@@ -110,6 +110,38 @@ final class PaintedTreeTest extends TestCase
 		self::assertEqualsWithDelta($layout->trunk(800, $layout->unit(7, 500)), $root->girth, 1e-9);
 	}
 
+	public function testDescendantsStandOnALongerTrunkAboveTheRoots(): void
+	{
+		$layout = new PaintedLayout(new PaintedSpread());
+		$places = $this->demoPlaces();
+		$people = array_slice(array_values(array_filter([...$places[1], ...$places[2]])), 0, 4);
+		self::assertCount(4, $people);
+		$plain = $layout->nodes($places, 800, 500, new PosterRandom('layout'))[0][0];
+		$nodes = $layout->nodes($places, 800, 500, new PosterRandom('layout'), 4);
+		$root = $nodes[0][0];
+		$unit = $layout->unit(count($places), 500, 4);
+		$below = $layout->descendants($nodes, $people, $unit);
+
+		self::assertLessThan($layout->unit(count($places), 500), $unit, 'the generations make room for the trunk');
+		self::assertLessThan($plain->y, $root->y, 'the person stands higher');
+		self::assertCount(4, $below);
+		$previous = $root;
+		foreach ($below as $k => $node) {
+			self::assertSame($people[$k], $node->person, 'the child first');
+			self::assertSame(-1 - $k, $node->i);
+			self::assertSame($root->x, $node->x, 'on the trunk');
+			self::assertEqualsWithDelta([$root->w * .8, $root->h * .8], [$node->w, $node->h], 1e-9, 'smaller ribbons');
+			self::assertTrue($node->ribbon);
+			// Clear of the plaque above, whose tails hang a little below it (PaintedNode::covers()).
+			self::assertGreaterThan($previous->y + $previous->h * .7, $node->y - $node->h * .5);
+			$previous = $node;
+		}
+		// Below the last one the trunk still shows above the mound, where the roots spread.
+		self::assertLessThan(500 * (1 - PaintedLayout::GroundHeight) - $unit * .5, $previous->y + $previous->h * .7);
+		self::assertSame([], $layout->descendants($nodes, [], $unit));
+		self::assertSame([], $layout->descendants([], $people, $unit), 'nobody to stand below');
+	}
+
 	public function testPlaquesAreRibbonsThenFlatOvalsThenTallOvals(): void
 	{
 		$layout = new PaintedLayout(new PaintedSpread());

@@ -4,6 +4,7 @@
 /** @var Rodokmen\Site\Data\Model\Person $person */
 /** @var Rodokmen\Site\View\Poster\PosterOptions $options */
 /** @var string $heading */
+/** @var list<Rodokmen\Site\Data\Model\Person> $descendants */
 /** @var int $available */
 /** @var int $readable */
 /** @var bool $auto */
@@ -83,6 +84,17 @@ $partSwitches = static function (string $main, string $label, array $parts) use 
                 <select name="styl">
                     <?php foreach (PosterStyle::cases() as $style): ?>
                         <option value="<?= $style->value ?>" <?= $style === $options->style ? 'selected' : '' ?>><?= $v->e($style->label()) ?></option>
+                    <?php endforeach ?>
+                </select>
+            </label>
+        <?php endif ?>
+        <?php if ($descendants !== []): ?>
+            <?php // Only the painted tree draws them; the field comes back with it (data-live). ?>
+            <label class="field" data-live="descendants"<?= $options->layout === PosterLayout::PaintedTree ? '' : ' hidden' ?>><span class="field-label">Potomci</span>
+                <select name="potomci">
+                    <option value="">vypnuto</option>
+                    <?php foreach ($descendants as $descendant): ?>
+                        <option value="<?= $v->e($descendant->slug) ?>" <?= $descendant->slug === $options->descendant ? 'selected' : '' ?>>až po <?= $v->e($descendant->name) ?></option>
                     <?php endforeach ?>
                 </select>
             </label>

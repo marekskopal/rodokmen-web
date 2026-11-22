@@ -10,6 +10,14 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+### Website
+
+- **Painted tree poster: the descendants down to the home person.** For an ancestor of the website's default
+  person, a new "Potomci" select (off by default) adds their descendants down to the chosen one – the child, the
+  grandchild, … up to the default person – on smaller ribbons in the person's colour on the trunk below them.
+  The trunk grows longer for them, the mound and the roots stay in view. Only the painted tree draws them; with
+  the other layouts the select is hidden. The download keeps the choice.
+
 ## [1.4.0] - 2026-11-22
 
 Every family line can have its own story, each line has a page, the home page shows the stories beside a map of
