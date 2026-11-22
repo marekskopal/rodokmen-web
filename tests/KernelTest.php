@@ -207,12 +207,24 @@ final class KernelTest extends TestCase
 
 		// Every part is ticked by default; a part left out of the form's query is turned off and stays unticked.
 		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1" checked>', $body);
-		$parts = (string) $this->get('/predci/antonin-novak-2024/plakat?casti=1&nadpis-zobrazit=1', loggedIn: true)->getBody();
-		self::assertStringContainsString('<input type="checkbox" name="nadpis-zobrazit" value="1" checked>', $parts);
+		self::assertStringContainsString(
+			'<select name="nadpis-zobrazit"><option value="vypnuto">vypnuto</option><option value="vlevo" selected>',
+			$body,
+		);
+		self::assertStringContainsString('<option value="vpravo" selected>vpravo</option></select>', $body, 'the footer on the right');
+		$parts = (string) $this->get(
+			'/predci/antonin-novak-2024/plakat?casti=1&nadpis-zobrazit=vpravo&paticka-zobrazit=vypnuto',
+			loggedIn: true,
+		)->getBody();
+		self::assertStringContainsString(
+			'<select name="nadpis-zobrazit"><option value="vypnuto">vypnuto</option><option value="vlevo">vlevo</option><option value="vpravo" selected>',
+			$parts,
+		);
+		self::assertStringContainsString('<select name="paticka-zobrazit"><option value="vypnuto" selected>', $parts);
 		self::assertStringContainsString('<input type="checkbox" name="paticka-datum" value="1">', $parts);
 		self::assertStringNotContainsString('Předci osoby Antonín Novák ·', $parts);
 		self::assertStringContainsString(
-			'plakat.svg?rozvrzeni=maleny-strom&amp;format=a1&amp;orientace=na-sirku&amp;styl=historicky&amp;casti=1&amp;nadpis-zobrazit=1"',
+			'plakat.svg?rozvrzeni=maleny-strom&amp;format=a1&amp;orientace=na-sirku&amp;styl=historicky&amp;casti=1&amp;nadpis-zobrazit=vpravo&amp;paticka-zobrazit=vypnuto"',
 			$parts,
 		);
 

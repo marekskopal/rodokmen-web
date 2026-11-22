@@ -48,14 +48,33 @@ final readonly class PosterPaintedTree
 	) {
 	}
 
-	/** @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first */
-	public function render(array $generations, PosterStyle $style, float $width, float $height, float $maxFont): string
+	/**
+	 * @param non-empty-list<list<?string>> $generations from Repository::ancestorGenerations(), the person first
+	 * @param bool $cornerLeft whether the corner of the legend is bottom left (otherwise bottom right)
+	 */
+	public function render(
+		array $generations,
+		PosterStyle $style,
+		float $width,
+		float $height,
+		float $maxFont,
+		bool $cornerLeft = false,
+	): string
 	{
 		$random = self::random($generations);
 		$unit = $this->layout->unit(count($generations), $height);
 		$nodes = $this->layout->nodes($this->people->places($generations), $width, $height, $random);
 		[$cornerWidth, $cornerHeight] = $this->layout->corner(count($generations) - 1, $width, $height);
-		$space = new PaintedSpace($nodes, $width, $height, $unit, $this->layout->top($height, $unit), $cornerWidth, $cornerHeight);
+		$space = new PaintedSpace(
+			$nodes,
+			$width,
+			$height,
+			$unit,
+			$this->layout->top($height, $unit),
+			$cornerWidth,
+			$cornerHeight,
+			$cornerLeft,
+		);
 
 		$trunk = $this->layout->trunk($width, $unit);
 		$wood = $this->trunk($nodes[0][0] ?? null, $height, $trunk, $style, $random);
@@ -93,7 +112,9 @@ final readonly class PosterPaintedTree
 		usort($wood, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
 		// The mound lies under the trunk, as far as it fits on the sheet beside the corner of the legend.
 		$half = $width * PaintedLayout::GroundWidth;
-		$cx = max($half, min($width - $cornerWidth - $half, $nodes[0][0]->x ?? $width / 2));
+		$cx = $cornerLeft
+			? max($cornerWidth + $half, min($width - $half, $nodes[0][0]->x ?? $width / 2))
+			: max($half, min($width - $cornerWidth - $half, $nodes[0][0]->x ?? $width / 2));
 		$rise = $height * PaintedLayout::GroundHeight * 1.1;
 		$ground = $this->wood->ground($cx, $height, $half, $rise, $style, $random->fork('ground'))
 			// Clear of the trunk; the roots are drawn over the flowers, as if they grew between them.
@@ -133,7 +154,8 @@ final readonly class PosterPaintedTree
 	}
 
 	/**
-	 * Room for the legend: width and height of the free corner beside the mound, bottom right.
+	 * Room for the legend: width and height of the free corner beside the mound, bottom right (or bottom left, the
+	 * same size, with render()'s $cornerLeft).
 	 *
 	 * @return array{float, float}
 	 */

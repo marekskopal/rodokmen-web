@@ -14,10 +14,11 @@ use Rodokmen\Site\View\Poster\Poster;
 use Rodokmen\Site\View\Poster\PosterLayout;
 use Rodokmen\Site\View\Poster\PosterOptions;
 use Rodokmen\Site\View\Poster\PosterParts;
+use Rodokmen\Site\View\Poster\PosterPlacement;
 use Rodokmen\Site\View\Poster\PosterStyle;
 
 $points = $sheet->smallestPoints();
-// The switch of the heading or the footer with those of its parts, which count only with it.
+// Where the heading or the footer goes (or nowhere), with the switches of its parts, which count only with it.
 $partSwitches = static function (string $main, string $label, array $parts) use ($v, $options): string {
     $box = static fn (string $name, string $text): string => sprintf(
         '<label class="filter-check"><input type="checkbox" name="%s" value="1"%s> %s</label>',
@@ -25,8 +26,18 @@ $partSwitches = static function (string $main, string $label, array $parts) use 
         $options->parts->ticked($name) ? ' checked' : '',
         $v->e($text),
     );
+    $place = '';
+    foreach (PosterPlacement::cases() as $placement) {
+        $place .= sprintf(
+            '<option value="%s"%s>%s</option>',
+            $placement->value,
+            $placement === $options->parts->place($main) ? ' selected' : '',
+            $v->e($placement->label()),
+        );
+    }
 
-    return '<div class="poster-parts" role="group" aria-label="' . $v->e($label) . '">' . $box($main, 'zobrazit')
+    return '<div class="poster-parts" role="group" aria-label="' . $v->e($label) . '">'
+        . '<label class="poster-place">zobrazit <select name="' . $main . '">' . $place . '</select></label>'
         . '<span class="poster-parts-sub">' . implode('', array_map($box, array_keys($parts), $parts)) . '</span></div>';
 };
 ?>

@@ -8,7 +8,7 @@ use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\View;
 
 /**
- * Heading and subtitle of the poster in its top left corner. In the historical style they are written like the
+ * Heading and subtitle of the poster in its top left or top right corner. In the historical style they are written like the
  * opening of a medieval manuscript: on a scroll, the first letter as an illuminated initial (a gold letter on lapis
  * in a gold square, with white pen work) as tall as both lines, and the subtitle in red (a rubric).
  */
@@ -93,6 +93,12 @@ final readonly class PosterTitle
 				$subSize,
 				$this->view->e($subtitle),
 			);
+	}
+
+	/** Width of the text that draw() writes fitted to $available, without the scroll around it. */
+	public function width(PosterStyle $style, string $heading, string $subtitle, float $size, float $available): float
+	{
+		return $this->measure($style, $heading, $subtitle, $size, $available)[5];
 	}
 
 	/**

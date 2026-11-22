@@ -10,6 +10,13 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+### Website
+
+- **Ancestor poster: the heading and the footer on either side.** Instead of the "zobrazit" checkbox, a select box
+  puts the heading or the footer on the left or the right, or turns it off ("vypnuto"). The defaults are as before:
+  the heading on the left, the footer on the right. Above the half fan a footer on the heading's side goes below
+  it. Links with the old checkboxes keep working.
+
 ## [1.3.0] - 2026-11-20
 
 The historical painted tree is the default poster, drawn like an illuminated manuscript, and the heading and the

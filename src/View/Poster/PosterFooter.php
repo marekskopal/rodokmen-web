@@ -10,7 +10,7 @@ use Rodokmen\Site\View\FanGeometry;
 use Rodokmen\Site\View\View;
 
 /**
- * Footer of the poster in a free corner (the top right one of the half fan): the legend of the family lines, the
+ * Footer of the poster in a free corner on the left or the right (a top one of the half fan): the legend of the family lines, the
  * heading of the poster and the date – the parts the visitor wants (PosterParts).
  */
 final readonly class PosterFooter
@@ -88,35 +88,36 @@ final readonly class PosterFooter
 	}
 
 	/**
-	 * Footer rows right-aligned in the top or bottom corner.
+	 * Footer rows in the top or bottom corner, right-aligned at $x (left-aligned with $left, the swatches first).
 	 *
 	 * @param list<array{string, string, ?string}> $rows
 	 */
-	public function draw(array $rows, float $size, float $right, float $edge, bool $top): string
+	public function draw(array $rows, float $size, float $x, float $edge, bool $top, bool $left = false): string
 	{
 		$step = $size * 1.6;
 		$y = $top ? $edge + $size : $edge - ($step * (count($rows) - 1));
 		$out = '';
 		foreach ($rows as [$text, $class, $color]) {
-			$x = $right;
+			$textX = $x;
 			if ($color !== null) {
 				$out .= sprintf(
 					'<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="%.1f" fill="%s" fill-opacity=".66"/>',
-					$right - $size,
+					$left ? $x : $x - $size,
 					$y - $size * .8,
 					$size,
 					$size,
 					$size * .2,
 					$this->view->e($color),
 				);
-				$x -= $size * 1.5;
+				$textX += ($left ? 1 : -1) * $size * 1.5;
 			}
 			$out .= sprintf(
-				'<text class="%s" x="%.1f" y="%.1f" font-size="%.1f" text-anchor="end">%s</text>',
+				'<text class="%s" x="%.1f" y="%.1f" font-size="%.1f" text-anchor="%s">%s</text>',
 				$class,
-				$x,
+				$textX,
 				$y,
 				$size,
+				$left ? 'start' : 'end',
 				$this->view->e($text),
 			);
 			$y += $step;
