@@ -10,12 +10,55 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-22
+
+Every family line can have its own story, each line has a page, the home page shows the stories beside a map of
+the places, and the heading and the footer of the poster can go to either side.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d`. Apache: `composer install --no-dev` and
+`pnpm install --frozen-lockfile --prod && pnpm build` as after every update. Download `rodokmen-sync` 1.3.0 to
+publish the stories of the other lines; the installed 1.2.0 keeps working, without them.
+
 ### Website
+
+- **Stories for every family line.** Besides the main story, a story of each line (published by `rodokmen-sync`
+  as `md/pribeh-<line>.md`) has its page `/pribeh/<line>`; `/pribeh` leads to the main story and `/pribehy` lists
+  them all. One story is a menu item of its own, more of them are "Příběhy". Line cards and line pages link to
+  their line's story, and the search finds the stories.
+
+- **A page for every family line:** `/rod/<line>` with the line's description, its people by generation (the most
+  distant first), its places, the button to its ancestors and its story. The home cards and the person pages link
+  to it.
+
+- **The story reads its front matter.** The skill's `title` and `lead` were shown as a rule and a heading; they are
+  now the story's title and lead. `web.json → pribeh` (`menu`, `rod`, `tlacitko`) sets the menu item, the line and
+  the button; without a story there is no page and no menu item.
+
+- **Links in the skill's texts lead to this site's pages** (`/osoba/x/` → `/osoba/x`, `/zdroj/k/` → `/zapis/k`,
+  `/rod/s/` → `/rod/s`, `/rody/` → `/`); a link to a family keeps only its text.
+
+- **Home page: the stories beside a map.** The main story card with the other stories below it, and next to them
+  a map of the places in their lines' colours, which opens a place on the full map. The story card shows the
+  introduction from `web.json → uvod` (heading, paragraphs, photo with its caption). Small maps fit the Czech
+  lands like the full map and get zoom buttons when a place lies outside.
 
 - **Ancestor poster: the heading and the footer on either side.** Instead of the "zobrazit" checkbox, a select box
   puts the heading or the footer on the left or the right, or turns it off ("vypnuto"). The defaults are as before:
   the heading on the left, the footer on the right. Above the half fan a footer on the heading's side goes below
   it. Links with the old checkboxes keep working.
+
+- **README:** the stories of the lines (`data/pribehy/`), and the painted tree poster with the heading on the right.
+
+### rodokmen-sync
+
+- **1.3.0: stories of the other lines.** Each `data/pribehy/<line>.md`, `<line>` being a line's address in
+  `site.json`, is published as `md/pribeh-<line>.md` without its `<!-- … -->` notes; other files are skipped with
+  a message. It warns about broken links to persons, records, lines and families, and about a story of the main
+  story's line, which is not shown. A deleted file leaves the website on the next sync.
+
+### Bundle format
+
+- Unchanged: format 1 (the stories use paths it already allowed).
 
 ## [1.3.0] - 2026-11-20
 
@@ -264,7 +307,8 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
-[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.4.0
 [1.3.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.3.0
 [1.2.1]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.1
 [1.2.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.0
