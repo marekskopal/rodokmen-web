@@ -172,6 +172,7 @@ final readonly class TreeController
 			'depth' => $depth,
 			'available' => $available,
 			'svg' => $this->fanChart->render($person, $depth),
+			'legend' => $this->fanChart->legend($person, $depth),
 			'count' => $this->repository->ancestorCount($person->slug),
 			'home' => $this->repository->person($homeSlug),
 		]);

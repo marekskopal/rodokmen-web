@@ -6,6 +6,7 @@ namespace Rodokmen\Site\Tests\View;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Rodokmen\Site\Data\Model\Line;
 use Rodokmen\Site\Data\Repository;
 use Rodokmen\Site\Data\SiteDataLoader;
 use Rodokmen\Site\Data\Stories;
@@ -20,7 +21,8 @@ use Rodokmen\Site\View\View;
 
 final class FanChartTest extends TestCase
 {
-	private string $dir;
+	/** @var list<string> */
+	private array $dirs = [];
 
 	private Repository $repository;
 
@@ -28,17 +30,14 @@ final class FanChartTest extends TestCase
 
 	protected function setUp(): void
 	{
-		$this->dir = Fixture::dataDir();
-		$config = Fixture::config($this->dir);
-		$this->repository = new Repository($config, new SiteDataLoader($config));
-		$view = new View($config, $this->repository, new Stories($this->repository), new Thumbnails($config, new WebpResizer()));
-		$geometry = new FanGeometry();
-		$this->chart = new FanChart($this->repository, $view, $geometry, new FanLabels($view, $geometry), new FanYears());
+		[$this->chart, $this->repository] = $this->chart(Fixture::siteData());
 	}
 
 	protected function tearDown(): void
 	{
-		Fixture::removeDir($this->dir);
+		foreach ($this->dirs as $dir) {
+			Fixture::removeDir($dir);
+		}
 	}
 
 	public function testAvailableDepthCountsKnownGenerations(): void
@@ -75,6 +74,53 @@ final class FanChartTest extends TestCase
 		self::assertSame(0, substr_count($svg, 'class="fan-empty"'));
 	}
 
+	public function testLegendListsTheDrawnLinesAndTheEmptySlots(): void
+	{
+		$root = $this->repository->person('antonin-novak-2024');
+		self::assertNotNull($root);
+		$legend = $this->chart->legend($root, 10);
+
+		self::assertSame(['novakovi'], array_map(static fn (Line $line): string => $line->slug, $legend->lines));
+		self::assertFalse($legend->sides);
+		self::assertFalse($legend->uncertain);
+		self::assertTrue($legend->unknown);
+	}
+
+	public function testLegendOfOneGenerationWithoutEmptySlots(): void
+	{
+		$root = $this->repository->person('antonin-novak-2024');
+		self::assertNotNull($root);
+
+		self::assertFalse($this->chart->legend($root, 1)->unknown);
+	}
+
+	public function testUncertainAncestorsOutsideTheLinesAreHatchedAndInTheLegend(): void
+	{
+		$data = Fixture::siteData();
+		self::assertIsArray($data['people']);
+		self::assertIsArray($data['people']['marie-mala-1992']);
+		$data['people']['marie-mala-1992']['st'] = 'prob';
+		$data['people']['marie-mala-1992']['line'] = null;
+		[$chart, $repository] = $this->chart($data);
+		$root = $repository->person('antonin-novak-2024');
+		self::assertNotNull($root);
+
+		$legend = $chart->legend($root, 10);
+		self::assertTrue($legend->sides);
+		self::assertTrue($legend->uncertain);
+		$svg = $chart->render($root, 10);
+		self::assertSame(1, substr_count($svg, 'class="fan-seg-weak"'));
+		self::assertStringContainsString('style="--c:' . FanChart::SideColors[1] . ';', $svg);
+	}
+
+	public function testHatchGrowsWithTheChart(): void
+	{
+		$root = $this->repository->person('antonin-novak-2024');
+		self::assertNotNull($root);
+
+		self::assertLessThan($this->hatchWidth($this->chart->render($root, 10)), $this->hatchWidth($this->chart->render($root, 1)));
+	}
+
 	/** @return iterable<string, array{string, string}> */
 	public static function years(): iterable
 	{
@@ -94,5 +140,28 @@ final class FanChartTest extends TestCase
 	public function testShortYears(string $y, string $expected): void
 	{
 		self::assertSame($expected, $this->chart->shortYears($y));
+	}
+
+	private function hatchWidth(string $svg): int
+	{
+		self::assertSame(1, preg_match('/<pattern id="fan-hatch"[^>]* width="(\d+)"/', $svg, $m));
+
+		return (int) $m[1];
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 * @return array{FanChart, Repository}
+	 */
+	private function chart(array $data): array
+	{
+		$dir = Fixture::dataDir($data);
+		$this->dirs[] = $dir;
+		$config = Fixture::config($dir);
+		$repository = new Repository($config, new SiteDataLoader($config));
+		$view = new View($config, $repository, new Stories($repository), new Thumbnails($config, new WebpResizer()));
+		$geometry = new FanGeometry();
+
+		return [new FanChart($repository, $view, $geometry, new FanLabels($view, $geometry), new FanYears()), $repository];
 	}
 }

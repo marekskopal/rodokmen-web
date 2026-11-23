@@ -489,15 +489,19 @@ a.pcard:hover { transform: translateY(-1px); border-color: var(--c); box-shadow:
 .fan-root { fill: var(--accent); }
 .fan-p:hover .fan-seg, .fan-p:focus-visible .fan-seg { fill-opacity: calc(var(--o) * var(--fan-k) + .3); }
 .fan-p:hover .fan-root { filter: brightness(1.1); }
-.fan-p.hit .fan-seg, .fan-p.hit .fan-seg-unk { stroke: var(--prob); stroke-width: 8px; }
+.fan-p.hit .fan-seg, .fan-p.hit .fan-seg-unk, .fan-p.hit .fan-seg-weak { stroke: var(--prob); stroke-width: 8px; }
 .fan-t { fill: var(--ink); pointer-events: none; }
 .fan-t-name { font-weight: 600; }
 .fan-t-prob { font-style: italic; }
 .fan-t-unk { fill: var(--muted); font-style: italic; }
 .fan-t-line { fill: var(--ink-2); font-weight: 700; letter-spacing: 4px; }
 .fan-t-root { fill: var(--accent-ink); }
-.fan-key { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: -2px; background: var(--c); opacity: calc(var(--o) * var(--fan-k)); }
-.fan-key-empty { background: var(--paper-2); border: 1px solid var(--rule); opacity: 1; }
+.fan-seg-weak { pointer-events: none; }
+.fan-hatch { fill: var(--card); fill-opacity: .5; }
+.fan-key { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: -2px; background: color-mix(in srgb, var(--c) calc(var(--fan-k) * 100%), var(--card)); }
+.fan-key-sides { background: linear-gradient(90deg, var(--c) 50%, var(--c2) 50%); }
+.fan-key-weak { background: repeating-linear-gradient(45deg, var(--ink-2) 0 3px, var(--card) 3px 6px); opacity: .5; }
+.fan-key-empty { background: color-mix(in srgb, var(--rule) 55%, var(--card)); }
 
 /* Numbered list of ancestors for printing (/predci/{slug}/tisk) */
 .print-toolbar { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
