@@ -6,6 +6,7 @@
 /** @var string $svg */
 /** @var int $count */
 /** @var Rodokmen\Site\Data\Model\Person $home */
+/** @var Rodokmen\Site\View\FanLegend $legend */
 $base = '/vejir/' . rawurlencode($person->slug);
 $presets = array_values(array_unique(array_filter([4, 6, 8, 10, $available], static fn (int $n): bool => $n <= $available && $n >= 1)));
 sort($presets);
@@ -44,9 +45,18 @@ sort($presets);
     <?= $svg ?>
 </div>
 
-<aside class="legend">
-    <span><span class="fan-key" style="--c:#EFB45F;--o:1"></span>doloženo nebo od rodiny</span>
-    <span><span class="fan-key" style="--c:#EFB45F;--o:.55"></span><em>pravděpodobné</em></span>
-    <span><span class="fan-key fan-key-empty"></span>zatím neznámé</span>
-    <span class="muted">Barva = rod. Kolečkem myši nebo prsty přibližujte, tažením posouvejte, klepnutím na jméno otevřete detail.</span>
+<aside class="legend fan-legend">
+    <?php foreach ($legend->lines as $line): ?>
+        <span><span class="fan-key" style="--c:<?= $v->e($line->color) ?>"></span>rod <?= $v->e($line->name) ?></span>
+    <?php endforeach ?>
+    <?php if ($legend->sides): ?>
+        <span><span class="fan-key fan-key-sides" style="--c:<?= $v->e(Rodokmen\Site\View\FanChart::SideColors[0]) ?>;--c2:<?= $v->e(Rodokmen\Site\View\FanChart::SideColors[1]) ?>"></span>mimo rody (otcova / matčina strana)</span>
+    <?php endif ?>
+    <?php if ($legend->uncertain): ?>
+        <span><span class="fan-key fan-key-weak"></span><em>pravděpodobné nebo jen z cizího rodokmenu</em></span>
+    <?php endif ?>
+    <?php if ($legend->unknown): ?>
+        <span><span class="fan-key fan-key-empty"></span>zatím neznámý předek</span>
+    <?php endif ?>
+    <span class="muted">Od generace pradědů je každá starší generace světlejší. Kolečkem myši nebo prsty přibližujte, tažením posouvejte, klepnutím na jméno otevřete detail.</span>
 </aside>

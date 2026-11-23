@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Rodokmen\Site\View;
 
+use Rodokmen\Site\Data\Model\Line;
 use Rodokmen\Site\Data\Model\Person;
 use Rodokmen\Site\Data\Repository;
 
@@ -50,6 +51,9 @@ final readonly class FanChart
 
 	private const Padding = 20;
 
+	/** Number of hatch periods along the chart's radius. */
+	private const HatchesPerRadius = 60;
+
 	public function __construct(
 		private Repository $repository,
 		private View $view,
@@ -67,10 +71,18 @@ final readonly class FanChart
 
 	public function render(Person $root, int $depth): string
 	{
-		$generations = $this->repository->ancestorGenerations($root->slug, max(1, min(self::MaxDepth, $depth)));
+		$generations = $this->generations($root, $depth);
 		$radius = array_sum(array_slice(self::RingWidths, 0, count($generations))) + self::Padding;
 
-		$defs = [];
+		// Uncertain ancestors are hatched: their colour still tells the family line, the paleness the generation.
+		// The stripes grow with the chart so that they stay a few pixels wide on screen at any depth.
+		$hatch = (int) round($radius / self::HatchesPerRadius);
+		$defs = [sprintf(
+			'<pattern id="fan-hatch" patternUnits="userSpaceOnUse" width="%1$d" height="%1$d" patternTransform="rotate(45)">'
+			. '<rect class="fan-hatch" width="%2$d" height="%1$d"/></pattern>',
+			$hatch,
+			intdiv($hatch, 3),
+		)];
 		$empty = [];
 		$people = [$this->rootNode($root)];
 		for ($g = 1; $g < count($generations); $g++) {
@@ -100,6 +112,40 @@ final readonly class FanChart
 			. ' role="img" aria-label="Vějíř předků – ' . $this->view->e($root->name) . '">'
 			. '<defs>' . implode('', $defs) . '</defs>'
 			. implode('', $empty) . implode('', $people) . '</svg>';
+	}
+
+	/** The keys of the chart that the person's fan of $depth generations draws. */
+	public function legend(Person $root, int $depth): FanLegend
+	{
+		$generations = $this->generations($root, $depth);
+		$drawn = [];
+		$sides = false;
+		$uncertain = false;
+		$unknown = false;
+		for ($g = 1; $g < count($generations); $g++) {
+			foreach ($generations[$g] as $i => $slug) {
+				if ($generations[$g - 1][intdiv($i, 2)] === null) {
+					continue;
+				}
+
+				$person = $this->repository->person($slug);
+				if ($person === null || $person->st === 'unk') {
+					$unknown = true;
+					continue;
+				}
+
+				$uncertain = $uncertain || $this->uncertain($person);
+				if ($person->line === null) {
+					$sides = true;
+				} else {
+					$drawn[$person->line] = true;
+				}
+			}
+		}
+
+		$lines = array_values(array_filter($this->repository->lines(), static fn (Line $line): bool => isset($drawn[$line->k])));
+
+		return new FanLegend($lines, $sides, $uncertain, $unknown);
 	}
 
 	public function shortYears(string $y): string
@@ -171,18 +217,31 @@ final readonly class FanChart
 			return sprintf('<path class="fan-seg-unk" d="%s" stroke-width="%s"/>', $this->sector($g, $i), $this->stroke($g));
 		}
 
-		$weak = $person->st === 'prob' || $person->st === 'mh';
 		$color = $person->line !== null
 			? $this->repository->lineColor($person->line)
 			: self::SideColors[($i >> $g - 1) & 1];
+		$sector = $this->sector($g, $i);
 
 		return sprintf(
 			'<path class="fan-seg" d="%s" stroke-width="%s" style="--c:%s;--o:%.2f"/>',
-			$this->sector($g, $i),
+			$sector,
 			$this->stroke($g),
 			$this->view->e($color),
-			self::Opacity[$g] * ($weak ? .55 : 1),
-		);
+			self::Opacity[$g],
+		)
+			. ($this->uncertain($person) ? sprintf('<path class="fan-seg-weak" d="%s" fill="url(#fan-hatch)"/>', $sector) : '');
+	}
+
+	/** Probable ancestors and ancestors only from someone else's tree. */
+	private function uncertain(Person $person): bool
+	{
+		return $person->st === 'prob' || $person->st === 'mh';
+	}
+
+	/** @return non-empty-list<list<?string>> */
+	private function generations(Person $root, int $depth): array
+	{
+		return $this->repository->ancestorGenerations($root->slug, max(1, min(self::MaxDepth, $depth)));
 	}
 
 	private function link(Person $person, string $years): string
