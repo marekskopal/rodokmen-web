@@ -10,8 +10,22 @@ number changes only when old clients or servers could not read it – see *Bundl
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-23
+
+The painted tree poster can show the descendants down to the home person, the fan's legend explains its colours,
+and the sync API tells what went wrong on the server.
+
+**Upgrading.** Docker: `docker compose pull && docker compose up -d`. Apache: `composer install --no-dev` and
+`pnpm install --frozen-lockfile --prod && pnpm build` as after every update. Installed `rodokmen-sync` 1.3.0 keeps
+working.
+
 ### Website
 
+- **Fan chart: a legend that matches the chart.** It listed a colour found nowhere in the fan and took paler
+  segments for probable ancestors, while paleness also marks older generations. It now names the family lines
+  drawn in the fan with their colours (and the colours of the father's and mother's side for ancestors outside
+  them), and only the keys that occur. Probable ancestors and those only from someone else's tree are hatched
+  instead of paler: the colour tells the line, the paleness the generation, the stripes the uncertainty.
 - **Painted tree poster: the descendants down to the home person.** For an ancestor of the website's default
   person, a new "Potomci" select (off by default) adds their descendants down to the chosen one – the child, the
   grandchild, … up to the default person – on smaller ribbons in the person's colour on the trunk below them.
@@ -24,6 +38,10 @@ number changes only when old clients or servers could not read it – see *Bundl
 - **Logs reach the site's error log under FastCGI.** With mod_fcgid or PHP-FPM, the log lines meant for stderr
   (and the records the log folder could not take) go through PHP's SAPI logger to the site's Apache error log;
   the process's own stderr ended in the main error log of Apache, or nowhere.
+
+### Bundle format
+
+- Unchanged: format 1.
 
 ## [1.4.0] - 2026-11-22
 
@@ -322,7 +340,8 @@ The first release.
 - Format 1 (`manifest.json` with the SHA-256 and size of every file; `site.json`, `md/*.md`, `img/*.jpg`,
   `full/*.jpg`).
 
-[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/marekskopal/rodokmen-web/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.4.1
 [1.4.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.4.0
 [1.3.0]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.3.0
 [1.2.1]: https://github.com/marekskopal/rodokmen-web/releases/tag/v1.2.1
