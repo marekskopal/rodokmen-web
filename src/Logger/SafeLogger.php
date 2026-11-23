@@ -8,8 +8,6 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use Stringable;
 use Throwable;
-use const FILE_APPEND;
-use const PHP_EOL;
 
 /**
  * Wraps the application logger so that a logging fault can never break the request.
@@ -19,7 +17,7 @@ use const PHP_EOL;
  */
 final class SafeLogger extends AbstractLogger
 {
-	public function __construct(private readonly LoggerInterface $logger, private readonly string $fallbackStream = 'php://stderr')
+	public function __construct(private readonly LoggerInterface $logger, private readonly string $fallbackStream = ErrorStream::Stderr)
 	{
 	}
 
@@ -36,7 +34,7 @@ final class SafeLogger extends AbstractLogger
 			]);
 
 			try {
-				@file_put_contents($this->fallbackStream, $line . PHP_EOL, FILE_APPEND);
+				ErrorStream::write($this->fallbackStream, $line);
 			} catch (Throwable) {
 				// Nothing left to write to: never let a logging fault propagate to the caller.
 			}

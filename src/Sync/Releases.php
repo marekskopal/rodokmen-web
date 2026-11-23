@@ -59,20 +59,29 @@ final readonly class Releases
 	{
 		$data = $this->config->dataDir;
 		$previous = $this->current();
+		$kept = null;
 		if (is_dir($data) && !is_link($data)) {
 			// First upload: keep the data that was there (e.g. copied by rsync) as an older release. Its id must sort
 			// before the new one (rollback goes to older ids), even when building the release took a while.
 			$previous = $this->idBefore($id) . '-000000-initial';
 			$this->fs->ensureDir($this->dir());
-			if (!rename($data, $this->dir() . '/' . $previous)) {
-				throw new RuntimeException('Cannot keep ' . $data . ' as release ' . $previous);
+			if (!@rename($data, $this->dir() . '/' . $previous)) {
+				throw Filesystem::failure('Cannot keep ' . $data . ' as release ' . $previous);
 			}
+			$kept = $this->dir() . '/' . $previous;
 		}
 
 		$tmp = sprintf('%s/.%s.%s.link', dirname($data), basename($data), bin2hex(random_bytes(4)));
 		@unlink($tmp);
-		if (!symlink('releases/' . $id, $tmp) || !rename($tmp, $data)) {
-			throw new RuntimeException('Cannot switch ' . $data . ' to release ' . $id);
+		if (!@symlink('releases/' . $id, $tmp) || !@rename($tmp, $data)) {
+			$failure = Filesystem::failure('Cannot switch ' . $data . ' to release ' . $id);
+			// The website must not be left without its data: the first upload's data go back where they were.
+			@unlink($tmp);
+			if ($kept !== null) {
+				@rename($kept, $data);
+			}
+
+			throw $failure;
 		}
 
 		return $previous;

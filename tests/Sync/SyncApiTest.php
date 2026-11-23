@@ -112,6 +112,28 @@ final class SyncApiTest extends TestCase
 		self::assertStringContainsString('Rodokmen Testových', (string) $home->getBody());
 	}
 
+	public function testAnUnexpectedFaultIsReportedToTheClient(): void
+	{
+		putenv('SITE_LOG_DIR=' . $this->dir . '/log');
+		putenv('SITE_LOG_STDERR=0');
+		// The uploads cannot be stored: their folder's name is taken by a file.
+		mkdir($this->dir . '/site');
+		file_put_contents($this->dir . '/site/sync-uploads', '');
+
+		try {
+			$response = $this->send('PUT', '/api/sync/file/' . hash('sha256', 'crop'), 'crop', 'sync-token');
+		} finally {
+			putenv('SITE_LOG_DIR');
+			putenv('SITE_LOG_STDERR');
+		}
+
+		self::assertSame(500, $response->getStatusCode());
+		$error = $this->json($response)['error'];
+		self::assertIsString($error);
+		self::assertStringStartsWith('Server error: Cannot create ' . $this->dir . '/site/sync-uploads: mkdir(): ', $error);
+		self::assertStringContainsString(substr($error, 14), (string) file_get_contents($this->dir . '/log/error.log'));
+	}
+
 	public function testRollback(): void
 	{
 		$rollback = $this->send('POST', '/api/sync/rollback', '', 'sync-token');

@@ -6,12 +6,11 @@ namespace Rodokmen\Site\Logger;
 
 use Throwable;
 use Tracy\Logger;
-use const FILE_APPEND;
 use const PHP_EOL;
 
 /**
  * Tracy's file logger (error.log, warning.log, info.log, exception-*.html in the log folder) that also writes
- * every record as one line to stderr, which Apache forwards to its error log – the container log in Docker.
+ * every record as one line to stderr: the container log in Docker, the site's error log under FastCGI (ErrorStream).
  * Debug records are written only with SITE_LOG_LEVEL=debug.
  *
  * The files do not grow forever: a *.log file larger than MaxLogSize is renamed to *.log.1 (older ones to .2, .3,
@@ -26,7 +25,11 @@ final class TracyLogger extends Logger
 
 	private const ReportDays = 30;
 
-	public function __construct(?string $directory, private readonly bool $debug = false, private readonly ?string $stderr = 'php://stderr')
+	public function __construct(
+		?string $directory,
+		private readonly bool $debug = false,
+		private readonly ?string $stderr = ErrorStream::Stderr,
+	)
 	{
 		parent::__construct($directory);
 	}
@@ -51,7 +54,7 @@ final class TracyLogger extends Logger
 			if ($message instanceof Throwable) {
 				$line .= PHP_EOL . strstr((string) $message, 'Stack trace:');
 			}
-			@file_put_contents($this->stderr, $line . PHP_EOL, FILE_APPEND);
+			ErrorStream::write($this->stderr, $line);
 		}
 
 		return $exceptionFile;

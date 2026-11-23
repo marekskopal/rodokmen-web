@@ -17,6 +17,13 @@ number changes only when old clients or servers could not read it – see *Bundl
   grandchild, … up to the default person – on smaller ribbons in the person's colour on the trunk below them.
   The trunk grows longer for them, the mound and the roots stay in view. Only the painted tree draws them; with
   the other layouts the select is hidden. The download keeps the choice.
+- **Sync API: a server fault says what is wrong.** An upload, a commit or a rollback that fails on the server
+  (e.g. a read-only or full disk) answers with JSON `{"error": "Server error: Cannot write …: Read-only file
+  system"}`, which `rodokmen-sync` prints, instead of the website's HTML error page; failed file operations name
+  the system's reason.
+- **Logs reach the site's error log under FastCGI.** With mod_fcgid or PHP-FPM, the log lines meant for stderr
+  (and the records the log folder could not take) go through PHP's SAPI logger to the site's Apache error log;
+  the process's own stderr ended in the main error log of Apache, or nowhere.
 
 ## [1.4.0] - 2026-11-22
 

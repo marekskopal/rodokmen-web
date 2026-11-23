@@ -6,7 +6,6 @@ namespace Rodokmen\Site\Sync;
 
 use Psr\Http\Message\StreamInterface;
 use Rodokmen\Site\Config;
-use RuntimeException;
 use Throwable;
 use const LOCK_EX;
 use const LOCK_UN;
@@ -67,8 +66,8 @@ final readonly class DataStore
 				throw new SyncException('Uploaded content does not match its hash', 422);
 			}
 
-			if (!rename($tmp, $dir . '/' . $sha256)) {
-				throw new RuntimeException('Cannot store the upload ' . $sha256);
+			if (!@rename($tmp, $dir . '/' . $sha256)) {
+				throw Filesystem::failure('Cannot store the upload ' . $sha256);
 			}
 		} catch (Throwable $e) {
 			// A failed upload must not leave a partial file behind (it is not used, only removed by a later commit).
@@ -204,7 +203,9 @@ final readonly class DataStore
 			}
 		}
 
-		file_put_contents($dir . '/' . Manifest::FileName, $manifest->toJson());
+		if (@file_put_contents($dir . '/' . Manifest::FileName, $manifest->toJson()) === false) {
+			throw Filesystem::failure('Cannot write ' . $dir . '/' . Manifest::FileName);
+		}
 	}
 
 	/**
@@ -215,9 +216,11 @@ final readonly class DataStore
 	private function locked(callable $action): mixed
 	{
 		$this->fs->ensureDir($this->root());
-		$lock = fopen($this->root() . '/sync.lock', 'c');
+		// flock() fails without a warning: an older one must not be given as its reason.
+		error_clear_last();
+		$lock = @fopen($this->root() . '/sync.lock', 'c');
 		if ($lock === false || !flock($lock, LOCK_EX)) {
-			throw new RuntimeException('Cannot lock ' . $this->root() . '/sync.lock');
+			throw Filesystem::failure('Cannot lock ' . $this->root() . '/sync.lock');
 		}
 
 		try {
